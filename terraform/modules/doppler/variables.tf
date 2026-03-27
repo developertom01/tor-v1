@@ -9,9 +9,3 @@ variable "secrets" {
   sensitive   = true
   default     = {}
 }
-
-variable "vercel_project_id" {
-  description = "Vercel project ID for integration sync"
-  type        = string
-  default     = ""
-}

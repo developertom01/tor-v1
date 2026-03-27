@@ -64,8 +64,7 @@ module "vercel" {
 module "doppler" {
   source = "../doppler"
 
-  name              = var.name
-  vercel_project_id = module.vercel.project_id
+  name = var.name
 
   secrets = merge(
     module.supabase.env_vars,
