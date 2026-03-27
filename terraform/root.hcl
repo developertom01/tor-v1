@@ -1,17 +1,18 @@
 # Root Terragrunt config — shared across all envs and stores
 
-remote_state {
-  backend = "remote"
-  generate = {
-    path      = "backend.tf"
-    if_exists = "overwrite_terragrunt"
-  }
-  config = {
-    organization = "project-tor"
-    workspaces = {
-      name = replace(path_relative_to_include(), "/", "-")
+generate "backend" {
+  path      = "backend.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = <<-EOF
+    terraform {
+      cloud {
+        organization = "project-tor"
+        workspaces {
+          name = "${replace(path_relative_to_include(), "/", "-")}"
+        }
+      }
     }
-  }
+  EOF
 }
 
 # Generate provider config once — all stores inherit it
