@@ -7,7 +7,7 @@ locals {
 
   name         = "hairlukgud"
   display_name = "Hair Luk Gud GH"
-  base_domain  = "hairlookgoodgh.com"
+  base_domain  = "hairluksgudgh.com"
   domain       = "${local.env.domain_prefix}${local.base_domain}"
   root_dir     = "apps/hairlukgud"
   from_email   = "Hair Luk Gud GH <orders@${local.base_domain}>"

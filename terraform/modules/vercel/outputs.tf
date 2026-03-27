@@ -8,6 +8,6 @@ output "domains" {
   value = {
     apex = vercel_project_domain.apex.domain
     www  = vercel_project_domain.www.domain
-    dev  = vercel_project_domain.dev.domain
+    dev  = length(vercel_project_domain.dev) > 0 ? vercel_project_domain.dev[0].domain : null
   }
 }

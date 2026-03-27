@@ -18,9 +18,6 @@ resource "supabase_settings" "auth" {
 
   auth = jsonencode({
     site_url       = "https://www.${var.name}.com"
-    uri_allow_list = [
-      "https://www.${var.name}.com/auth/callback",
-      "https://${var.name}.com/auth/callback"
-    ]
+    uri_allow_list = "https://www.${var.name}.com/auth/callback,https://${var.name}.com/auth/callback"
   })
 }

@@ -10,15 +10,9 @@ module "supabase" {
 }
 
 # --- Google OAuth ---
-
-module "google_oauth" {
-  source = "../google-oauth"
-
-  display_name  = var.display_name
-  project_id    = var.google_project_id
-  support_email = var.google_support_email
-  redirect_uri  = "https://${module.supabase.project_ref}.supabase.co/auth/v1/callback"
-}
+# NOTE: OAuth clients must be created manually in GCP console
+# (IAP Brand requires a GCP organization, not available on personal accounts)
+# Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to each store's Doppler project
 
 # --- Resend (only for prd — dev shares prd's domain) ---
 
@@ -42,6 +36,7 @@ module "vercel" {
   git_repo   = var.git_repo
   git_branch = var.git_branch
   team_id    = var.vercel_team_id
+  env        = var.env
 
   env_vars = merge(
     module.supabase.env_vars,
