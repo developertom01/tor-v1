@@ -60,6 +60,12 @@ jobs:
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
+      - name: Configure Terraform Cloud credentials
+        run: |
+          echo "TF_TOKEN_app_terraform_io=$TF_CLOUD_TOKEN" >> "$GITHUB_ENV"
+        env:
+          TF_CLOUD_TOKEN: ${{ secrets.TF_CLOUD_TOKEN }}
+
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "~> 1.5"

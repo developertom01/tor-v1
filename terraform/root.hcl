@@ -1,28 +1,16 @@
 # Root Terragrunt config — shared across all envs and stores
 
-# Backend: uncomment GCS and comment out local when ready for remote state
-# remote_state {
-#   backend = "gcs"
-#   generate = {
-#     path      = "backend.tf"
-#     if_exists = "overwrite_terragrunt"
-#   }
-#   config = {
-#     bucket   = "tor-terraform-state"
-#     prefix   = "${path_relative_to_include()}/terraform.tfstate"
-#     project  = get_env("TF_VAR_google_project_id", "")
-#     location = "EU"
-#   }
-# }
-
 remote_state {
-  backend = "local"
+  backend = "remote"
   generate = {
     path      = "backend.tf"
     if_exists = "overwrite_terragrunt"
   }
   config = {
-    path = "${get_terragrunt_dir()}/terraform.tfstate"
+    organization = "project-tor"
+    workspaces = {
+      name = replace(path_relative_to_include(), "/", "-")
+    }
   }
 }
 
