@@ -76,7 +76,7 @@ jobs:
           sudo mv terragrunt /usr/local/bin/
 
       - name: Terragrunt Init
-        run: terragrunt init
+        run: terragrunt init -upgrade
 
       - name: Terragrunt ${{ inputs.action }}
         run: |
