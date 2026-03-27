@@ -14,7 +14,7 @@ locals {
 }
 
 terraform {
-  source = "${get_repo_root()}/terraform/modules//store"
+  source = "${get_repo_root()}/terraform//modules/store"
 }
 
 inputs = {
