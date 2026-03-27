@@ -101,5 +101,5 @@ inputs = {
   doppler_token         = get_env("TF_VAR_doppler_token", "")
   paystack_public_key   = get_env("TF_VAR_paystack_public_key", "")
   paystack_secret_key   = get_env("TF_VAR_paystack_secret_key", "")
-  git_repo              = get_env("TF_VAR_git_repo", "developertom01/tor")
+  git_repo              = get_env("TF_VAR_git_repo", "developertom01/tor-v1")
 }

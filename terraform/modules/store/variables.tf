@@ -97,7 +97,7 @@ variable "paystack_secret_key" {
 
 variable "git_repo" {
   type    = string
-  default = "developertom01/tor"
+  default = "developertom01/tor-v1"
 }
 
 variable "git_branch" {
