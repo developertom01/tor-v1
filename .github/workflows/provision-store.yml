@@ -37,19 +37,6 @@ jobs:
       run:
         working-directory: terraform/envs/${{ inputs.env }}/${{ inputs.store }}
 
-    env:
-      TF_VAR_supabase_access_token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      TF_VAR_supabase_org_id: ${{ secrets.SUPABASE_ORG_ID }}
-      TF_VAR_supabase_db_password: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      TF_VAR_vercel_token: ${{ secrets.VERCEL_TOKEN }}
-      TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
-      TF_VAR_google_project_id: directed-relic-343301
-      TF_VAR_google_support_email: ${{ secrets.GOOGLE_SUPPORT_EMAIL }}
-      TF_VAR_resend_api_key: ${{ secrets.RESEND_API_KEY }}
-      TF_VAR_doppler_token: ${{ secrets.DOPPLER_TOKEN }}
-      TF_VAR_paystack_public_key: ${{ secrets.PAYSTACK_PUBLIC_KEY }}
-      TF_VAR_paystack_secret_key: ${{ secrets.PAYSTACK_SECRET_KEY }}
-
     steps:
       - uses: actions/checkout@v4
 
@@ -57,6 +44,14 @@ jobs:
         with:
           workload_identity_provider: projects/326684407897/locations/global/workloadIdentityPools/github-auth/providers/github
           service_account: terraform@directed-relic-343301.iam.gserviceaccount.com
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Fetch secrets from Doppler
+        run: doppler secrets download --project provisioner --config ${{ inputs.env }} --no-file --format env >> "$GITHUB_ENV"
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
       - uses: hashicorp/setup-terraform@v3
         with:

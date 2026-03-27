@@ -90,7 +90,7 @@ tasks:
       - sh: '[ -n "{{.ENV}}" ] && [ -n "{{.APP}}" ]'
         msg: "ENV and APP required (e.g. task tg:init ENV=dev APP=hairlukgud)"
     cmds:
-      - terragrunt init
+      - doppler run --project provisioner --config local -- terragrunt init
 
   tg:plan:
     desc: "Terragrunt plan (ENV=dev|prod, APP=store)"
@@ -99,7 +99,7 @@ tasks:
       - sh: '[ -n "{{.ENV}}" ] && [ -n "{{.APP}}" ]'
         msg: "ENV and APP required"
     cmds:
-      - terragrunt plan
+      - doppler run --project provisioner --config local -- terragrunt plan
 
   tg:apply:
     desc: "Terragrunt apply (ENV=dev|prod, APP=store)"
@@ -108,7 +108,7 @@ tasks:
       - sh: '[ -n "{{.ENV}}" ] && [ -n "{{.APP}}" ]'
         msg: "ENV and APP required"
     cmds:
-      - terragrunt apply
+      - doppler run --project provisioner --config local -- terragrunt apply
 
   tg:destroy:
     desc: "Terragrunt destroy (ENV=dev|prod, APP=store)"
@@ -117,7 +117,7 @@ tasks:
       - sh: '[ -n "{{.ENV}}" ] && [ -n "{{.APP}}" ]'
         msg: "ENV and APP required"
     cmds:
-      - terragrunt destroy
+      - doppler run --project provisioner --config local -- terragrunt destroy
 
   tg:all:
     desc: "Terragrunt run-all (ENV=dev|prod) — apply all stores in an env"
@@ -126,4 +126,4 @@ tasks:
       - sh: '[ -n "{{.ENV}}" ]'
         msg: "ENV required (e.g. task tg:all ENV=dev)"
     cmds:
-      - terragrunt run-all apply
+      - doppler run --project provisioner --config local -- terragrunt run-all apply
