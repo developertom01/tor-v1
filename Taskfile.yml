@@ -1,0 +1,129 @@
+version: "3"
+
+vars:
+  APP: '{{default "" .APP}}'
+  ENV: '{{default "" .ENV}}'
+
+tasks:
+  # Install
+  install:
+    desc: Install all dependencies
+    cmds:
+      - npm install
+
+  # Dev
+  dev:
+    desc: "Start dev (all apps, or APP=name for one)"
+    cmds:
+      - npx turbo dev {{if .APP}}--filter={{.APP}}{{end}}
+
+  # Build
+  build:
+    desc: "Build (all apps, or APP=name for one)"
+    cmds:
+      - npx turbo build {{if .APP}}--filter={{.APP}}{{end}}
+
+  # Lint
+  lint:
+    desc: "Lint (all apps, or APP=name for one)"
+    cmds:
+      - npx turbo lint {{if .APP}}--filter={{.APP}}{{end}}
+
+  # Test
+  test:
+    desc: "Run tests (all apps, or APP=name for one)"
+    cmds:
+      - npx turbo test {{if .APP}}--filter={{.APP}}{{end}}
+
+  # Inject shared pages
+  inject:
+    desc: Inject shared pages into all apps
+    cmds:
+      - cd apps/hairlukgud && node ../../scripts/inject-pages.mjs
+      - cd apps/hairfordays && node ../../scripts/inject-pages.mjs
+
+  # Clean injected pages
+  clean:pages:
+    desc: Remove injected pages from all apps
+    cmds:
+      - npx turbo clean:pages
+
+  # Database
+  db:start:
+    desc: "Start Supabase (all apps, or APP=name for one)"
+    cmds:
+      - |
+        {{if .APP}}
+          cd apps/{{.APP}} && npx supabase start
+        {{else}}
+          cd apps/hairlukgud && npx supabase start
+          cd apps/hairfordays && npx supabase start
+        {{end}}
+
+  db:stop:
+    desc: "Stop Supabase (all apps, or APP=name for one)"
+    cmds:
+      - |
+        {{if .APP}}
+          cd apps/{{.APP}} && npx supabase stop
+        {{else}}
+          cd apps/hairlukgud && npx supabase stop
+          cd apps/hairfordays && npx supabase stop
+        {{end}}
+
+  db:reset:
+    desc: "Reset Supabase DB (all apps, or APP=name for one)"
+    cmds:
+      - |
+        {{if .APP}}
+          cd apps/{{.APP}} && npx supabase db reset
+        {{else}}
+          cd apps/hairlukgud && npx supabase db reset
+          cd apps/hairfordays && npx supabase db reset
+        {{end}}
+
+  # Terragrunt (ENV=dev|prod, APP=hairlukgud|hairfordays)
+  tg:init:
+    desc: "Terragrunt init (ENV=dev|prod, APP=store)"
+    dir: terraform/envs/{{.ENV}}/{{.APP}}
+    preconditions:
+      - sh: '[ -n "{{.ENV}}" ] && [ -n "{{.APP}}" ]'
+        msg: "ENV and APP required (e.g. task tg:init ENV=dev APP=hairlukgud)"
+    cmds:
+      - terragrunt init
+
+  tg:plan:
+    desc: "Terragrunt plan (ENV=dev|prod, APP=store)"
+    dir: terraform/envs/{{.ENV}}/{{.APP}}
+    preconditions:
+      - sh: '[ -n "{{.ENV}}" ] && [ -n "{{.APP}}" ]'
+        msg: "ENV and APP required"
+    cmds:
+      - terragrunt plan
+
+  tg:apply:
+    desc: "Terragrunt apply (ENV=dev|prod, APP=store)"
+    dir: terraform/envs/{{.ENV}}/{{.APP}}
+    preconditions:
+      - sh: '[ -n "{{.ENV}}" ] && [ -n "{{.APP}}" ]'
+        msg: "ENV and APP required"
+    cmds:
+      - terragrunt apply
+
+  tg:destroy:
+    desc: "Terragrunt destroy (ENV=dev|prod, APP=store)"
+    dir: terraform/envs/{{.ENV}}/{{.APP}}
+    preconditions:
+      - sh: '[ -n "{{.ENV}}" ] && [ -n "{{.APP}}" ]'
+        msg: "ENV and APP required"
+    cmds:
+      - terragrunt destroy
+
+  tg:all:
+    desc: "Terragrunt run-all (ENV=dev|prod) — apply all stores in an env"
+    dir: terraform/envs/{{.ENV}}
+    preconditions:
+      - sh: '[ -n "{{.ENV}}" ]'
+        msg: "ENV required (e.g. task tg:all ENV=dev)"
+    cmds:
+      - terragrunt run-all apply

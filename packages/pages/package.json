@@ -1,0 +1,21 @@
+{
+  "name": "@tor/pages",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*.tsx": "./*.tsx",
+    "./*.ts": "./*.ts",
+    "./*": "./*.tsx"
+  },
+  "dependencies": {
+    "@tor/lib": "*",
+    "@tor/ui": "*",
+    "lucide-react": "^0.577.0",
+    "next": "16.2.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-hook-form": "^7.71.2",
+    "recharts": "^3.8.0"
+  }
+}

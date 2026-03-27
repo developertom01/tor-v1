@@ -1,0 +1,82 @@
+name: Provision Store
+
+on:
+  workflow_dispatch:
+    inputs:
+      store:
+        description: "Store name"
+        required: true
+        type: choice
+        options:
+          - hairlukgud
+          - hairfordays
+      env:
+        description: "Environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      action:
+        description: "Terragrunt action"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terragrunt:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/envs/${{ inputs.env }}/${{ inputs.store }}
+
+    env:
+      TF_VAR_supabase_access_token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      TF_VAR_supabase_org_id: ${{ secrets.SUPABASE_ORG_ID }}
+      TF_VAR_supabase_db_password: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      TF_VAR_vercel_token: ${{ secrets.VERCEL_TOKEN }}
+      TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
+      TF_VAR_google_project_id: directed-relic-343301
+      TF_VAR_google_support_email: ${{ secrets.GOOGLE_SUPPORT_EMAIL }}
+      TF_VAR_resend_api_key: ${{ secrets.RESEND_API_KEY }}
+      TF_VAR_doppler_token: ${{ secrets.DOPPLER_TOKEN }}
+      TF_VAR_paystack_public_key: ${{ secrets.PAYSTACK_PUBLIC_KEY }}
+      TF_VAR_paystack_secret_key: ${{ secrets.PAYSTACK_SECRET_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/326684407897/locations/global/workloadIdentityPools/github-auth/providers/github
+          service_account: terraform@directed-relic-343301.iam.gserviceaccount.com
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.5"
+
+      - name: Setup Terragrunt
+        run: |
+          curl -sL https://github.com/gruntwork-io/terragrunt/releases/latest/download/terragrunt_linux_amd64 -o terragrunt
+          chmod +x terragrunt
+          sudo mv terragrunt /usr/local/bin/
+
+      - name: Terragrunt Init
+        run: terragrunt init
+
+      - name: Terragrunt ${{ inputs.action }}
+        run: |
+          if [ "${{ inputs.action }}" = "apply" ]; then
+            terragrunt apply -auto-approve
+          elif [ "${{ inputs.action }}" = "destroy" ]; then
+            terragrunt destroy -auto-approve
+          else
+            terragrunt plan
+          fi
