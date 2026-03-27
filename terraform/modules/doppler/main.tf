@@ -1,6 +1,6 @@
 resource "doppler_project" "this" {
-  name        = var.name
-  description = "Secrets for ${var.name} store"
+  name        = var.project_name
+  description = "Secrets for ${var.project_name} store"
 }
 
 resource "doppler_environment" "dev" {
@@ -21,12 +21,18 @@ resource "doppler_environment" "prod" {
   name    = "Production"
 }
 
-# Sync secrets to production config
+# Write secrets to the appropriate environment config
 resource "doppler_secret" "all" {
   for_each = nonsensitive(var.secrets)
 
   project = doppler_project.this.name
-  config  = "prod"
+  config  = var.env
   name    = each.key
   value   = each.value
+
+  depends_on = [
+    doppler_environment.dev,
+    doppler_environment.staging,
+    doppler_environment.prod,
+  ]
 }

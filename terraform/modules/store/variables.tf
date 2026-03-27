@@ -64,6 +64,19 @@ variable "google_support_email" {
   type = string
 }
 
+variable "google_client_id" {
+  description = "Google OAuth client ID (created manually in GCP console)"
+  type        = string
+  default     = ""
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth client secret (created manually in GCP console)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "resend_api_key" {
   type      = string
   sensitive = true

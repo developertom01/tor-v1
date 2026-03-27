@@ -16,8 +16,15 @@ data "supabase_apikeys" "this" {
 resource "supabase_settings" "auth" {
   project_ref = supabase_project.this.id
 
-  auth = jsonencode({
-    site_url       = "https://www.${var.name}.com"
-    uri_allow_list = "https://www.${var.name}.com/auth/callback,https://${var.name}.com/auth/callback"
-  })
+  auth = jsonencode(merge(
+    {
+      site_url       = "https://www.${var.name}.com"
+      uri_allow_list = "https://www.${var.name}.com/auth/callback,https://${var.name}.com/auth/callback"
+    },
+    var.google_client_id != "" ? {
+      external_google_enabled   = true
+      external_google_client_id = var.google_client_id
+      external_google_secret    = var.google_client_secret
+    } : {}
+  ))
 }

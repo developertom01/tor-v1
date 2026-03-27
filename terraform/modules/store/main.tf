@@ -3,16 +3,18 @@
 module "supabase" {
   source = "../supabase"
 
-  name        = var.name
-  org_id      = var.supabase_org_id
-  region      = var.supabase_region
-  db_password = var.supabase_db_password
+  name                 = var.name
+  org_id               = var.supabase_org_id
+  region               = var.supabase_region
+  db_password          = var.supabase_db_password
+  google_client_id     = var.google_client_id
+  google_client_secret = var.google_client_secret
 }
 
 # --- Google OAuth ---
 # NOTE: OAuth clients must be created manually in GCP console
 # (IAP Brand requires a GCP organization, not available on personal accounts)
-# Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to each store's Doppler project
+# Set TF_VAR_GOOGLE_CLIENT_ID and TF_VAR_GOOGLE_CLIENT_SECRET env vars to enable Google Auth
 
 # --- Resend (only for prd — dev shares prd's domain) ---
 
@@ -60,7 +62,8 @@ module "vercel" {
 module "doppler" {
   source = "../doppler"
 
-  name = var.name
+  project_name = replace(var.name, "-${var.env}", "")
+  env          = var.env
 
   secrets = merge(
     module.supabase.env_vars,

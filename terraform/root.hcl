@@ -91,4 +91,6 @@ inputs = {
   paystack_public_key   = get_env("TF_VAR_PAYSTACK_PUBLIC_KEY", get_env("TF_VAR_paystack_public_key", "placeholder"))
   paystack_secret_key   = get_env("TF_VAR_PAYSTACK_SECRET_KEY", get_env("TF_VAR_paystack_secret_key", "placeholder"))
   git_repo              = get_env("TF_VAR_GIT_REPO", get_env("TF_VAR_git_repo", "developertom01/tor-v1"))
+  google_client_id      = get_env("TF_VAR_GOOGLE_CLIENT_ID", get_env("TF_VAR_google_client_id", ""))
+  google_client_secret  = get_env("TF_VAR_GOOGLE_CLIENT_SECRET", get_env("TF_VAR_google_client_secret", ""))
 }

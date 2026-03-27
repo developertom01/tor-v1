@@ -1,5 +1,10 @@
-variable "name" {
-  description = "Doppler project name"
+variable "project_name" {
+  description = "Doppler project name (store name, e.g. hairlukgud)"
+  type        = string
+}
+
+variable "env" {
+  description = "Environment to write secrets to (dev, staging, prod)"
   type        = string
 }
 

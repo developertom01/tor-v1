@@ -20,6 +20,19 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "google_client_id" {
+  description = "Google OAuth client ID for Supabase Auth"
+  type        = string
+  default     = ""
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth client secret for Supabase Auth"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "storage_buckets" {
   description = "List of storage buckets to create"
   type = list(object({
