@@ -9,6 +9,10 @@ resource "supabase_project" "this" {
   }
 }
 
+data "supabase_apikeys" "this" {
+  project_ref = supabase_project.this.id
+}
+
 resource "supabase_settings" "auth" {
   project_ref = supabase_project.this.id
 
