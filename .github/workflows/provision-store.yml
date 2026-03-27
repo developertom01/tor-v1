@@ -49,7 +49,9 @@ jobs:
         uses: dopplerhq/cli-action@v3
 
       - name: Fetch secrets from Doppler
-        run: doppler secrets download --project provisioner --config ${{ inputs.env }} --no-file --format env >> "$GITHUB_ENV"
+        run: |
+          doppler secrets download --project provisioner --config ${{ inputs.env }} --no-file --format env | \
+            sed 's/^TF_VAR_[A-Z_]*=/\L&/' >> "$GITHUB_ENV"
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
