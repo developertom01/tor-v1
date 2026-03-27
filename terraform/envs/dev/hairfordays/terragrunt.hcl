@@ -10,7 +10,7 @@ locals {
   base_domain  = "hairfordays.com"
   domain       = "${local.env.domain_prefix}${local.base_domain}"
   root_dir     = "apps/hairfordays"
-  from_email   = "Hair For Days <orders@${local.base_domain}>"
+  from_email   = "Hair For Days <no-reply@${local.base_domain}>"
 }
 
 terraform {

@@ -40,6 +40,10 @@ generate "providers" {
           source  = "DopplerHQ/doppler"
           version = "~> 1.0"
         }
+        random = {
+          source  = "hashicorp/random"
+          version = "~> 3.0"
+        }
         restapi = {
           source  = "Mastercard/restapi"
           version = "~> 1.0"
@@ -81,7 +85,7 @@ inputs = {
   supabase_access_token = get_env("TF_VAR_SUPABASE_ACCESS_TOKEN", get_env("TF_VAR_supabase_access_token", ""))
   supabase_org_id       = get_env("TF_VAR_SUPABASE_ORG_ID", get_env("TF_VAR_supabase_org_id", ""))
   supabase_region       = get_env("TF_VAR_SUPABASE_REGION", get_env("TF_VAR_supabase_region", "eu-west-2"))
-  supabase_db_password  = get_env("TF_VAR_SUPABASE_DB_PASSWORD", get_env("TF_VAR_supabase_db_password", "placeholder"))
+  # supabase_db_password is now generated per-project via random_password in store module
   google_project_id     = get_env("TF_VAR_GOOGLE_PROJECT_ID", get_env("TF_VAR_google_project_id", ""))
   google_support_email  = get_env("TF_VAR_GOOGLE_SUPPORT_EMAIL", get_env("TF_VAR_google_support_email", ""))
   resend_api_key        = get_env("TF_VAR_RESEND_API_KEY", get_env("TF_VAR_resend_api_key", ""))

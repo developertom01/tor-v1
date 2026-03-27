@@ -51,11 +51,6 @@ variable "supabase_region" {
   default = "eu-west-2"
 }
 
-variable "supabase_db_password" {
-  type      = string
-  sensitive = true
-}
-
 variable "google_project_id" {
   type = string
 }

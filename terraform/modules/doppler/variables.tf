@@ -8,6 +8,12 @@ variable "env" {
   type        = string
 }
 
+variable "doppler_token" {
+  description = "Doppler API token for project existence check"
+  type        = string
+  sensitive   = true
+}
+
 variable "secrets" {
   description = "Map of secrets to store in Doppler"
   type        = map(string)

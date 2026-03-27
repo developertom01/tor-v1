@@ -1,7 +1,10 @@
-# Check if project already exists via Doppler API
+# Check if project already exists via Doppler REST API
 data "external" "project_check" {
   program = ["sh", "-c", <<-EOF
-    if doppler projects get ${var.project_name} --json 2>/dev/null | grep -q '"name"'; then
+    HTTP_CODE=$(curl -s -o /dev/null -w "%%{http_code}" \
+      "https://api.doppler.com/v3/projects/project?project=${var.project_name}" \
+      -H "Authorization: Bearer ${var.doppler_token}")
+    if [ "$HTTP_CODE" = "200" ]; then
       echo '{"exists":"true"}'
     else
       echo '{"exists":"false"}'
@@ -14,6 +17,7 @@ locals {
   project_exists = data.external.project_check.result.exists == "true"
 }
 
+# Create project + all environments only if it doesn't exist yet
 resource "doppler_project" "this" {
   count       = local.project_exists ? 0 : 1
   name        = var.project_name
@@ -22,29 +26,23 @@ resource "doppler_project" "this" {
 
 resource "doppler_environment" "dev" {
   count   = local.project_exists ? 0 : 1
-  project = var.project_name
+  project = doppler_project.this[0].name
   slug    = "dev"
   name    = "Development"
-
-  depends_on = [doppler_project.this]
 }
 
 resource "doppler_environment" "staging" {
   count   = local.project_exists ? 0 : 1
-  project = var.project_name
+  project = doppler_project.this[0].name
   slug    = "staging"
   name    = "Staging"
-
-  depends_on = [doppler_project.this]
 }
 
 resource "doppler_environment" "prod" {
   count   = local.project_exists ? 0 : 1
-  project = var.project_name
+  project = doppler_project.this[0].name
   slug    = "prod"
   name    = "Production"
-
-  depends_on = [doppler_project.this]
 }
 
 # Write secrets to the appropriate environment config

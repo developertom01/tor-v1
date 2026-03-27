@@ -1,3 +1,20 @@
+# --- Generated secrets ---
+
+resource "random_password" "db_password" {
+  length  = 32
+  special = true
+}
+
+resource "random_password" "admin_password" {
+  length           = 16
+  special          = true
+  override_special = "!@#$%&*"
+}
+
+locals {
+  admin_email = var.env == "prod" ? "admin@${var.base_domain}" : "${var.env}.admin@${var.base_domain}"
+}
+
 # --- Supabase ---
 
 module "supabase" {
@@ -6,7 +23,8 @@ module "supabase" {
   name                 = var.name
   org_id               = var.supabase_org_id
   region               = var.supabase_region
-  db_password          = var.supabase_db_password
+  domain               = var.domain
+  db_password          = random_password.db_password.result
   google_client_id     = var.google_client_id
   google_client_secret = var.google_client_secret
 }
@@ -62,8 +80,9 @@ module "vercel" {
 module "doppler" {
   source = "../doppler"
 
-  project_name = replace(var.name, "-${var.env}", "")
-  env          = var.env
+  project_name  = replace(var.name, "-${var.env}", "")
+  env           = var.env
+  doppler_token = var.doppler_token
 
   secrets = merge(
     module.supabase.env_vars,
@@ -74,6 +93,9 @@ module "doppler" {
       NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY = var.paystack_public_key
       PAYSTACK_SECRET_KEY            = var.paystack_secret_key
       LOG_LEVEL                      = var.env == "dev" ? "debug" : "info"
+      SUPABASE_DB_PASSWORD           = random_password.db_password.result
+      ADMIN_EMAIL                    = local.admin_email
+      ADMIN_PASSWORD                 = random_password.admin_password.result
     }
   )
 }

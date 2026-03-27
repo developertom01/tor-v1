@@ -96,3 +96,108 @@ EOF
           else
             terragrunt plan
           fi
+
+      - name: Export outputs
+        if: inputs.action == 'apply'
+        id: outputs
+        run: |
+          echo "supabase_project_ref=$(terragrunt output -raw supabase_project_ref)" >> "$GITHUB_OUTPUT"
+          echo "supabase_url=$(terragrunt output -raw supabase_url)" >> "$GITHUB_OUTPUT"
+          echo "admin_email=$(terragrunt output -raw admin_email)" >> "$GITHUB_OUTPUT"
+
+          # Mask sensitive values
+          ADMIN_PW=$(terragrunt output -raw admin_password)
+          echo "::add-mask::$ADMIN_PW"
+          echo "admin_password=$ADMIN_PW" >> "$GITHUB_OUTPUT"
+
+          SRK=$(terragrunt output -raw supabase_service_role_key)
+          echo "::add-mask::$SRK"
+          echo "service_role_key=$SRK" >> "$GITHUB_OUTPUT"
+
+    outputs:
+      supabase_project_ref: ${{ steps.outputs.outputs.supabase_project_ref }}
+      supabase_url: ${{ steps.outputs.outputs.supabase_url }}
+      service_role_key: ${{ steps.outputs.outputs.service_role_key }}
+      admin_email: ${{ steps.outputs.outputs.admin_email }}
+      admin_password: ${{ steps.outputs.outputs.admin_password }}
+
+  # --- Post-provisioning: run migrations + seed admin ---
+  post-provision:
+    needs: terragrunt
+    if: inputs.action == 'apply'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        run: |
+          curl -sL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar xz
+          sudo mv supabase /usr/local/bin/
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Get Supabase access token from Doppler
+        run: |
+          TOKEN=$(doppler secrets get TF_VAR_SUPABASE_ACCESS_TOKEN --plain --project provisioner --config ${{ inputs.env }})
+          echo "::add-mask::$TOKEN"
+          echo "SUPABASE_ACCESS_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Run database migrations
+        working-directory: apps/${{ inputs.store }}
+        run: |
+          supabase link --project-ref "$PROJECT_REF"
+          supabase db push
+        env:
+          PROJECT_REF: ${{ needs.terragrunt.outputs.supabase_project_ref }}
+
+      - name: Seed admin user
+        run: |
+          # Create admin user via Supabase Auth Admin API
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "$SUPABASE_URL/auth/v1/admin/users" \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+            -H "apikey: $SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"email\": \"$ADMIN_EMAIL\",
+              \"password\": \"$ADMIN_PASSWORD\",
+              \"email_confirm\": true,
+              \"user_metadata\": {\"full_name\": \"Store Admin\"}
+            }")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+            USER_ID=$(echo "$BODY" | jq -r '.id')
+            echo "Admin user created: $ADMIN_EMAIL (id: $USER_ID)"
+          elif echo "$BODY" | grep -q "already been registered"; then
+            echo "Admin user already exists: $ADMIN_EMAIL — skipping"
+            exit 0
+          else
+            echo "::error::Failed to create admin user: $BODY"
+            exit 1
+          fi
+
+          # The handle_new_user trigger auto-creates the profile row.
+          # Wait a moment for the trigger to fire, then set role to admin.
+          sleep 2
+
+          curl -sf -X PATCH \
+            "$SUPABASE_URL/rest/v1/profiles?id=eq.$USER_ID" \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+            -H "apikey: $SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d '{"role": "admin"}'
+
+          echo "Admin role set for $ADMIN_EMAIL"
+        env:
+          SUPABASE_URL: ${{ needs.terragrunt.outputs.supabase_url }}
+          SERVICE_ROLE_KEY: ${{ needs.terragrunt.outputs.service_role_key }}
+          ADMIN_EMAIL: ${{ needs.terragrunt.outputs.admin_email }}
+          ADMIN_PASSWORD: ${{ needs.terragrunt.outputs.admin_password }}

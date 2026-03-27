@@ -33,6 +33,11 @@ variable "google_client_secret" {
   default     = ""
 }
 
+variable "domain" {
+  description = "Domain for auth redirect URLs (e.g. hairluksgudgh.com)"
+  type        = string
+}
+
 variable "storage_buckets" {
   description = "List of storage buckets to create"
   type = list(object({

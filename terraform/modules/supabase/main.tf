@@ -18,8 +18,8 @@ resource "supabase_settings" "auth" {
 
   auth = jsonencode(merge(
     {
-      site_url       = "https://www.${var.name}.com"
-      uri_allow_list = "https://www.${var.name}.com/auth/callback,https://${var.name}.com/auth/callback"
+      site_url       = "https://${var.domain}"
+      uri_allow_list = "https://${var.domain}/auth/callback,https://www.${var.domain}/auth/callback"
     },
     var.google_client_id != "" ? {
       external_google_enabled   = true

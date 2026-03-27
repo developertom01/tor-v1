@@ -2,6 +2,28 @@ output "supabase_url" {
   value = module.supabase.url
 }
 
+output "supabase_project_ref" {
+  description = "Supabase project reference for CLI and API access"
+  value       = module.supabase.project_ref
+}
+
+output "supabase_service_role_key" {
+  description = "Supabase service role key for admin operations"
+  value       = module.supabase.service_role_key
+  sensitive   = true
+}
+
+output "admin_email" {
+  description = "Admin email for this store"
+  value       = local.admin_email
+}
+
+output "admin_password" {
+  description = "Generated admin password"
+  value       = random_password.admin_password.result
+  sensitive   = true
+}
+
 output "vercel_domains" {
   value = module.vercel.domains
 }
