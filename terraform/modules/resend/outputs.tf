@@ -1,9 +1,3 @@
-output "api_key" {
-  description = "Resend API key for this store"
-  value       = jsondecode(restapi_object.api_key.api_response).token
-  sensitive   = true
-}
-
 output "domain_id" {
   description = "Resend domain ID"
   value       = restapi_object.domain.id
@@ -17,7 +11,7 @@ output "dns_records" {
 output "env_vars" {
   description = "Env vars for downstream modules"
   value = {
-    RESEND_API_KEY = jsondecode(restapi_object.api_key.api_response).token
+    RESEND_API_KEY = var.resend_api_key
     FROM_EMAIL     = var.from_email
   }
   sensitive = true

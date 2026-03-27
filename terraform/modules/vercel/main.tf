@@ -34,10 +34,3 @@ resource "vercel_project_domain" "www" {
   domain     = "www.${var.domain}"
 }
 
-resource "vercel_project_domain" "dev" {
-  count       = var.env == "prod" ? 1 : 0
-  project_id  = vercel_project.this.id
-  team_id     = var.team_id != "" ? var.team_id : null
-  domain      = "${var.dev_subdomain}.${var.domain}"
-  git_branch  = "dev"
-}

@@ -20,9 +20,10 @@ module "resend" {
   source = "../resend"
   count  = var.env == "prod" ? 1 : 0
 
-  name       = var.name
-  domain     = var.base_domain
-  from_email = var.from_email
+  name           = var.name
+  domain         = var.base_domain
+  from_email     = var.from_email
+  resend_api_key = var.resend_api_key
 }
 
 # --- Vercel ---
