@@ -63,16 +63,7 @@ jobs:
       - name: Configure Terraform Cloud credentials
         run: |
           mkdir -p ~/.terraform.d
-          cat > ~/.terraform.d/credentials.tfrc.json <<'EOF'
-{
-  "credentials": {
-    "app.terraform.io": {
-      "token": "PLACEHOLDER"
-    }
-  }
-}
-EOF
-          sed -i "s/PLACEHOLDER/$TF_CLOUD_TOKEN/" ~/.terraform.d/credentials.tfrc.json
+          echo "{\"credentials\":{\"app.terraform.io\":{\"token\":\"$TF_CLOUD_TOKEN\"}}}" > ~/.terraform.d/credentials.tfrc.json
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -120,6 +111,7 @@ EOF
       service_role_key: ${{ steps.outputs.outputs.service_role_key }}
       admin_email: ${{ steps.outputs.outputs.admin_email }}
       admin_password: ${{ steps.outputs.outputs.admin_password }}
+
 
   # --- Post-provisioning: run migrations + seed admin ---
   post-provision:
