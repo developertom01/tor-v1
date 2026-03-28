@@ -340,7 +340,9 @@ jobs:
           # 3. Seed products (dev only — prod starts empty for real data)
           if [ "${{ inputs.env }}" = "dev" ]; then
             echo "Seeding dev products..."
-            psql "$SUPABASE_DATABASE_URL" -f supabase/seed.sql
+            PROJECT_REF=$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co||')
+            DB_PASS=$(doppler secrets get SUPABASE_DB_PASSWORD --plain --project ${{ inputs.store }} --config ${{ inputs.env }})
+            psql "postgresql://postgres:${DB_PASS}@db.${PROJECT_REF}.supabase.co:5432/postgres" -f supabase/seed.sql
             echo "Dev seed data applied"
           fi
 
