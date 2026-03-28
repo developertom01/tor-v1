@@ -102,13 +102,25 @@ This is where you shine. Based on the store's name, categories, and description,
 
 Think like a creative director. The landing page is the store's first impression. It should make visitors want to buy.
 
+**Every store's landing page must feel different.** Do NOT copy the layout or structure from existing stores. Each store has its own personality, and the page should reflect that. Vary:
+
+- **Hero layout**: Full-height editorial with stacked typography, split hero with imagery placeholder, centered minimal hero, asymmetric layout with floating elements — pick something that matches the store's vibe.
+- **Section order and composition**: Not every page needs the same sections in the same order. A luxury store might lead with a "Why Us" story section right after the hero. A playful store might put categories first. Mix it up.
+- **Visual rhythm**: Alternate between dark (`bg-brand-900`) and light (`bg-white`, `bg-brand-50`) sections. Use different patterns — horizontal strips with dividers, stat grids, split layouts, card grids, editorial text blocks.
+- **Typography and spacing**: A luxury brand wants large type, generous whitespace, and restraint. A fun brand can be tighter and more energetic.
+- **CTA style**: Gold gradient buttons, outlined buttons, underlined text links, icon-led CTAs — vary them per store.
+- **Section headers**: Gold line + uppercase tracking labels (`— COLLECTIONS`), centered with subtitles, left-aligned with large type — don't repeat the same pattern.
+- **Icons**: Use different `lucide-react` icons per store. Don't default to Truck/Shield/Star for every store. `Crown`, `Gem`, `Heart`, `Zap`, `Sparkles`, `Flame`, `Award`, `Feather` etc. are all available.
+
+For inspiration on how different two pages can be, read `apps/hairlukgud/src/app/page.tsx` (bright, playful, split hero with floating cards) and `apps/hairfordays/src/app/page.tsx` (dark, editorial, full-height hero with stacked type and gold accents). Your new store should be equally distinct from both.
+
 **Design constraints:**
 - All colors must use theme tokens: `brand-50` through `brand-900`, `gold-400/500/600`. NEVER use literal color names like `text-pink-600` or `text-teal-500` or hardcoded hex values in JSX.
-- Use CSS classes `hero-gradient`, `gold-gradient`, `glass-card` for branded backgrounds.
+- Use CSS classes `hero-gradient`, `gold-gradient`, `glass-card` for branded backgrounds. You can also use `bg-clip-text text-transparent` with `gold-gradient` for gradient text effects.
 - Icons from `lucide-react` only.
 - Must be a server component (no `'use client'`). Featured products are fetched via `getProducts()` server action.
+- **Always include a Featured Products section** with the `ProductCard` grid — this is the one required section.
 - Include JSON-LD structured data at the bottom.
-- Use the existing landing page pattern from other stores as a structural reference, but make the copy and layout feel unique to this store.
 
 ### Layout metadata (`src/app/layout.tsx`)
 

@@ -43,6 +43,14 @@ html {
   background: linear-gradient(135deg, #d4a843 0%, #c4982f 50%, #a67c2e 100%);
 }
 
+/* Gold gradient text */
+.gold-text {
+  background: linear-gradient(135deg, #d4a843 0%, #c4982f 50%, #a67c2e 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 /* Glassmorphism card */
 .glass-card {
   background: rgba(255, 255, 255, 0.08);
