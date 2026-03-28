@@ -1,0 +1,69 @@
+name: Database Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+          - both
+
+permissions:
+  contents: read
+
+jobs:
+  push-dev:
+    if: inputs.env == 'dev' || inputs.env == 'both'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Push migrations to dev
+        working-directory: apps/hairlukgud
+        run: |
+          SUPABASE_URL=$(doppler secrets get NEXT_PUBLIC_SUPABASE_URL --plain --project hairlukgud --config dev)
+          PROJECT_REF=$(echo "$SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co||')
+          DB_PASS=$(doppler secrets get SUPABASE_DB_PASSWORD --plain --project hairlukgud --config dev)
+          supabase link --project-ref "$PROJECT_REF"
+          supabase db push --password "$DB_PASS"
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+  push-prod:
+    if: inputs.env == 'prod' || inputs.env == 'both'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Push migrations to prod
+        working-directory: apps/hairlukgud
+        run: |
+          SUPABASE_URL=$(doppler secrets get NEXT_PUBLIC_SUPABASE_URL --plain --project hairlukgud --config prod)
+          PROJECT_REF=$(echo "$SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co||')
+          DB_PASS=$(doppler secrets get SUPABASE_DB_PASSWORD --plain --project hairlukgud --config prod)
+          supabase link --project-ref "$PROJECT_REF"
+          supabase db push --password "$DB_PASS"
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
