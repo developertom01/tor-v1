@@ -3,7 +3,8 @@ include "root" {
 }
 
 dependency "doppler" {
-  config_path = "../doppler"
+  config_path  = "../doppler"
+  skip_outputs = true
 }
 
 dependency "supabase" {
@@ -15,7 +16,8 @@ dependency "supabase" {
     db_password      = "mock-db-password"
     database_url     = "postgresql://mock@localhost/postgres"
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "apply", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 locals {
