@@ -21,7 +21,7 @@ generate "providers" {
   if_exists = "overwrite_terragrunt"
   contents  = <<-EOF
     terraform {
-      required_version = ">= 1.14"
+      required_version = ">= 1.5"
 
       required_providers {
         vercel = {
