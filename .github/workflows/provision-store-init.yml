@@ -92,6 +92,25 @@ jobs:
             terragrunt plan -lock=false
           fi
 
+      - name: Write Supabase outputs to Doppler provisioner
+        if: inputs.action == 'apply'
+        run: |
+          URL=$(terragrunt output -raw url)
+          ANON_KEY=$(terragrunt output -raw anon_key)
+          SERVICE_ROLE_KEY=$(terragrunt output -raw service_role_key)
+          DB_PASSWORD=$(terragrunt output -raw db_password)
+          DATABASE_URL=$(terragrunt output -raw database_url)
+
+          doppler secrets set \
+            TF_VAR_SUPABASE_URL="$URL" \
+            TF_VAR_SUPABASE_ANON_KEY="$ANON_KEY" \
+            TF_VAR_SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+            TF_VAR_SUPABASE_DB_PASSWORD="$DB_PASSWORD" \
+            TF_VAR_SUPABASE_DATABASE_URL="$DATABASE_URL" \
+            --project provisioner --config ${{ inputs.env }}
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
   # --- Step 2: Create Doppler project + environments (per store) ---
   doppler-project:
     needs: shared-supabase

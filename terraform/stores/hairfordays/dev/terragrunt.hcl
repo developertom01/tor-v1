@@ -7,19 +7,6 @@ dependency "doppler" {
   skip_outputs = true
 }
 
-dependency "supabase" {
-  config_path = "${get_repo_root()}/terraform/shared/supabase/dev"
-  mock_outputs = {
-    url              = "https://mock.supabase.co"
-    anon_key         = "mock-anon-key"
-    service_role_key = "mock-service-role-key"
-    db_password      = "mock-db-password"
-    database_url     = "postgresql://mock@localhost/postgres"
-  }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "apply", "destroy"]
-  mock_outputs_merge_strategy_with_state  = "shallow"
-}
-
 locals {
   name         = "hairfordays"
   display_name = "Hair For Days"
@@ -44,10 +31,10 @@ inputs = {
   git_branch   = "dev"
   env          = "dev"
 
-  # Shared Supabase
-  supabase_url              = dependency.supabase.outputs.url
-  supabase_anon_key         = dependency.supabase.outputs.anon_key
-  supabase_service_role_key = dependency.supabase.outputs.service_role_key
-  supabase_db_password      = dependency.supabase.outputs.db_password
-  supabase_database_url     = dependency.supabase.outputs.database_url
+  # Shared Supabase — read from TF_VAR_* env vars (set by Doppler in CI)
+  supabase_url              = get_env("TF_VAR_SUPABASE_URL", get_env("TF_VAR_supabase_url", ""))
+  supabase_anon_key         = get_env("TF_VAR_SUPABASE_ANON_KEY", get_env("TF_VAR_supabase_anon_key", ""))
+  supabase_service_role_key = get_env("TF_VAR_SUPABASE_SERVICE_ROLE_KEY", get_env("TF_VAR_supabase_service_role_key", ""))
+  supabase_db_password      = get_env("TF_VAR_SUPABASE_DB_PASSWORD", get_env("TF_VAR_supabase_db_password", ""))
+  supabase_database_url     = get_env("TF_VAR_SUPABASE_DATABASE_URL", get_env("TF_VAR_supabase_database_url", ""))
 }
