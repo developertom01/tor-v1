@@ -188,7 +188,7 @@ jobs:
         run: |
           PROJECT_REF=$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co||')
           supabase link --project-ref "$PROJECT_REF"
-          supabase db push
+          supabase db push --password "$SUPABASE_DB_PASSWORD"
 
       - name: Seed admin user
         run: |
