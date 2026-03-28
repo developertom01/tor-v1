@@ -7,7 +7,7 @@
 project:
   name: hairfordays
   display_name: "Hair For Days"
-  domain: hairfordays.com
+  domain: hairfordays.store
   directory: ./hairfordays        # path to the Next.js project
 
 # -- Vercel ----------------------------------------------------------

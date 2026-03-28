@@ -10,7 +10,7 @@ dependency "doppler" {
 locals {
   name         = "hairfordays"
   display_name = "Hair For Days"
-  base_domain  = "hairfordays.com"
+  base_domain  = "hairfordays.store"
   domain       = local.base_domain
   root_dir     = "apps/hairfordays"
   from_email   = "Hair For Days <no-reply@${local.base_domain}>"

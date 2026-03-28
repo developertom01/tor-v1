@@ -6,16 +6,16 @@
 @source "../../../../packages/store/**/*.tsx";
 
 @theme inline {
-  --color-brand-50: #f0fdfa;
-  --color-brand-100: #ccfbf1;
-  --color-brand-200: #99f6e4;
-  --color-brand-300: #5eead4;
-  --color-brand-400: #2dd4bf;
-  --color-brand-500: #14b8a6;
-  --color-brand-600: #0d9488;
-  --color-brand-700: #0f766e;
-  --color-brand-800: #115e59;
-  --color-brand-900: #134e4a;
+  --color-brand-50: #f9f9f8;
+  --color-brand-100: #f0eeeb;
+  --color-brand-200: #dbd8d2;
+  --color-brand-300: #b8b3ab;
+  --color-brand-400: #8a8279;
+  --color-brand-500: #4a443c;
+  --color-brand-600: #2c2820;
+  --color-brand-700: #1e1a14;
+  --color-brand-800: #141109;
+  --color-brand-900: #0c0a06;
   --color-gold-400: #d4a843;
   --color-gold-500: #c4982f;
   --color-gold-600: #a67c2e;
@@ -35,12 +35,20 @@ html {
 
 /* Hero gradient */
 .hero-gradient {
-  background: linear-gradient(135deg, #134e4a 0%, #0f766e 40%, #14b8a6 100%);
+  background: linear-gradient(135deg, #0c0a06 0%, #1e1a14 40%, #2c2820 100%);
 }
 
 /* Gold accent gradient */
 .gold-gradient {
   background: linear-gradient(135deg, #d4a843 0%, #c4982f 50%, #a67c2e 100%);
+}
+
+/* Gold gradient text */
+.gold-text {
+  background: linear-gradient(135deg, #d4a843 0%, #c4982f 50%, #a67c2e 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Glassmorphism card */

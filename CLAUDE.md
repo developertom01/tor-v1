@@ -27,8 +27,11 @@ npm run db:push                   # Push migrations to remote Supabase
 npm run db:migrate                # Create new migration file
 npm run db:link                   # Link to remote Supabase project
 
-# Provisioning a new store
-npm run provision                 # node provisioner/bin/provision.mjs <store-name>
+# Infrastructure (Terragrunt — requires Doppler + Terraform Cloud)
+task tg:plan APP=hairlukgud ENV=dev   # Plan infra changes
+task tg:apply APP=hairlukgud ENV=prod # Apply infra changes
+task tg:doppler APP=hairlukgud ENV=dev # Manage Doppler secrets
+task tg:all APP=hairlukgud ENV=dev    # Run full provision pipeline
 ```
 
 ## Architecture
@@ -44,8 +47,8 @@ Multi-tenant e-commerce monorepo for hair businesses in Ghana. Two independent s
 - **`packages/pages`** (`@tor/pages`) — Shared page templates injected into apps at dev/build time
 - **`packages/store`** (`@tor/store`) — Store config types and context (StoreConfig, useStore hook)
 - **`supabase/`** — Shared migrations and seed.sql (symlinked into each app's `supabase/` dir)
-- **`provisioner/`** — Automated store provisioning (Vercel, Supabase, Google OAuth, Resend)
-- **`init/`** — YAML config files per store for the provisioner
+- **`terraform/`** — Terragrunt/Terraform IaC (Vercel, Supabase, Google OAuth, Doppler secrets)
+- **`init/`** — YAML config files per store for provisioning
 - **`scripts/`** — inject-pages.mjs, clean-pages.mjs
 
 ### Page injection system
@@ -87,6 +90,10 @@ Shared migrations in `supabase/migrations/` (symlinked into each app). Each app 
 
 Key tables: `profiles`, `products`, `product_variants`, `product_media`, `orders`, `order_items`, `product_requests`, `request_tokens`, `order_payment_tokens`, `order_status_history`. All have RLS policies. UUIDs via `gen_random_uuid()`.
 
+### Store isolation
+
+Each store is identified by `NEXT_PUBLIC_STORE_ID` env var. `getStoreId()` from `packages/lib/store-id.ts` provides this at runtime. Tables use `store_id` for data isolation across tenants.
+
 ### Payments
 
 Paystack inline popup. Checkout creates order (pending) → Paystack popup → on success redirects to `/checkout/success?reference=X` → `verifyPaystackPayment()` server-side. Webhook at `/api/paystack-webhook` is signature-verified.
@@ -97,7 +104,7 @@ Uses new Supabase key naming: `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (not `ANON_
 
 ### Emails
 
-Resend for transactional emails. All order-related emails must include item details with thumbnails using the shared `orderItemsTableHtml()` helper in `packages/lib/email.ts`.
+Resend for transactional emails. All order-related emails must include item details with thumbnails using the shared `orderItemsTableHtml()` helper in `packages/lib/email.ts`. PDF receipts generated via pdfkit (`packages/lib/receipt.ts`).
 
 ## Style
 
@@ -127,6 +134,8 @@ Store-specific values (name, tagline, domain, categories, contact info, theme, h
 - Each app has its own `supabase/config.toml` with unique ports so both can run simultaneously
 - The `supabase/migrations/` dir in each app is a symlink to the root `supabase/migrations/`
 - Next.js 16 has breaking changes from prior versions — check `node_modules/next/dist/docs/` before writing code
+- `next.config.ts` must list all `@tor/*` packages in `transpilePackages` and server-only native deps (e.g. `pdfkit`) in `serverExternalPackages`
+- CI: `db-push.yml` auto-pushes migrations on merge to main/dev; `provision-store-init.yml` manages infra via Terragrunt
 
 @apps/hairlukgud/CLAUDE.md
 @apps/hairfordays/CLAUDE.md
