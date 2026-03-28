@@ -229,7 +229,7 @@ When you need to understand the exact format or structure, read these files:
 - **Example config.toml**: `apps/hairlukgud/supabase/config.toml` and `apps/hairfordays/supabase/config.toml`
 - **Example terragrunt**: `terraform/stores/hairfordays/prod/terragrunt.hcl`
 - **Example init yaml**: `init/hairlukgud.yaml`
-- **Seed data**: `supabase/seed.sql`
+- **Seed data**: `supabase/seeds/hairlukgud.sql` or `supabase/seeds/hairfordays.sql`
 - **Provisioning workflow**: `.github/workflows/provision-store-init.yml`
 - **Full onboarding guide**: `docs/onboard-new-store.md`
 
