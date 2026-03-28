@@ -38,9 +38,16 @@ const headers = {
   Prefer: 'resolution=merge-duplicates,return=minimal',
 }
 
-const headersIgnoreDupes = {
-  ...headers,
-  Prefer: 'resolution=ignore-duplicates,return=minimal',
+async function upsertIgnore(table, body, onConflict) {
+  const res = await fetch(`${supabaseUrl}/rest/v1/${table}?on_conflict=${onConflict}`, {
+    method: 'POST',
+    headers: headersIgnoreDupes,
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`POST ${table} failed (${res.status}): ${text}`)
+  }
 }
 
 async function api(path, method, body, customHeaders) {
@@ -76,18 +83,18 @@ try {
 
 // 1. Ensure store exists
 console.log(`Ensuring store: ${storeId}`)
-await api('stores', 'POST', {
+await upsertIgnore('stores', {
   id: storeId,
   display_name: seedData.display_name,
   domain: seedData.domain,
-}, headersIgnoreDupes)
+}, 'id')
 
 // 2. Ensure store settings
-await api('store_settings', 'POST', {
+await upsertIgnore('store_settings', {
   store_id: storeId,
   bypass_payment: false,
   online_payments_enabled: true,
-}, headersIgnoreDupes)
+}, 'store_id')
 
 // 3. Get existing product slugs for this store
 const existing = await apiGet(`products?store_id=eq.${storeId}&select=slug`)
