@@ -196,7 +196,7 @@ jobs:
         run: |
           supabase db push --db-url "$DATABASE_URL"
         env:
-          DATABASE_URL: postgresql://postgres:${{ needs.provision-store.outputs.db_password }}@db.${{ needs.provision-store.outputs.supabase_project_ref }}.supabase.co:5432/postgres
+          DATABASE_URL: postgresql://postgres.${{ needs.provision-store.outputs.supabase_project_ref }}:${{ needs.provision-store.outputs.db_password }}@aws-0-eu-west-2.pooler.supabase.com:5432/postgres
 
       - name: Seed admin user
         run: |
