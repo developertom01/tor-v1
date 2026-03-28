@@ -187,8 +187,11 @@ jobs:
         working-directory: apps/${{ inputs.store }}
         run: |
           PROJECT_REF=$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co||')
+          DB_PASS=$(doppler secrets get SUPABASE_DB_PASSWORD --plain --project ${{ inputs.store }} --config ${{ inputs.env }})
           supabase link --project-ref "$PROJECT_REF"
-          supabase db push --password "$SUPABASE_DB_PASSWORD"
+          supabase db push --password "$DB_PASS"
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
       - name: Seed admin user
         run: |
