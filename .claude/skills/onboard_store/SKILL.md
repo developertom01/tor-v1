@@ -1,7 +1,6 @@
 ---
 name: onboard_store
 description: Scaffold a new store in the multi-tenant e-commerce monorepo — creates app directory, store config, theme, landing page, Terraform infra, seed data, and CI integration. Use when adding a new hair business store.
-user-invocable: true
 ---
 
 # Onboard New Store
@@ -126,9 +125,18 @@ For inspiration on how different two pages can be, read `apps/hairlukgud/src/app
 
 Generate compelling SEO metadata (title, description, keywords, OpenGraph, Twitter cards) based on the store's name, products, and location. Think about what someone in Ghana would search for.
 
-### Seed products (`supabase/seed.sql`)
+### Seed products (`supabase/seeds/{slug}.sql`)
 
-Create 8-14 realistic seed products for the store based on its categories. Use Unsplash image URLs for product images. Generate creative product names and descriptions that match the store's brand voice.
+Create a per-store seed file at `supabase/seeds/{slug}.sql`. Each store has its own seed file — CI runs only that store's file during provisioning. The file should:
+
+- Create the store row and store_settings (with `ON CONFLICT DO NOTHING`)
+- Define the `_seed_product()` helper function (same pattern as existing seed files)
+- Seed 8-14 realistic products with Unsplash image URLs, creative names, and descriptions that match the store's brand voice
+- Drop the helper function at the end
+
+Also add a `\i seeds/{slug}.sql` line to the shared `supabase/seed.sql` so local `db:reset` includes the new store.
+
+Reference `supabase/seeds/hairlukgud.sql` or `supabase/seeds/hairfordays.sql` for the exact format.
 
 ## What You MUST NOT Change
 
@@ -190,8 +198,8 @@ Reference the existing stores' terragrunt files for exact structure. Key values:
 ### Phase 4: Provisioning Config & Seed Data
 
 19. Create `init/{slug}.yaml` provisioning config (reference existing stores)
-20. Add store + store_settings rows to `supabase/seed.sql`
-21. Add seed products and product_media for the new store to `supabase/seed.sql`
+20. Create `supabase/seeds/{slug}.sql` with store row, settings, and seed products (reference existing seed files for format)
+21. Add `\i seeds/{slug}.sql` to `supabase/seed.sql` so local `db:reset` includes the new store
 
 ### Phase 5: CI Integration
 
