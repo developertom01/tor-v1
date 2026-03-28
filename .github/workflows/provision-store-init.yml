@@ -149,34 +149,6 @@ jobs:
             terragrunt plan -lock=false
           fi
 
-      - name: Export outputs
-        if: inputs.action == 'apply'
-        id: outputs
-        run: |
-          echo "supabase_project_ref=$(terragrunt output -raw supabase_project_ref)" >> "$GITHUB_OUTPUT"
-          echo "supabase_url=$(terragrunt output -raw supabase_url)" >> "$GITHUB_OUTPUT"
-          echo "admin_email=$(terragrunt output -raw admin_email)" >> "$GITHUB_OUTPUT"
-
-          ADMIN_PW=$(terragrunt output -raw admin_password)
-          echo "::add-mask::$ADMIN_PW"
-          echo "admin_password=$(echo -n "$ADMIN_PW" | base64 -w 0)" >> "$GITHUB_OUTPUT"
-
-          SRK=$(terragrunt output -raw supabase_service_role_key)
-          echo "::add-mask::$SRK"
-          echo "service_role_key=$(echo -n "$SRK" | base64 -w 0)" >> "$GITHUB_OUTPUT"
-
-          DB_URL=$(terragrunt output -raw supabase_database_url)
-          echo "::add-mask::$DB_URL"
-          echo "database_url=$(echo -n "$DB_URL" | base64 -w 0)" >> "$GITHUB_OUTPUT"
-
-    outputs:
-      supabase_project_ref: ${{ steps.outputs.outputs.supabase_project_ref }}
-      supabase_url: ${{ steps.outputs.outputs.supabase_url }}
-      service_role_key: ${{ steps.outputs.outputs.service_role_key }}
-      admin_email: ${{ steps.outputs.outputs.admin_email }}
-      admin_password: ${{ steps.outputs.outputs.admin_password }}
-      database_url: ${{ steps.outputs.outputs.database_url }}
-
   # --- Step 3: Run migrations + seed admin ---
   post-provision:
     needs: provision-store
@@ -191,30 +163,32 @@ jobs:
         with:
           version: latest
 
-      - name: Decode secrets
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Fetch secrets from Doppler
         run: |
-          DB_URL=$(echo "${{ needs.provision-store.outputs.database_url }}" | base64 -d)
-          SRK=$(echo "${{ needs.provision-store.outputs.service_role_key }}" | base64 -d)
-          ADMIN_PW=$(echo "${{ needs.provision-store.outputs.admin_password }}" | base64 -d)
-          echo "::add-mask::$DB_URL"
-          echo "::add-mask::$SRK"
-          echo "::add-mask::$ADMIN_PW"
-          echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
-          echo "SERVICE_ROLE_KEY=$SRK" >> "$GITHUB_ENV"
-          echo "ADMIN_PASSWORD=$ADMIN_PW" >> "$GITHUB_ENV"
+          doppler secrets download --project ${{ inputs.store }} --config ${{ inputs.env }} --no-file --format json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while IFS='=' read -r key val; do
+            echo "::add-mask::$val"
+            echo "$key=$val" >> "$GITHUB_ENV"
+          done
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
       - name: Run database migrations
         working-directory: apps/${{ inputs.store }}
         run: |
-          supabase db push --db-url "$DATABASE_URL"
+          supabase db push --db-url "$SUPABASE_DATABASE_URL"
 
       - name: Seed admin user
         run: |
+          SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL"
+
           # Create admin user via Supabase Auth Admin API
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "$SUPABASE_URL/auth/v1/admin/users" \
-            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
-            -H "apikey: $SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+            -H "apikey: $SUPABASE_SECRET_KEY" \
             -H "Content-Type: application/json" \
             -d "{
               \"email\": \"$ADMIN_EMAIL\",
@@ -243,13 +217,10 @@ jobs:
 
           curl -sf -X PATCH \
             "$SUPABASE_URL/rest/v1/profiles?id=eq.$USER_ID" \
-            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
-            -H "apikey: $SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+            -H "apikey: $SUPABASE_SECRET_KEY" \
             -H "Content-Type: application/json" \
             -H "Prefer: return=minimal" \
             -d '{"role": "admin"}'
 
           echo "Admin role set for $ADMIN_EMAIL"
-        env:
-          SUPABASE_URL: ${{ needs.provision-store.outputs.supabase_url }}
-          ADMIN_EMAIL: ${{ needs.provision-store.outputs.admin_email }}

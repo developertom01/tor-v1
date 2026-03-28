@@ -93,6 +93,7 @@ module "doppler" {
       PAYSTACK_SECRET_KEY            = var.paystack_secret_key
       LOG_LEVEL                      = var.env == "dev" ? "debug" : "info"
       SUPABASE_DB_PASSWORD           = random_password.db_password.result
+      SUPABASE_DATABASE_URL          = module.supabase.database_url
       ADMIN_EMAIL                    = local.admin_email
       ADMIN_PASSWORD                 = random_password.admin_password.result
     }
