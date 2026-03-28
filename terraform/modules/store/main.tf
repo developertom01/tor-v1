@@ -80,9 +80,8 @@ module "vercel" {
 module "doppler" {
   source = "../doppler"
 
-  project_name  = replace(var.name, "-${var.env}", "")
-  env           = var.env
-  doppler_token = var.doppler_token
+  project_name = replace(var.name, "-${var.env}", "")
+  env          = var.env
 
   secrets = merge(
     module.supabase.env_vars,

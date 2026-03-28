@@ -82,10 +82,20 @@ tasks:
           cd apps/hairfordays && npx supabase db reset
         {{end}}
 
-  # Terragrunt (ENV=dev|prod, APP=hairlukgud|hairfordays)
+  # Terragrunt — Doppler project (APP=hairlukgud|hairfordays)
+  tg:doppler:
+    desc: "Create/update Doppler project for a store (APP=store)"
+    dir: terraform/stores/{{.APP}}/doppler
+    preconditions:
+      - sh: '[ -n "{{.APP}}" ]'
+        msg: "APP required (e.g. task tg:doppler APP=hairlukgud)"
+    cmds:
+      - doppler run --project provisioner --config local -- terragrunt apply
+
+  # Terragrunt — Store environment (ENV=dev|prod, APP=hairlukgud|hairfordays)
   tg:init:
     desc: "Terragrunt init (ENV=dev|prod, APP=store)"
-    dir: terraform/envs/{{.ENV}}/{{.APP}}
+    dir: terraform/stores/{{.APP}}/{{.ENV}}
     preconditions:
       - sh: '[ -n "{{.ENV}}" ] && [ -n "{{.APP}}" ]'
         msg: "ENV and APP required (e.g. task tg:init ENV=dev APP=hairlukgud)"
@@ -94,7 +104,7 @@ tasks:
 
   tg:plan:
     desc: "Terragrunt plan (ENV=dev|prod, APP=store)"
-    dir: terraform/envs/{{.ENV}}/{{.APP}}
+    dir: terraform/stores/{{.APP}}/{{.ENV}}
     preconditions:
       - sh: '[ -n "{{.ENV}}" ] && [ -n "{{.APP}}" ]'
         msg: "ENV and APP required"
@@ -103,7 +113,7 @@ tasks:
 
   tg:apply:
     desc: "Terragrunt apply (ENV=dev|prod, APP=store)"
-    dir: terraform/envs/{{.ENV}}/{{.APP}}
+    dir: terraform/stores/{{.APP}}/{{.ENV}}
     preconditions:
       - sh: '[ -n "{{.ENV}}" ] && [ -n "{{.APP}}" ]'
         msg: "ENV and APP required"
@@ -112,7 +122,7 @@ tasks:
 
   tg:destroy:
     desc: "Terragrunt destroy (ENV=dev|prod, APP=store)"
-    dir: terraform/envs/{{.ENV}}/{{.APP}}
+    dir: terraform/stores/{{.APP}}/{{.ENV}}
     preconditions:
       - sh: '[ -n "{{.ENV}}" ] && [ -n "{{.APP}}" ]'
         msg: "ENV and APP required"
@@ -120,10 +130,10 @@ tasks:
       - doppler run --project provisioner --config local -- terragrunt destroy
 
   tg:all:
-    desc: "Terragrunt run-all (ENV=dev|prod) — apply all stores in an env"
-    dir: terraform/envs/{{.ENV}}
+    desc: "Terragrunt run-all for a store (APP=store) — applies doppler + all envs"
+    dir: terraform/stores/{{.APP}}
     preconditions:
-      - sh: '[ -n "{{.ENV}}" ]'
-        msg: "ENV required (e.g. task tg:all ENV=dev)"
+      - sh: '[ -n "{{.APP}}" ]'
+        msg: "APP required (e.g. task tg:all APP=hairlukgud)"
     cmds:
       - doppler run --project provisioner --config local -- terragrunt run-all apply

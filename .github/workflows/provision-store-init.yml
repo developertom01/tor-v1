@@ -31,11 +31,68 @@ permissions:
   contents: read
 
 jobs:
-  terragrunt:
+  # --- Step 1: Create Doppler project + environments (shared per store) ---
+  doppler-project:
+    if: inputs.action == 'apply'
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: terraform/envs/${{ inputs.env }}/${{ inputs.store }}
+        working-directory: terraform/stores/${{ inputs.store }}/doppler
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/326684407897/locations/global/workloadIdentityPools/github-auth/providers/github
+          service_account: terraform@directed-relic-343301.iam.gserviceaccount.com
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Fetch secrets from Doppler
+        run: |
+          doppler secrets download --project provisioner --config ${{ inputs.env }} --no-file --format json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while IFS='=' read -r key val; do
+            if [[ "$key" == TF_VAR_* ]]; then
+              suffix="${key#TF_VAR_}"
+              key="TF_VAR_$(echo "$suffix" | tr '[:upper:]' '[:lower:]')"
+            fi
+            echo "$key=$val" >> "$GITHUB_ENV"
+          done
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Configure Terraform Cloud credentials
+        run: |
+          mkdir -p ~/.terraform.d
+          jq -n --arg token "$TF_CLOUD_TOKEN" \
+            '{"credentials":{"app.terraform.io":{"token":$token}}}' \
+            > ~/.terraform.d/credentials.tfrc.json
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.14"
+
+      - name: Setup Terragrunt
+        run: |
+          curl -sL https://github.com/gruntwork-io/terragrunt/releases/latest/download/terragrunt_linux_amd64 -o terragrunt
+          chmod +x terragrunt
+          sudo mv terragrunt /usr/local/bin/
+
+      - name: Terragrunt Init
+        run: terragrunt init -upgrade
+
+      - name: Terragrunt Apply
+        run: terragrunt apply -auto-approve
+
+  # --- Step 2: Provision store environment (supabase, vercel, secrets) ---
+  terragrunt:
+    needs: doppler-project
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/stores/${{ inputs.store }}/${{ inputs.env }}
 
     steps:
       - uses: actions/checkout@v4
@@ -83,11 +140,11 @@ jobs:
       - name: Terragrunt ${{ inputs.action }}
         run: |
           if [ "${{ inputs.action }}" = "apply" ]; then
-            terragrunt apply -auto-approve -lock=false
+            terragrunt apply -auto-approve
           elif [ "${{ inputs.action }}" = "destroy" ]; then
-            terragrunt destroy -auto-approve -lock=false
+            terragrunt destroy -auto-approve
           else
-            terragrunt plan -lock=false
+            terragrunt plan
           fi
 
       - name: Export outputs
@@ -98,7 +155,6 @@ jobs:
           echo "supabase_url=$(terragrunt output -raw supabase_url)" >> "$GITHUB_OUTPUT"
           echo "admin_email=$(terragrunt output -raw admin_email)" >> "$GITHUB_OUTPUT"
 
-          # Mask sensitive values
           ADMIN_PW=$(terragrunt output -raw admin_password)
           echo "::add-mask::$ADMIN_PW"
           echo "admin_password=$ADMIN_PW" >> "$GITHUB_OUTPUT"
@@ -114,8 +170,7 @@ jobs:
       admin_email: ${{ steps.outputs.outputs.admin_email }}
       admin_password: ${{ steps.outputs.outputs.admin_password }}
 
-
-  # --- Post-provisioning: run migrations + seed admin ---
+  # --- Step 3: Run migrations + seed admin ---
   post-provision:
     needs: terragrunt
     if: inputs.action == 'apply'
