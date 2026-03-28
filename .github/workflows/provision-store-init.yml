@@ -50,7 +50,7 @@ jobs:
 
       - name: Fetch secrets from Doppler
         run: |
-          doppler secrets download --project provisioner --config ${{ inputs.env }} --no-file --format env | while IFS='=' read -r key val; do
+          doppler secrets download --project provisioner --config ${{ inputs.env }} --no-file --format json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while IFS='=' read -r key val; do
             if [[ "$key" == TF_VAR_* ]]; then
               suffix="${key#TF_VAR_}"
               key="TF_VAR_$(echo "$suffix" | tr '[:upper:]' '[:lower:]')"
