@@ -1,34 +1,32 @@
-# --- Supabase ---
+# --- Generated secrets ---
 
-module "supabase" {
-  source = "../supabase"
-
-  name        = var.name
-  org_id      = var.supabase_org_id
-  region      = var.supabase_region
-  db_password = var.supabase_db_password
+resource "random_password" "admin_password" {
+  length           = 16
+  special          = true
+  override_special = "!@#$%&*"
 }
 
-# --- Google OAuth ---
+locals {
+  admin_email = var.env == "prod" ? "admin@${var.base_domain}" : "${var.env}.admin@${var.base_domain}"
 
-module "google_oauth" {
-  source = "../google-oauth"
-
-  display_name  = var.display_name
-  project_id    = var.google_project_id
-  support_email = var.google_support_email
-  redirect_uri  = "https://${module.supabase.project_ref}.supabase.co/auth/v1/callback"
+  # Shared Supabase env vars — passed in from the shared Supabase project
+  supabase_env_vars = {
+    NEXT_PUBLIC_SUPABASE_URL             = var.supabase_url
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = var.supabase_anon_key
+    SUPABASE_SECRET_KEY                  = var.supabase_service_role_key
+  }
 }
 
-# --- Resend (only for prd — dev shares prd's domain) ---
+# --- Resend (only for prod — dev shares prod's domain) ---
 
 module "resend" {
   source = "../resend"
   count  = var.env == "prod" ? 1 : 0
 
-  name       = var.name
-  domain     = var.base_domain
-  from_email = var.from_email
+  name           = var.name
+  domain         = var.base_domain
+  from_email     = var.from_email
+  resend_api_key = var.resend_api_key
 }
 
 # --- Vercel ---
@@ -42,19 +40,21 @@ module "vercel" {
   git_repo   = var.git_repo
   git_branch = var.git_branch
   team_id    = var.vercel_team_id
+  env        = var.env
 
   env_vars = merge(
-    module.supabase.env_vars,
+    local.supabase_env_vars,
     var.env == "prod" ? module.resend[0].env_vars : {
       RESEND_API_KEY = "placeholder-set-in-doppler"
       FROM_EMAIL     = var.from_email
     },
     {
-      NEXT_PUBLIC_SITE_URL           = "https://${var.domain}"
-      NEXT_PUBLIC_BASE_URL           = "https://${var.domain}"
-      NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY = var.paystack_public_key
-      PAYSTACK_SECRET_KEY            = var.paystack_secret_key
-      LOG_LEVEL                      = var.env == "dev" ? "debug" : "info"
+      NEXT_PUBLIC_STORE_ID               = var.store_id
+      NEXT_PUBLIC_SITE_URL               = "https://${var.domain}"
+      NEXT_PUBLIC_BASE_URL               = "https://${var.domain}"
+      NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY     = var.paystack_public_key
+      PAYSTACK_SECRET_KEY                = var.paystack_secret_key
+      LOG_LEVEL                          = var.env == "dev" ? "debug" : "info"
     }
   )
 }
@@ -64,17 +64,23 @@ module "vercel" {
 module "doppler" {
   source = "../doppler"
 
-  name = var.name
+  project_name = replace(var.name, "-${var.env}", "")
+  env          = var.env
 
   secrets = merge(
-    module.supabase.env_vars,
+    local.supabase_env_vars,
     var.env == "prod" ? module.resend[0].env_vars : {},
     {
-      NEXT_PUBLIC_SITE_URL           = "https://${var.domain}"
-      NEXT_PUBLIC_BASE_URL           = "https://${var.domain}"
-      NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY = var.paystack_public_key
-      PAYSTACK_SECRET_KEY            = var.paystack_secret_key
-      LOG_LEVEL                      = var.env == "dev" ? "debug" : "info"
+      NEXT_PUBLIC_STORE_ID               = var.store_id
+      NEXT_PUBLIC_SITE_URL               = "https://${var.domain}"
+      NEXT_PUBLIC_BASE_URL               = "https://${var.domain}"
+      NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY     = var.paystack_public_key
+      PAYSTACK_SECRET_KEY                = var.paystack_secret_key
+      LOG_LEVEL                          = var.env == "dev" ? "debug" : "info"
+      SUPABASE_DB_PASSWORD               = var.supabase_db_password
+      SUPABASE_DATABASE_URL              = var.supabase_database_url
+      ADMIN_EMAIL                        = local.admin_email
+      ADMIN_PASSWORD                     = random_password.admin_password.result
     }
   )
 }

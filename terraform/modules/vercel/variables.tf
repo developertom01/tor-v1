@@ -43,6 +43,12 @@ variable "env_vars" {
   default     = {}
 }
 
+variable "env" {
+  description = "Environment name (dev, prod)"
+  type        = string
+  default     = "prod"
+}
+
 variable "framework" {
   description = "Framework preset"
   type        = string

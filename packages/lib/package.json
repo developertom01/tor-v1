@@ -18,7 +18,8 @@
     "./receipt": "./receipt.ts",
     "./cart-context": "./cart-context.tsx",
     "./usePaystack": "./usePaystack.ts",
-    "./useDebounce": "./useDebounce.ts"
+    "./useDebounce": "./useDebounce.ts",
+    "./store-id": "./store-id.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

@@ -20,12 +20,14 @@ output "service_role_key" {
   sensitive   = true
 }
 
-output "env_vars" {
-  description = "Env vars map for downstream modules"
-  value = {
-    NEXT_PUBLIC_SUPABASE_URL             = "https://${supabase_project.this.id}.supabase.co"
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = data.supabase_apikeys.this.anon_key
-    SUPABASE_SECRET_KEY                  = data.supabase_apikeys.this.service_role_key
-  }
-  sensitive = true
+output "db_password" {
+  description = "Generated database password"
+  value       = random_password.db_password.result
+  sensitive   = true
+}
+
+output "database_url" {
+  description = "Pooler connection string for migrations"
+  value       = "postgresql://postgres.${supabase_project.this.id}:${urlencode(random_password.db_password.result)}@aws-0-${var.region}.pooler.supabase.com:5432/postgres"
+  sensitive   = true
 }

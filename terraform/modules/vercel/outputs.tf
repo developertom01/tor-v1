@@ -8,6 +8,5 @@ output "domains" {
   value = {
     apex = vercel_project_domain.apex.domain
     www  = vercel_project_domain.www.domain
-    dev  = vercel_project_domain.dev.domain
   }
 }

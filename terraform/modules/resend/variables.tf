@@ -12,3 +12,9 @@ variable "from_email" {
   description = "From email address (e.g. 'Store <orders@domain.com>')"
   type        = string
 }
+
+variable "resend_api_key" {
+  description = "Resend API key (created manually in Resend dashboard)"
+  type        = string
+  sensitive   = true
+}

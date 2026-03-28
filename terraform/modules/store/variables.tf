@@ -5,6 +5,11 @@ variable "name" {
   type        = string
 }
 
+variable "store_id" {
+  description = "Store identifier for multi-tenant isolation (e.g. hairlukgud)"
+  type        = string
+}
+
 variable "display_name" {
   description = "Human-readable store name"
   type        = string
@@ -35,26 +40,38 @@ variable "env" {
   type        = string
 }
 
-# ── Shared credentials & config (passed via root.hcl inputs) ──
+# ── Shared Supabase (provisioned separately, passed in) ──
 
-variable "supabase_access_token" {
-  type      = string
-  sensitive = true
+variable "supabase_url" {
+  description = "Shared Supabase API URL"
+  type        = string
 }
 
-variable "supabase_org_id" {
-  type = string
+variable "supabase_anon_key" {
+  description = "Shared Supabase publishable (anon) key"
+  type        = string
+  sensitive   = true
 }
 
-variable "supabase_region" {
-  type    = string
-  default = "eu-west-2"
+variable "supabase_service_role_key" {
+  description = "Shared Supabase secret (service role) key"
+  type        = string
+  sensitive   = true
 }
 
 variable "supabase_db_password" {
-  type      = string
-  sensitive = true
+  description = "Shared Supabase database password"
+  type        = string
+  sensitive   = true
 }
+
+variable "supabase_database_url" {
+  description = "Shared Supabase pooler connection string"
+  type        = string
+  sensitive   = true
+}
+
+# ── Shared credentials & config (passed via root.hcl inputs) ──
 
 variable "google_project_id" {
   type = string
