@@ -33,7 +33,6 @@ permissions:
 jobs:
   # --- Step 1: Provision shared Supabase project (must exist before any store) ---
   shared-supabase:
-    if: inputs.action == 'apply'
     runs-on: ubuntu-latest
     defaults:
       run:
