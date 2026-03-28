@@ -276,6 +276,14 @@ jobs:
           DB_PASS=$(doppler secrets get SUPABASE_DB_PASSWORD --plain --project ${{ inputs.store }} --config ${{ inputs.env }})
           supabase link --project-ref "$PROJECT_REF"
           supabase db push --password "$DB_PASS"
+
+          # Seed products (dev only — prod starts empty for real data)
+          if [ "${{ inputs.env }}" = "dev" ]; then
+            echo "Seeding dev products..."
+            SQL=$(cat ../../supabase/seed.sql)
+            echo "$SQL" | supabase db execute --password "$DB_PASS"
+            echo "Dev seed data applied"
+          fi
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
@@ -337,16 +345,7 @@ jobs:
             exit 1
           fi
 
-          # 3. Seed products (dev only — prod starts empty for real data)
-          if [ "${{ inputs.env }}" = "dev" ]; then
-            echo "Seeding dev products..."
-            PROJECT_REF=$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co||')
-            ENCODED_PASS=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$SUPABASE_DB_PASSWORD', safe=''))")
-            psql "postgresql://postgres:${ENCODED_PASS}@db.${PROJECT_REF}.supabase.co:5432/postgres" -f supabase/seed.sql
-            echo "Dev seed data applied"
-          fi
-
-          # 4. Create admin profile for this store (or update existing)
+          # 3. Create admin profile for this store (or update existing)
           sleep 2
 
           PROFILE_CHECK=$(curl -s \
