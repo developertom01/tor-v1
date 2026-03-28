@@ -159,15 +159,15 @@ jobs:
 
           ADMIN_PW=$(terragrunt output -raw admin_password)
           echo "::add-mask::$ADMIN_PW"
-          echo "admin_password=$(echo -n "$ADMIN_PW" | base64)" >> "$GITHUB_OUTPUT"
+          echo "admin_password=$(echo -n "$ADMIN_PW" | base64 -w 0)" >> "$GITHUB_OUTPUT"
 
           SRK=$(terragrunt output -raw supabase_service_role_key)
           echo "::add-mask::$SRK"
-          echo "service_role_key=$(echo -n "$SRK" | base64)" >> "$GITHUB_OUTPUT"
+          echo "service_role_key=$(echo -n "$SRK" | base64 -w 0)" >> "$GITHUB_OUTPUT"
 
           DB_URL=$(terragrunt output -raw supabase_database_url)
           echo "::add-mask::$DB_URL"
-          echo "database_url=$(echo -n "$DB_URL" | base64)" >> "$GITHUB_OUTPUT"
+          echo "database_url=$(echo -n "$DB_URL" | base64 -w 0)" >> "$GITHUB_OUTPUT"
 
     outputs:
       supabase_project_ref: ${{ steps.outputs.outputs.supabase_project_ref }}
