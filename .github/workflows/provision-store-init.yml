@@ -341,7 +341,8 @@ jobs:
           if [ "${{ inputs.env }}" = "dev" ]; then
             echo "Seeding dev products..."
             PROJECT_REF=$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co||')
-            psql "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${PROJECT_REF}.supabase.co:5432/postgres" -f supabase/seed.sql
+            ENCODED_PASS=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$SUPABASE_DB_PASSWORD', safe=''))")
+            psql "postgresql://postgres:${ENCODED_PASS}@db.${PROJECT_REF}.supabase.co:5432/postgres" -f supabase/seed.sql
             echo "Dev seed data applied"
           fi
 
