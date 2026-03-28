@@ -1,6 +1,12 @@
 name: Database Migrations
 
 on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'supabase/migrations/**'
   workflow_dispatch:
     inputs:
       env:
@@ -17,7 +23,7 @@ permissions:
 
 jobs:
   push-dev:
-    if: inputs.env == 'dev' || inputs.env == 'both'
+    if: github.ref == 'refs/heads/dev' || inputs.env == 'dev' || inputs.env == 'both'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,14 +42,15 @@ jobs:
           SUPABASE_URL=$(doppler secrets get NEXT_PUBLIC_SUPABASE_URL --plain --project hairlukgud --config dev)
           PROJECT_REF=$(echo "$SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co||')
           DB_PASS=$(doppler secrets get SUPABASE_DB_PASSWORD --plain --project hairlukgud --config dev)
+          SUPABASE_ACCESS_TOKEN=$(doppler secrets get SUPABASE_ACCESS_TOKEN --plain --project provisioner --config dev)
+          export SUPABASE_ACCESS_TOKEN
           supabase link --project-ref "$PROJECT_REF"
           supabase db push --password "$DB_PASS"
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
   push-prod:
-    if: inputs.env == 'prod' || inputs.env == 'both'
+    if: github.ref == 'refs/heads/main' || inputs.env == 'prod' || inputs.env == 'both'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,8 +69,9 @@ jobs:
           SUPABASE_URL=$(doppler secrets get NEXT_PUBLIC_SUPABASE_URL --plain --project hairlukgud --config prod)
           PROJECT_REF=$(echo "$SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co||')
           DB_PASS=$(doppler secrets get SUPABASE_DB_PASSWORD --plain --project hairlukgud --config prod)
+          SUPABASE_ACCESS_TOKEN=$(doppler secrets get SUPABASE_ACCESS_TOKEN --plain --project provisioner --config prod)
+          export SUPABASE_ACCESS_TOKEN
           supabase link --project-ref "$PROJECT_REF"
           supabase db push --password "$DB_PASS"
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
