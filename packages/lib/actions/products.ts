@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { slugify, MAX_MEDIA_PER_PRODUCT } from '../utils'
 import { logger } from '../logger'
+import { getStoreId } from '../store-id'
 
 export async function getProducts(options?: {
   category?: string
@@ -19,9 +20,12 @@ export async function getProducts(options?: {
   const limit = options?.limit || 12
   const offset = options?.offset || 0
 
+  const storeId = getStoreId()
+
   let query = supabase
     .from('products')
     .select('*, product_media(*), product_variants(*)', { count: 'exact' })
+    .eq('store_id', storeId)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
@@ -41,6 +45,7 @@ export async function getProduct(slug: string) {
   const { data, error } = await supabase
     .from('products')
     .select('*, product_media(*), product_variants(*)')
+    .eq('store_id', getStoreId())
     .eq('slug', slug)
     .single()
 
@@ -53,6 +58,7 @@ export async function getProductById(id: string) {
   const { data, error } = await supabase
     .from('products')
     .select('*, product_media(*), product_variants(*)')
+    .eq('store_id', getStoreId())
     .eq('id', id)
     .single()
 
@@ -81,6 +87,8 @@ export async function createProduct(formData: FormData) {
   // If variants exist and no explicit price, use lowest variant price
   const price = priceStr ? parseFloat(priceStr) : (variants.length > 0 ? Math.min(...variants.map(v => v.price)) : 0)
 
+  const storeId = getStoreId()
+
   const { data, error } = await supabase
     .from('products')
     .insert({
@@ -93,6 +101,7 @@ export async function createProduct(formData: FormData) {
       stock_quantity: variants.length > 0 ? variants.reduce((sum, v) => sum + v.stock_quantity, 0) : stockQuantity,
       in_stock: variants.length > 0 ? variants.some(v => v.stock_quantity > 0) : stockQuantity > 0,
       featured,
+      store_id: storeId,
     })
     .select()
     .single()
@@ -195,6 +204,7 @@ export async function updateProduct(id: string, formData: FormData) {
       in_stock: variants.length > 0 ? variants.some(v => v.stock_quantity > 0) : stockQuantity > 0,
       featured,
     })
+    .eq('store_id', getStoreId())
     .eq('id', id)
 
   if (error) throw error
@@ -252,7 +262,7 @@ export async function updateProduct(id: string, formData: FormData) {
 export async function deleteProduct(id: string) {
   logger.info({ productId: id }, 'Deleting product')
   const supabase = await createClient()
-  const { error } = await supabase.from('products').delete().eq('id', id)
+  const { error } = await supabase.from('products').delete().eq('store_id', getStoreId()).eq('id', id)
   if (error) {
     logger.error({ error, productId: id }, 'Failed to delete product')
     throw error
@@ -266,7 +276,7 @@ export async function deleteProduct(id: string) {
 export async function deleteProducts(ids: string[]) {
   logger.info({ count: ids.length }, 'Batch deleting products')
   const supabase = await createClient()
-  const { error } = await supabase.from('products').delete().in('id', ids)
+  const { error } = await supabase.from('products').delete().eq('store_id', getStoreId()).in('id', ids)
   if (error) {
     logger.error({ error, count: ids.length }, 'Failed to batch delete products')
     throw error
@@ -352,6 +362,7 @@ export async function requestProduct(formData: FormData) {
     note: (formData.get('note') as string) || null,
     desired_date: (formData.get('desired_date') as string) || null,
     price: product.price,
+    store_id: getStoreId(),
   }).select('id').single()
 
   if (error) {
@@ -467,6 +478,7 @@ export async function getProductRequests() {
   const { data, error } = await supabase
     .from('product_requests')
     .select('*, products(name, product_media(url, type, sort_order))')
+    .eq('store_id', getStoreId())
     .order('created_at', { ascending: false })
 
   if (error) throw error
@@ -582,7 +594,7 @@ export async function prepareRequestPayment(token: string, quantity: number) {
   }
 
   const totalAmount = request.price * quantity
-  const reference = `HLG-REQ-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+  const reference = `${getStoreId().toUpperCase()}-REQ-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
 
   return { reference, amount: totalAmount, email: request.customer_email }
 }
@@ -626,6 +638,7 @@ export async function completeRequestPayment(token: string, formData: FormData, 
       total_amount: totalAmount,
       status: 'paid',
       paystack_reference: reference,
+      store_id: getStoreId(),
     })
     .select()
     .single()
@@ -694,6 +707,7 @@ export async function getLowStockProducts() {
   const { data, error } = await supabase
     .from('products')
     .select('id, name, slug, stock_quantity, in_stock')
+    .eq('store_id', getStoreId())
     .lte('stock_quantity', LOW_STOCK_THRESHOLD)
     .eq('in_stock', true)
     .order('stock_quantity', { ascending: true })
@@ -711,6 +725,7 @@ export async function getCategories() {
   const { data, error } = await supabase
     .from('products')
     .select('category')
+    .eq('store_id', getStoreId())
 
   if (error) return []
   const categories = [...new Set(data.map(p => p.category))]

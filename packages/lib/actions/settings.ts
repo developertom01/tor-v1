@@ -3,6 +3,7 @@
 import { createClient } from '../supabase/server'
 import { revalidatePath } from 'next/cache'
 import { logger } from '../logger'
+import { getStoreId } from '../store-id'
 
 export interface StoreSettings {
   bypass_payment: boolean
@@ -15,7 +16,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
   const { data, error } = await supabase
     .from('store_settings')
     .select('bypass_payment, online_payments_enabled')
-    .limit(1)
+    .eq('store_id', getStoreId())
     .single()
 
   if (error) {
@@ -35,7 +36,7 @@ export async function updateStoreSettings(settings: Partial<StoreSettings>) {
   const { error } = await supabase
     .from('store_settings')
     .update({ ...settings, updated_at: new Date().toISOString() })
-    .not('id', 'is', null) // updates the single row
+    .eq('store_id', getStoreId())
 
   if (error) {
     logger.error({ error, settings }, 'Failed to update store settings')

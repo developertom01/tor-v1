@@ -6,6 +6,7 @@ import { ArrowLeft, Package, AlertTriangle, Pencil } from 'lucide-react'
 import { getProduct } from '@tor/lib/actions/products'
 import { getSession, getProfile } from '@tor/lib/actions/auth'
 import { supabaseAdmin } from '@tor/lib/supabase/admin'
+import { getStoreId } from '@tor/lib/store-id'
 import { formatPrice } from '@tor/lib/utils'
 import RequestForm from './RequestForm'
 
@@ -37,6 +38,7 @@ export default async function RequestProductPage({
     .select('id')
     .eq('user_id', session.id)
     .eq('product_id', product.id)
+    .eq('store_id', getStoreId())
     .eq('status', 'pending')
     .limit(1)
 

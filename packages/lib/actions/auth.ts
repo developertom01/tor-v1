@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../supabase/admin'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { logger } from '../logger'
+import { getStoreId } from '../store-id'
 
 export async function signInWithGoogle(formData: FormData) {
   const supabase = await createClient()
@@ -44,6 +45,7 @@ export async function signUp(formData: FormData) {
     options: {
       data: {
         full_name: `${firstName} ${lastName}`,
+        store_id: getStoreId(),
       },
     },
   })
@@ -130,6 +132,7 @@ export async function getProfile() {
     .from('profiles')
     .select('*')
     .eq('id', user.id)
+    .eq('store_id', getStoreId())
     .single()
 
   return data
@@ -145,6 +148,7 @@ export async function getAdmins() {
     .from('profiles')
     .select('id, full_name, email, role')
     .eq('role', 'admin')
+    .eq('store_id', getStoreId())
     .order('created_at', { ascending: true })
 
   return data || []
@@ -158,6 +162,7 @@ export async function addAdmin(email: string) {
     .from('profiles')
     .select('id, role')
     .eq('email', email.trim().toLowerCase())
+    .eq('store_id', getStoreId())
     .single()
 
   if (findError || !profile) {
@@ -172,6 +177,7 @@ export async function addAdmin(email: string) {
     .from('profiles')
     .update({ role: 'admin' })
     .eq('id', profile.id)
+    .eq('store_id', getStoreId())
 
   if (error) {
     logger.error({ error, email }, 'Failed to add admin')
@@ -194,6 +200,7 @@ export async function removeAdmin(userId: string) {
     .from('profiles')
     .update({ role: 'customer' })
     .eq('id', userId)
+    .eq('store_id', getStoreId())
 
   if (error) {
     logger.error({ error, userId }, 'Failed to remove admin')

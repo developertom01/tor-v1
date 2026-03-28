@@ -31,7 +31,62 @@ permissions:
   contents: read
 
 jobs:
-  # --- Step 1: Create Doppler project + environments (shared per store) ---
+  # --- Step 1: Provision shared Supabase project (one per env, idempotent) ---
+  shared-supabase:
+    if: inputs.action == 'apply'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/shared/supabase/${{ inputs.env }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/326684407897/locations/global/workloadIdentityPools/github-auth/providers/github
+          service_account: terraform@directed-relic-343301.iam.gserviceaccount.com
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Fetch secrets from Doppler
+        run: |
+          doppler secrets download --project provisioner --config ${{ inputs.env }} --no-file --format json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while IFS='=' read -r key val; do
+            if [[ "$key" == TF_VAR_* ]]; then
+              suffix="${key#TF_VAR_}"
+              key="TF_VAR_$(echo "$suffix" | tr '[:upper:]' '[:lower:]')"
+            fi
+            echo "$key=$val" >> "$GITHUB_ENV"
+          done
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Configure Terraform Cloud credentials
+        run: |
+          mkdir -p ~/.terraform.d
+          jq -n --arg token "$TF_CLOUD_TOKEN" \
+            '{"credentials":{"app.terraform.io":{"token":$token}}}' \
+            > ~/.terraform.d/credentials.tfrc.json
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+          terraform_wrapper: false
+
+      - name: Setup Terragrunt
+        run: |
+          curl -sL https://github.com/gruntwork-io/terragrunt/releases/latest/download/terragrunt_linux_amd64 -o terragrunt
+          chmod +x terragrunt
+          sudo mv terragrunt /usr/local/bin/
+
+      - name: Terragrunt Init
+        run: terragrunt init -upgrade
+
+      - name: Terragrunt Apply (shared Supabase)
+        run: terragrunt apply -auto-approve -lock=false
+
+  # --- Step 2: Create Doppler project + environments (shared per store) ---
   doppler-project:
     if: inputs.action == 'apply'
     runs-on: ubuntu-latest
@@ -86,10 +141,10 @@ jobs:
       - name: Terragrunt Apply
         run: terragrunt apply -auto-approve -lock=false
 
-  # --- Step 2: Provision store environment (supabase, vercel, secrets) ---
+  # --- Step 3: Provision store (Vercel, Resend, Doppler secrets) ---
   provision-store:
-    needs: doppler-project
-    if: always() && !cancelled() && needs.doppler-project.result != 'failure'
+    needs: [shared-supabase, doppler-project]
+    if: always() && !cancelled() && needs.shared-supabase.result != 'failure' && needs.doppler-project.result != 'failure'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -149,7 +204,7 @@ jobs:
             terragrunt plan -lock=false
           fi
 
-  # --- Step 3: Run migrations + seed admin ---
+  # --- Step 4: Run migrations + seed admin ---
   post-provision:
     needs: provision-store
     if: inputs.action == 'apply'
@@ -196,8 +251,18 @@ jobs:
       - name: Seed admin user
         run: |
           SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL"
+          STORE_ID="${{ inputs.store }}"
 
-          # Create admin user via Supabase Auth Admin API
+          # Ensure store row exists
+          curl -sf -X POST \
+            "$SUPABASE_URL/rest/v1/stores" \
+            -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+            -H "apikey: $SUPABASE_SECRET_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=ignore-duplicates,return=minimal" \
+            -d "{\"id\": \"$STORE_ID\", \"display_name\": \"$STORE_ID\", \"domain\": \"$STORE_ID.com\"}" || true
+
+          # Create admin user via Supabase Auth Admin API (with store_id in metadata)
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "$SUPABASE_URL/auth/v1/admin/users" \
             -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
@@ -207,7 +272,7 @@ jobs:
               \"email\": \"$ADMIN_EMAIL\",
               \"password\": \"$ADMIN_PASSWORD\",
               \"email_confirm\": true,
-              \"user_metadata\": {\"full_name\": \"Store Admin\"}
+              \"user_metadata\": {\"full_name\": \"Store Admin\", \"store_id\": \"$STORE_ID\"}
             }")
 
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
@@ -217,23 +282,52 @@ jobs:
             USER_ID=$(echo "$BODY" | jq -r '.id')
             echo "Admin user created: $ADMIN_EMAIL (id: $USER_ID)"
           elif echo "$BODY" | grep -q "already been registered"; then
-            echo "Admin user already exists: $ADMIN_EMAIL — skipping"
-            exit 0
+            echo "Admin user already exists: $ADMIN_EMAIL"
+            # Get user ID for existing user
+            USER_ID=$(echo "$BODY" | jq -r '.id // empty')
+            if [ -z "$USER_ID" ]; then
+              # Fetch user by email
+              USER_RESP=$(curl -s -X GET \
+                "$SUPABASE_URL/auth/v1/admin/users?filter=email%3D$ADMIN_EMAIL" \
+                -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+                -H "apikey: $SUPABASE_SECRET_KEY")
+              USER_ID=$(echo "$USER_RESP" | jq -r '.users[0].id // empty')
+            fi
+            if [ -z "$USER_ID" ]; then
+              echo "::warning::Could not find user ID for existing admin — profile may need manual setup"
+              exit 0
+            fi
           else
             echo "::error::Failed to create admin user: $BODY"
             exit 1
           fi
 
-          # The handle_new_user trigger auto-creates the profile row.
-          # Wait a moment for the trigger to fire, then set role to admin.
+          # Wait for handle_new_user trigger to create profile
           sleep 2
 
-          curl -sf -X PATCH \
-            "$SUPABASE_URL/rest/v1/profiles?id=eq.$USER_ID" \
+          # Check if profile exists for this store; if not (user existed before), create it
+          PROFILE_CHECK=$(curl -s \
+            "$SUPABASE_URL/rest/v1/profiles?id=eq.$USER_ID&store_id=eq.$STORE_ID&select=id" \
             -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
-            -H "apikey: $SUPABASE_SECRET_KEY" \
-            -H "Content-Type: application/json" \
-            -H "Prefer: return=minimal" \
-            -d '{"role": "admin"}'
+            -H "apikey: $SUPABASE_SECRET_KEY")
 
-          echo "Admin role set for $ADMIN_EMAIL"
+          if [ "$PROFILE_CHECK" = "[]" ]; then
+            curl -sf -X POST \
+              "$SUPABASE_URL/rest/v1/profiles" \
+              -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+              -H "apikey: $SUPABASE_SECRET_KEY" \
+              -H "Content-Type: application/json" \
+              -H "Prefer: return=minimal" \
+              -d "{\"id\": \"$USER_ID\", \"email\": \"$ADMIN_EMAIL\", \"full_name\": \"Store Admin\", \"store_id\": \"$STORE_ID\", \"role\": \"admin\"}"
+            echo "Admin profile created for store $STORE_ID"
+          else
+            # Profile exists — set role to admin
+            curl -sf -X PATCH \
+              "$SUPABASE_URL/rest/v1/profiles?id=eq.$USER_ID&store_id=eq.$STORE_ID" \
+              -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+              -H "apikey: $SUPABASE_SECRET_KEY" \
+              -H "Content-Type: application/json" \
+              -H "Prefer: return=minimal" \
+              -d '{"role": "admin"}'
+            echo "Admin role set for $ADMIN_EMAIL in store $STORE_ID"
+          fi

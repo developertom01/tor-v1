@@ -5,13 +5,15 @@ import { supabaseAdmin } from '../supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { CartItem } from '../types'
 import { logger } from '../logger'
+import { getStoreId } from '../store-id'
 
 export async function createOrder(formData: FormData, cartItems: CartItem[], totalAmount: number) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const reference = `HLG-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+  const storeId = getStoreId()
+  const reference = `${storeId.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
 
   logger.info({ reference, userId: user?.id, totalAmount, itemCount: cartItems.length }, 'Creating order')
 
@@ -28,6 +30,7 @@ export async function createOrder(formData: FormData, cartItems: CartItem[], tot
       total_amount: totalAmount,
       status: 'pending',
       paystack_reference: reference,
+      store_id: storeId,
     })
     .select()
     .single()
@@ -96,6 +99,7 @@ export async function getOrders(filters: OrderFilters = {}, offset = 0, limit = 
   let query = supabase
     .from('orders')
     .select('*, order_items(*)', { count: 'exact' })
+    .eq('store_id', getStoreId())
     .order('created_at', { ascending: false })
 
   if (filters.status && filters.status !== 'all') {
@@ -152,7 +156,7 @@ export interface CustomerFilters {
 }
 
 export async function getCustomers(filters: CustomerFilters = {}) {
-  const { data, error } = await supabaseAdmin.rpc('get_customers')
+  const { data, error } = await supabaseAdmin.rpc('get_customers', { p_store_id: getStoreId() })
   if (error) {
     logger.error({ error }, 'Failed to fetch customers')
     throw error
@@ -195,6 +199,7 @@ export async function getCustomerBySlug(slug: string) {
       .from('orders')
       .select('customer_email')
       .eq('user_id', slug)
+      .eq('store_id', getStoreId())
       .order('created_at', { ascending: false })
       .limit(1)
     if (!data || data.length === 0) return null
@@ -211,6 +216,7 @@ export async function getCustomerBySlug(slug: string) {
     .from('orders')
     .select('customer_email, customer_name, customer_phone, region, city, shipping_address, total_amount, created_at', { count: 'exact' })
     .eq('customer_email', email)
+    .eq('store_id', getStoreId())
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -253,6 +259,7 @@ export async function getCustomerOrders(
     .from('orders')
     .select('*, order_items(*)', { count: 'exact' })
     .eq('customer_email', email)
+    .eq('store_id', getStoreId())
 
   if (filters.dateFrom) {
     query = query.gte('created_at', `${filters.dateFrom}T00:00:00`)
@@ -298,6 +305,7 @@ export async function getPendingOrderCount() {
   const { count, error } = await supabase
     .from('orders')
     .select('*', { count: 'exact', head: true })
+    .eq('store_id', getStoreId())
     .eq('status', 'pending')
 
   if (error) {
@@ -313,6 +321,7 @@ export async function getOrder(id: string) {
     .from('orders')
     .select('*, order_items(*)')
     .eq('id', id)
+    .eq('store_id', getStoreId())
     .single()
 
   if (error) {
@@ -328,6 +337,7 @@ export async function getOrderByReference(reference: string) {
     .from('orders')
     .select('*, order_items(*)')
     .eq('paystack_reference', reference)
+    .eq('store_id', getStoreId())
     .single()
 
   if (error) {
@@ -363,6 +373,7 @@ export async function updateOrderStatus(id: string, status: string) {
     .from('orders')
     .update({ status })
     .eq('id', id)
+    .eq('store_id', getStoreId())
 
   if (error) {
     logger.error({ error, orderId: id, status }, 'Failed to update order status')
@@ -427,12 +438,14 @@ export async function markOrderPaidManually(id: string) {
     .from('orders')
     .select('id, status, order_items(product_id, variant_id, quantity)')
     .eq('id', id)
+    .eq('store_id', getStoreId())
     .single()
 
   const { error } = await supabaseAdmin
     .from('orders')
     .update({ status: 'paid', paid_manually: true })
     .eq('id', id)
+    .eq('store_id', getStoreId())
 
   if (error) {
     logger.error({ error, orderId: id }, 'Failed to mark order as paid manually')
@@ -505,6 +518,7 @@ export async function requestOrderPayment(orderId: string) {
     .from('orders')
     .select('id, customer_name, customer_email, total_amount, status, order_items(product_name, product_image, variant_name, quantity, unit_price)')
     .eq('id', orderId)
+    .eq('store_id', getStoreId())
     .single()
 
   if (fetchError || !order) {
@@ -614,6 +628,7 @@ export async function cancelOrder(id: string, reason: string) {
     .from('orders')
     .select('customer_name, customer_email, status, order_items(product_name, product_image, variant_name, quantity, unit_price)')
     .eq('id', id)
+    .eq('store_id', getStoreId())
     .single()
 
   if (fetchError || !order) {
@@ -629,6 +644,7 @@ export async function cancelOrder(id: string, reason: string) {
       cancelled_at: new Date().toISOString(),
     })
     .eq('id', id)
+    .eq('store_id', getStoreId())
 
   if (error) {
     logger.error({ error, orderId: id }, 'Failed to cancel order')
@@ -756,6 +772,7 @@ export async function getMyOrders() {
     .from('orders')
     .select('*, order_items(*)')
     .eq('user_id', user.id)
+    .eq('store_id', getStoreId())
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -775,6 +792,7 @@ export async function getMyOrder(id: string) {
     .select('*, order_items(*), order_status_history(*)')
     .eq('id', id)
     .eq('user_id', user.id)
+    .eq('store_id', getStoreId())
     .single()
 
   if (error) return null
@@ -784,7 +802,7 @@ export async function getMyOrder(id: string) {
 export async function getOrderStats() {
   const supabase = await createClient()
 
-  const { data: orders } = await supabase.from('orders').select('status, total_amount')
+  const { data: orders } = await supabase.from('orders').select('status, total_amount').eq('store_id', getStoreId())
 
   if (!orders) return { total: 0, pending: 0, paid: 0, revenue: 0 }
 
@@ -815,6 +833,7 @@ export async function getOrderChartData(period: ChartPeriod = 'day'): Promise<Ch
   const { data: orders } = await supabase
     .from('orders')
     .select('created_at, total_amount, status')
+    .eq('store_id', getStoreId())
     .order('created_at', { ascending: true })
 
   if (!orders || orders.length === 0) return []

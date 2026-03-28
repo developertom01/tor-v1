@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next'
 import { createClient } from '@tor/lib/supabase/server'
+import { getStoreId } from '@tor/lib/store-id'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://localhost:3000'
@@ -16,6 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { data: products } = await supabase
       .from('products')
       .select('slug, updated_at')
+      .eq('store_id', getStoreId())
 
     if (products) {
       productRoutes = products.map((product) => ({

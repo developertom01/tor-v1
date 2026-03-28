@@ -1,10 +1,5 @@
 # --- Generated secrets ---
 
-resource "random_password" "db_password" {
-  length  = 32
-  special = true
-}
-
 resource "random_password" "admin_password" {
   length           = 16
   special          = true
@@ -13,28 +8,16 @@ resource "random_password" "admin_password" {
 
 locals {
   admin_email = var.env == "prod" ? "admin@${var.base_domain}" : "${var.env}.admin@${var.base_domain}"
+
+  # Shared Supabase env vars — passed in from the shared Supabase project
+  supabase_env_vars = {
+    NEXT_PUBLIC_SUPABASE_URL             = var.supabase_url
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = var.supabase_anon_key
+    SUPABASE_SECRET_KEY                  = var.supabase_service_role_key
+  }
 }
 
-# --- Supabase ---
-
-module "supabase" {
-  source = "../supabase"
-
-  name                 = var.name
-  org_id               = var.supabase_org_id
-  region               = var.supabase_region
-  domain               = var.domain
-  db_password          = random_password.db_password.result
-  google_client_id     = var.google_client_id
-  google_client_secret = var.google_client_secret
-}
-
-# --- Google OAuth ---
-# NOTE: OAuth clients must be created manually in GCP console
-# (IAP Brand requires a GCP organization, not available on personal accounts)
-# Set TF_VAR_GOOGLE_CLIENT_ID and TF_VAR_GOOGLE_CLIENT_SECRET env vars to enable Google Auth
-
-# --- Resend (only for prd — dev shares prd's domain) ---
+# --- Resend (only for prod — dev shares prod's domain) ---
 
 module "resend" {
   source = "../resend"
@@ -60,17 +43,18 @@ module "vercel" {
   env        = var.env
 
   env_vars = merge(
-    module.supabase.env_vars,
+    local.supabase_env_vars,
     var.env == "prod" ? module.resend[0].env_vars : {
       RESEND_API_KEY = "placeholder-set-in-doppler"
       FROM_EMAIL     = var.from_email
     },
     {
-      NEXT_PUBLIC_SITE_URL           = "https://${var.domain}"
-      NEXT_PUBLIC_BASE_URL           = "https://${var.domain}"
-      NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY = var.paystack_public_key
-      PAYSTACK_SECRET_KEY            = var.paystack_secret_key
-      LOG_LEVEL                      = var.env == "dev" ? "debug" : "info"
+      NEXT_PUBLIC_STORE_ID               = var.store_id
+      NEXT_PUBLIC_SITE_URL               = "https://${var.domain}"
+      NEXT_PUBLIC_BASE_URL               = "https://${var.domain}"
+      NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY     = var.paystack_public_key
+      PAYSTACK_SECRET_KEY                = var.paystack_secret_key
+      LOG_LEVEL                          = var.env == "dev" ? "debug" : "info"
     }
   )
 }
@@ -84,18 +68,19 @@ module "doppler" {
   env          = var.env
 
   secrets = merge(
-    module.supabase.env_vars,
+    local.supabase_env_vars,
     var.env == "prod" ? module.resend[0].env_vars : {},
     {
-      NEXT_PUBLIC_SITE_URL           = "https://${var.domain}"
-      NEXT_PUBLIC_BASE_URL           = "https://${var.domain}"
-      NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY = var.paystack_public_key
-      PAYSTACK_SECRET_KEY            = var.paystack_secret_key
-      LOG_LEVEL                      = var.env == "dev" ? "debug" : "info"
-      SUPABASE_DB_PASSWORD           = random_password.db_password.result
-      SUPABASE_DATABASE_URL          = module.supabase.database_url
-      ADMIN_EMAIL                    = local.admin_email
-      ADMIN_PASSWORD                 = random_password.admin_password.result
+      NEXT_PUBLIC_STORE_ID               = var.store_id
+      NEXT_PUBLIC_SITE_URL               = "https://${var.domain}"
+      NEXT_PUBLIC_BASE_URL               = "https://${var.domain}"
+      NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY     = var.paystack_public_key
+      PAYSTACK_SECRET_KEY                = var.paystack_secret_key
+      LOG_LEVEL                          = var.env == "dev" ? "debug" : "info"
+      SUPABASE_DB_PASSWORD               = var.supabase_db_password
+      SUPABASE_DATABASE_URL              = var.supabase_database_url
+      ADMIN_EMAIL                        = local.admin_email
+      ADMIN_PASSWORD                     = random_password.admin_password.result
     }
   )
 }

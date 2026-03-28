@@ -1,5 +1,5 @@
 variable "name" {
-  description = "Project name"
+  description = "Project name (e.g. tor-dev, tor-prod)"
   type        = string
 }
 
@@ -12,12 +12,6 @@ variable "region" {
   description = "Supabase region"
   type        = string
   default     = "eu-west-2"
-}
-
-variable "db_password" {
-  description = "Database password"
-  type        = string
-  sensitive   = true
 }
 
 variable "google_client_id" {
@@ -33,16 +27,7 @@ variable "google_client_secret" {
   default     = ""
 }
 
-variable "domain" {
-  description = "Domain for auth redirect URLs (e.g. hairluksgudgh.com)"
-  type        = string
-}
-
-variable "storage_buckets" {
-  description = "List of storage buckets to create"
-  type = list(object({
-    name   = string
-    public = bool
-  }))
-  default = [{ name = "products", public = true }]
+variable "domains" {
+  description = "List of all store domains that use this Supabase project (for auth redirect URLs)"
+  type        = list(string)
 }
