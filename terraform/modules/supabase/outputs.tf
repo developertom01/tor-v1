@@ -22,7 +22,7 @@ output "service_role_key" {
 
 output "database_url" {
   description = "Pooler connection string for migrations"
-  value       = "postgresql://postgres.${supabase_project.this.id}:${var.db_password}@aws-0-${var.region}.pooler.supabase.com:5432/postgres"
+  value       = "postgresql://postgres.${supabase_project.this.id}:${urlencode(var.db_password)}@aws-0-${var.region}.pooler.supabase.com:5432/postgres"
   sensitive   = true
 }
 
