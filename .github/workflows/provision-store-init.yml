@@ -159,15 +159,15 @@ jobs:
 
           ADMIN_PW=$(terragrunt output -raw admin_password)
           echo "::add-mask::$ADMIN_PW"
-          echo "admin_password=$ADMIN_PW" >> "$GITHUB_OUTPUT"
+          echo "admin_password=$(echo -n "$ADMIN_PW" | base64)" >> "$GITHUB_OUTPUT"
 
           SRK=$(terragrunt output -raw supabase_service_role_key)
           echo "::add-mask::$SRK"
-          echo "service_role_key=$SRK" >> "$GITHUB_OUTPUT"
+          echo "service_role_key=$(echo -n "$SRK" | base64)" >> "$GITHUB_OUTPUT"
 
           DB_URL=$(terragrunt output -raw supabase_database_url)
           echo "::add-mask::$DB_URL"
-          echo "database_url=$DB_URL" >> "$GITHUB_OUTPUT"
+          echo "database_url=$(echo -n "$DB_URL" | base64)" >> "$GITHUB_OUTPUT"
 
     outputs:
       supabase_project_ref: ${{ steps.outputs.outputs.supabase_project_ref }}
@@ -191,12 +191,22 @@ jobs:
         with:
           version: latest
 
+      - name: Decode secrets
+        run: |
+          DB_URL=$(echo "${{ needs.provision-store.outputs.database_url }}" | base64 -d)
+          SRK=$(echo "${{ needs.provision-store.outputs.service_role_key }}" | base64 -d)
+          ADMIN_PW=$(echo "${{ needs.provision-store.outputs.admin_password }}" | base64 -d)
+          echo "::add-mask::$DB_URL"
+          echo "::add-mask::$SRK"
+          echo "::add-mask::$ADMIN_PW"
+          echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+          echo "SERVICE_ROLE_KEY=$SRK" >> "$GITHUB_ENV"
+          echo "ADMIN_PASSWORD=$ADMIN_PW" >> "$GITHUB_ENV"
+
       - name: Run database migrations
         working-directory: apps/${{ inputs.store }}
         run: |
           supabase db push --db-url "$DATABASE_URL"
-        env:
-          DATABASE_URL: ${{ needs.provision-store.outputs.database_url }}
 
       - name: Seed admin user
         run: |
@@ -242,6 +252,4 @@ jobs:
           echo "Admin role set for $ADMIN_EMAIL"
         env:
           SUPABASE_URL: ${{ needs.provision-store.outputs.supabase_url }}
-          SERVICE_ROLE_KEY: ${{ needs.provision-store.outputs.service_role_key }}
           ADMIN_EMAIL: ${{ needs.provision-store.outputs.admin_email }}
-          ADMIN_PASSWORD: ${{ needs.provision-store.outputs.admin_password }}
