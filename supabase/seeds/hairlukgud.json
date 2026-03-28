@@ -1,6 +1,12 @@
 {
   "display_name": "Hair Luk Gud GH",
   "domain": "hairlukgud.com",
+  "categories": [
+    { "name": "Wigs", "slug": "wigs", "description": "Premium wigs", "emoji": "✨" },
+    { "name": "Extensions", "slug": "extensions", "description": "Hair extensions", "emoji": "✂️" },
+    { "name": "Accessories", "slug": "accessories", "description": "Hair accessories", "emoji": "💎" },
+    { "name": "Others", "slug": "others", "description": "Other products", "emoji": "📦" }
+  ],
   "products": [
     { "name": "Body Wave Lace Front Wig - Natural Black", "slug": "body-wave-lace-front-wig-natural-black", "description": "Premium body wave lace front wig in natural black. Made with 100% human hair for a natural look and feel. Pre-plucked hairline with baby hair. 18-22 inches available. Perfect for everyday glam or special occasions.", "price": 850.00, "compare_at_price": 1050.00, "category": "wigs", "in_stock": true, "stock_quantity": 15, "featured": true, "image_url": "https://images.unsplash.com/photo-1747979022469-43e0f3d7641f?w=800&q=80" },
     { "name": "Colored Straight Wig - Blue Fantasy", "slug": "colored-straight-wig-blue-fantasy", "description": "Stand out with this bold blue straight wig. Silky smooth texture with a vibrant color that turns heads. Heat-resistant synthetic fiber. Great for parties, festivals, or when you want to make a statement.", "price": 750.00, "category": "wigs", "in_stock": true, "stock_quantity": 8, "featured": true, "image_url": "https://images.unsplash.com/photo-1559607552-67f0b9c56d3e?w=800&q=80" },

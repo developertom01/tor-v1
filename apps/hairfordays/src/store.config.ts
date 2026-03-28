@@ -1,4 +1,5 @@
 import type { StoreConfig } from '@tor/store'
+import seed from '../../../supabase/seeds/hairfordays.json'
 
 const config: StoreConfig = {
   name: 'Hair For Days',
@@ -12,11 +13,7 @@ const config: StoreConfig = {
     gold: { 400: '#d4a843', 500: '#c4982f', 600: '#a67c2e' },
     heroGradient: 'linear-gradient(135deg, #0c0a06 0%, #1e1a14 40%, #2c2820 100%)',
   },
-  categories: [
-    { name: 'Wigs', slug: 'wigs', description: 'Premium wigs', emoji: '✨' },
-    { name: 'Hair Bundles', slug: 'hair-bundles', description: 'Hair bundles', emoji: '💇' },
-    { name: 'Ponytails Extensions', slug: 'ponytails-extensions', description: 'Ponytails extensions', emoji: '✂️' },
-  ],
+  categories: seed.categories,
   testimonials: [
     { name: 'Adwoa B.', text: "I've tried so many wig shops in Accra but Hair For Days is on a different level. The quality is unmatched and my wig stayed flawless for months!", rating: 5 },
     { name: 'Nana A.', text: "Ordered a lace front wig and it arrived the next day. The hairline is so natural — I've been getting compliments everywhere I go.", rating: 5 },

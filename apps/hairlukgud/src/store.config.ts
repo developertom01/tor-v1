@@ -1,4 +1,5 @@
 import type { StoreConfig } from '@tor/store'
+import seed from '../../../supabase/seeds/hairlukgud.json'
 
 const config: StoreConfig = {
   name: 'Hair Luk Gud GH',
@@ -12,12 +13,7 @@ const config: StoreConfig = {
     gold: { 400: '#d4a843', 500: '#c4982f', 600: '#a67c2e' },
     heroGradient: 'linear-gradient(135deg, #831843 0%, #be185d 40%, #ec4899 100%)',
   },
-  categories: [
-    { name: 'Wigs', slug: 'wigs', description: 'Premium wigs', emoji: '✨' },
-    { name: 'Extensions', slug: 'extensions', description: 'Hair extensions', emoji: '✂️' },
-    { name: 'Accessories', slug: 'accessories', description: 'Hair accessories', emoji: '💎' },
-    { name: 'Others', slug: 'others', description: 'Other products', emoji: '📦' },
-  ],
+  categories: seed.categories,
   testimonials: [],
   contact: {
     phone: '+233 54 220 3839',
