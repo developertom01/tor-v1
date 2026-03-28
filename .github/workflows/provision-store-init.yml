@@ -284,7 +284,22 @@ jobs:
           SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL"
           STORE_ID="${{ inputs.store }}"
 
-          # 1. Create admin user (or find existing)
+          # 1. Ensure store row exists (must be BEFORE user creation — handle_new_user trigger needs it)
+          STORE_RESP=$(curl -s -w "\n%{http_code}" -X POST \
+            "$SUPABASE_URL/rest/v1/stores" \
+            -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+            -H "apikey: $SUPABASE_SECRET_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=ignore-duplicates,return=minimal" \
+            -d "{\"id\": \"$STORE_ID\", \"display_name\": \"$STORE_ID\", \"domain\": \"$STORE_ID.com\"}")
+          STORE_HTTP=$(echo "$STORE_RESP" | tail -1)
+          if [ "$STORE_HTTP" -ge 400 ]; then
+            echo "::error::Failed to create store row (HTTP $STORE_HTTP): $(echo "$STORE_RESP" | sed '$d')"
+            exit 1
+          fi
+          echo "Store row ensured: $STORE_ID"
+
+          # 2. Create admin user (or find existing)
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "$SUPABASE_URL/auth/v1/admin/users" \
             -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
@@ -321,21 +336,6 @@ jobs:
             echo "::error::Failed to create admin user: $BODY"
             exit 1
           fi
-
-          # 2. Ensure store row exists
-          STORE_RESP=$(curl -s -w "\n%{http_code}" -X POST \
-            "$SUPABASE_URL/rest/v1/stores" \
-            -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
-            -H "apikey: $SUPABASE_SECRET_KEY" \
-            -H "Content-Type: application/json" \
-            -H "Prefer: resolution=ignore-duplicates,return=minimal" \
-            -d "{\"id\": \"$STORE_ID\", \"display_name\": \"$STORE_ID\", \"domain\": \"$STORE_ID.com\"}")
-          STORE_HTTP=$(echo "$STORE_RESP" | tail -1)
-          if [ "$STORE_HTTP" -ge 400 ]; then
-            echo "::error::Failed to create store row (HTTP $STORE_HTTP): $(echo "$STORE_RESP" | sed '$d')"
-            exit 1
-          fi
-          echo "Store row ensured: $STORE_ID"
 
           # 3. Create admin profile for this store (or update existing)
           sleep 2
