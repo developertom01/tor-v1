@@ -41,7 +41,7 @@ const headers = {
 async function upsertIgnore(table, body, onConflict) {
   const res = await fetch(`${supabaseUrl}/rest/v1/${table}?on_conflict=${onConflict}`, {
     method: 'POST',
-    headers: headersIgnoreDupes,
+    headers: { ...headers, Prefer: 'resolution=ignore-duplicates,return=minimal' },
     body: JSON.stringify(body),
   })
   if (!res.ok) {
