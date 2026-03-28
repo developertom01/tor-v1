@@ -24,7 +24,7 @@ const config: StoreConfig = {
     { name: 'Maame O.', text: "They helped me pick the right shade and the wig looks absolutely stunning on me. Best hair purchase I've ever made in Ghana.", rating: 5 },
   ],
   contact: {
-    phone: '+233 54 220 3839',
+    phone: '+233 54 504 2647',
     email: 'hello@hairfordays.store',
     location: 'Accra, Ghana',
   },
