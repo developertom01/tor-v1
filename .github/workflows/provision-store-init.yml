@@ -82,8 +82,15 @@ jobs:
       - name: Terragrunt Init
         run: terragrunt init -upgrade
 
-      - name: Terragrunt Apply (shared Supabase)
-        run: terragrunt apply -auto-approve -lock=false
+      - name: Terragrunt ${{ inputs.action }} (shared Supabase)
+        run: |
+          if [ "${{ inputs.action }}" = "apply" ]; then
+            terragrunt apply -auto-approve -lock=false
+          elif [ "${{ inputs.action }}" = "destroy" ]; then
+            echo "Skipping destroy for shared Supabase — destroy individual stores instead"
+          else
+            terragrunt plan -lock=false
+          fi
 
   # --- Step 2: Create Doppler project + environments (per store, after Supabase) ---
   doppler-project:
