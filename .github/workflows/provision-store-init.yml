@@ -284,16 +284,7 @@ jobs:
           SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL"
           STORE_ID="${{ inputs.store }}"
 
-          # Ensure store row exists
-          curl -sf -X POST \
-            "$SUPABASE_URL/rest/v1/stores" \
-            -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
-            -H "apikey: $SUPABASE_SECRET_KEY" \
-            -H "Content-Type: application/json" \
-            -H "Prefer: resolution=ignore-duplicates,return=minimal" \
-            -d "{\"id\": \"$STORE_ID\", \"display_name\": \"$STORE_ID\", \"domain\": \"$STORE_ID.com\"}" || true
-
-          # Create admin user via Supabase Auth Admin API (with store_id in metadata)
+          # 1. Create admin user (or find existing)
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "$SUPABASE_URL/auth/v1/admin/users" \
             -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
@@ -317,10 +308,10 @@ jobs:
             USER_ID=$(echo "$BODY" | jq -r '.id // empty')
             if [ -z "$USER_ID" ]; then
               USER_RESP=$(curl -s -X GET \
-                "$SUPABASE_URL/auth/v1/admin/users?filter=email%3D$ADMIN_EMAIL" \
+                "$SUPABASE_URL/auth/v1/admin/users" \
                 -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
                 -H "apikey: $SUPABASE_SECRET_KEY")
-              USER_ID=$(echo "$USER_RESP" | jq -r '.users[0].id // empty')
+              USER_ID=$(echo "$USER_RESP" | jq -r --arg email "$ADMIN_EMAIL" '.users[] | select(.email == $email) | .id' | head -1)
             fi
             if [ -z "$USER_ID" ]; then
               echo "::warning::Could not find user ID for existing admin — profile may need manual setup"
@@ -331,10 +322,24 @@ jobs:
             exit 1
           fi
 
-          # Wait for handle_new_user trigger to create profile
+          # 2. Ensure store row exists
+          STORE_RESP=$(curl -s -w "\n%{http_code}" -X POST \
+            "$SUPABASE_URL/rest/v1/stores" \
+            -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+            -H "apikey: $SUPABASE_SECRET_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=ignore-duplicates,return=minimal" \
+            -d "{\"id\": \"$STORE_ID\", \"display_name\": \"$STORE_ID\", \"domain\": \"$STORE_ID.com\"}")
+          STORE_HTTP=$(echo "$STORE_RESP" | tail -1)
+          if [ "$STORE_HTTP" -ge 400 ]; then
+            echo "::error::Failed to create store row (HTTP $STORE_HTTP): $(echo "$STORE_RESP" | sed '$d')"
+            exit 1
+          fi
+          echo "Store row ensured: $STORE_ID"
+
+          # 3. Create admin profile for this store (or update existing)
           sleep 2
 
-          # Check if profile exists for this store; if not, create it
           PROFILE_CHECK=$(curl -s \
             "$SUPABASE_URL/rest/v1/profiles?id=eq.$USER_ID&store_id=eq.$STORE_ID&select=id" \
             -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
