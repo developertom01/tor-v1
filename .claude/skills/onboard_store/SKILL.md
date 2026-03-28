@@ -8,11 +8,27 @@ user-invocable: true
 
 You are onboarding a new store into the tor monorepo — a multi-tenant e-commerce platform for hair businesses in Ghana. Your job is to scaffold the entire app directory, config files, Terraform infra, seed data, and CI integration so the store is ready to provision and deploy.
 
-## Critical Rule: Ask, Don't Guess
+## Conversation Loop: Gather Before You Build
 
-The following information **MUST come from the user**. Never invent, assume, or hallucinate these values. If any are missing, ask the user interactively before proceeding:
+**DO NOT write a single file until you have every required field confirmed by the user.**
 
-### Required (block until provided)
+You must run a conversation loop with the user to collect all required information. The loop works like this:
+
+1. **Check what's known.** Parse `$ARGUMENTS` and anything the user said in the initial message. Mark each required field as provided or missing.
+2. **Ask for what's missing.** Group related missing fields into 2-3 questions max per turn — don't ask for everything in one wall of text, and don't ask one field at a time. Be conversational.
+3. **Validate what you got.** After the user responds, check:
+   - Is the slug lowercase with no spaces or special chars?
+   - Does the domain look like a real domain (has a TLD)?
+   - Are the color hex values valid? If the user gave a single primary color, generate the 50-900 scale and show it for confirmation.
+   - Are there at least 2 product categories?
+   - Do phone/email look real (not placeholder)?
+4. **If anything is still missing or unclear, ask again.** Don't proceed. Don't fill in gaps yourself.
+5. **Once you have everything, present a full summary** of all values and ask: "Does this all look correct? I'll start building once you confirm."
+6. **Only after explicit confirmation ("yes", "looks good", "go ahead", etc.) do you move to Phase 2.**
+
+If at any point the user says something vague like "just pick something" for a required field, push back: "I need this from you since it'll be customer-facing / used in production. What should it be?"
+
+### Required fields (block until ALL are provided)
 
 | Field | Why it matters |
 |-------|---------------|
@@ -27,7 +43,7 @@ The following information **MUST come from the user**. Never invent, assume, or 
 | **Product categories** | What the store sells (e.g., Wigs, Extensions, Accessories). Need name, slug, description, emoji for each. |
 | **Admin email** | The email address for the first admin user account. |
 
-### Ask if not obvious (don't block, but confirm)
+### Optional fields (use defaults if not provided, but mention the defaults)
 
 | Field | Default if not provided |
 |-------|------------------------|
@@ -35,6 +51,39 @@ The following information **MUST come from the user**. Never invent, assume, or 
 | Hero gradient | Auto-generate from brand-900 → brand-700 → brand-500 |
 | Currency | GHS (Ghana Cedis) |
 | Region | `eu-west-2` (Supabase region) |
+
+### Example conversation flow
+
+```
+Agent: "Let's set up your new store! I need a few things first.
+        What's the store slug (lowercase, e.g. hairfordays), display name, and domain?"
+User:  "curlqueen, Curl Queen GH, curlqueengh.com"
+Agent: "Got it. What does Curl Queen GH sell? Give me a quick description
+        and list the product categories (e.g., Wigs, Extensions, Accessories)."
+User:  "natural hair products and curl-defining tools. Categories: Curl Creams, Styling Tools, Accessories"
+Agent: "Nice. What's the brand color? Give me a hex code for the primary color
+        and I'll generate the full 50-900 palette for you to review."
+User:  "#7c3aed"
+Agent: "Here's the palette I generated from #7c3aed:
+        50: #f5f3ff, 100: #ede9fe, ..., 900: #4c1d95
+        Does this look right?"
+User:  "yes"
+Agent: "Last bits — contact info (phone, email, location) and the admin email?"
+User:  "+233 20 123 4567, hello@curlqueengh.com, Accra Ghana, admin@curlqueengh.com"
+Agent: "Here's the full summary:
+        - Slug: curlqueen
+        - Display name: Curl Queen GH
+        - Domain: curlqueengh.com
+        - Description: natural hair products and curl-defining tools
+        - Brand primary: #7c3aed (palette confirmed above)
+        - Categories: Curl Creams, Styling Tools, Accessories
+        - Contact: +233 20 123 4567 / hello@curlqueengh.com / Accra, Ghana
+        - Admin: admin@curlqueengh.com
+        - Gold accents: default (shared)
+        Does this all look correct? I'll start building once you confirm."
+User:  "yes go ahead"
+Agent: [NOW begins Phase 2]
+```
 
 ## What You CAN Be Creative With
 
@@ -91,15 +140,7 @@ Follow this order. Use the todo list to track progress.
 
 ### Phase 1: Gather Information
 
-1. Check if the user provided the store slug as an argument: $ARGUMENTS
-2. If any required field is missing, ask the user. Group related questions together (don't ask one at a time). For example:
-   - "What's the store slug, display name, and domain?"
-   - "Give me a brief description of the store — what does it sell, what's the vibe?"
-   - "What's the brand color palette? If you have a primary color, I can help generate the full 50-900 scale."
-   - "What are the product categories?"
-   - "Contact info: phone, email, location?"
-   - "Admin email for the first admin account?"
-3. Confirm all values back to the user before proceeding.
+Follow the **Conversation Loop** described above. Do not proceed to Phase 2 until the user has confirmed the full summary.
 
 ### Phase 2: Create App Directory
 
