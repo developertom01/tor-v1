@@ -42,7 +42,7 @@ When a value changes, you often need to update multiple files. Use this map:
 | **Store name / display name** | `store.config.ts` (name), `layout.tsx` (metadata), `page.tsx` (copy referencing store name), `CLAUDE.md`, `init/{slug}.yaml`, terragrunt locals (display_name) |
 | **Domain** | `store.config.ts` (domain), `init/{slug}.yaml`, `terraform/stores/{slug}/dev/terragrunt.hcl` (locals), `terraform/stores/{slug}/prod/terragrunt.hcl` (locals), `.env.example` |
 | **Contact info** | `store.config.ts` (contact) only |
-| **Categories** | `supabase/seeds/{slug}.json` only — update the top-level `categories` array and remap any product `category` fields to the new slugs. `store.config.ts` imports `seed.categories` directly so it picks up the change automatically. Also update `page.tsx` if categories are referenced in landing page copy. |
+| **Categories** | `store.config.ts` (categories array), `supabase/seeds/{slug}.json` (remap every product's `category` field to match the new slugs — the seed script deletes and re-inserts all products on every run, so stale slugs will orphan products from their category), `page.tsx` (if categories are referenced in landing page copy) |
 | **Hero / landing page copy** | `store.config.ts` (hero), `page.tsx` (landing page content) |
 | **Landing page design** | `page.tsx` only |
 | **SEO metadata** | `layout.tsx` only |
