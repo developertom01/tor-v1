@@ -165,12 +165,17 @@ jobs:
           echo "::add-mask::$SRK"
           echo "service_role_key=$SRK" >> "$GITHUB_OUTPUT"
 
+          DB_PW=$(terragrunt output -raw supabase_db_password)
+          echo "::add-mask::$DB_PW"
+          echo "db_password=$DB_PW" >> "$GITHUB_OUTPUT"
+
     outputs:
       supabase_project_ref: ${{ steps.outputs.outputs.supabase_project_ref }}
       supabase_url: ${{ steps.outputs.outputs.supabase_url }}
       service_role_key: ${{ steps.outputs.outputs.service_role_key }}
       admin_email: ${{ steps.outputs.outputs.admin_email }}
       admin_password: ${{ steps.outputs.outputs.admin_password }}
+      db_password: ${{ steps.outputs.outputs.db_password }}
 
   # --- Step 3: Run migrations + seed admin ---
   post-provision:
@@ -183,25 +188,15 @@ jobs:
 
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
-
-      - name: Install Doppler CLI
-        uses: dopplerhq/cli-action@v3
-
-      - name: Get Supabase access token from Doppler
-        run: |
-          TOKEN=$(doppler secrets get TF_VAR_SUPABASE_ACCESS_TOKEN --plain --project provisioner --config ${{ inputs.env }})
-          echo "::add-mask::$TOKEN"
-          echo "SUPABASE_ACCESS_TOKEN=$TOKEN" >> "$GITHUB_ENV"
-        env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+        with:
+          version: latest
 
       - name: Run database migrations
         working-directory: apps/${{ inputs.store }}
         run: |
-          supabase link --project-ref "$PROJECT_REF"
-          supabase db push
+          supabase db push --db-url "$DATABASE_URL"
         env:
-          PROJECT_REF: ${{ needs.provision-store.outputs.supabase_project_ref }}
+          DATABASE_URL: postgresql://postgres:${{ needs.provision-store.outputs.db_password }}@db.${{ needs.provision-store.outputs.supabase_project_ref }}.supabase.co:5432/postgres
 
       - name: Seed admin user
         run: |
