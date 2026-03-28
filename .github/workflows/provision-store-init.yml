@@ -280,8 +280,7 @@ jobs:
           # Seed products (dev only — prod starts empty for real data)
           if [ "${{ inputs.env }}" = "dev" ]; then
             echo "Seeding dev products..."
-            SQL=$(cat ../../supabase/seed.sql)
-            echo "$SQL" | supabase db execute --password "$DB_PASS"
+            supabase db query -f ../../supabase/seed.sql --linked
             echo "Dev seed data applied"
           fi
         env:
