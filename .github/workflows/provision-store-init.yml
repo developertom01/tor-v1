@@ -85,11 +85,11 @@ jobs:
       - name: Terragrunt ${{ inputs.action }} (shared Supabase)
         run: |
           if [ "${{ inputs.action }}" = "apply" ]; then
-            terragrunt apply -auto-approve -lock=false
+            terragrunt apply -auto-approve
           elif [ "${{ inputs.action }}" = "destroy" ]; then
             echo "Skipping destroy for shared Supabase — destroy individual stores instead"
           else
-            terragrunt plan -lock=false
+            terragrunt plan
           fi
 
       - name: Write Supabase outputs to Doppler provisioner
@@ -166,12 +166,9 @@ jobs:
       - name: Terragrunt ${{ inputs.action }} (Doppler project)
         run: |
           if [ "${{ inputs.action }}" = "apply" ]; then
-            terragrunt apply -auto-approve -lock=false
-          elif [ "${{ inputs.action }}" = "destroy" ]; then
-            terragrunt destroy -auto-approve -lock=false
-          else
-            terragrunt plan -lock=false
-          fi
+            terragrunt apply -auto-approve          elif [ "${{ inputs.action }}" = "destroy" ]; then
+            terragrunt destroy -auto-approve          else
+            terragrunt plan          fi
 
   # --- Step 3: Provision store (Vercel, Resend, Doppler secrets) ---
   provision-store:
@@ -228,12 +225,9 @@ jobs:
       - name: Terragrunt ${{ inputs.action }}
         run: |
           if [ "${{ inputs.action }}" = "apply" ]; then
-            terragrunt apply -auto-approve -lock=false
-          elif [ "${{ inputs.action }}" = "destroy" ]; then
-            terragrunt destroy -auto-approve -lock=false
-          else
-            terragrunt plan -lock=false
-          fi
+            terragrunt apply -auto-approve          elif [ "${{ inputs.action }}" = "destroy" ]; then
+            terragrunt destroy -auto-approve          else
+            terragrunt plan          fi
 
   # --- Step 4: Run migrations + seed admin (apply only) ---
   post-provision:
