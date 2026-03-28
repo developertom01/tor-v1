@@ -83,11 +83,11 @@ jobs:
       - name: Terragrunt ${{ inputs.action }}
         run: |
           if [ "${{ inputs.action }}" = "apply" ]; then
-            terragrunt apply -auto-approve
+            terragrunt apply -auto-approve -lock=false
           elif [ "${{ inputs.action }}" = "destroy" ]; then
-            terragrunt destroy -auto-approve
+            terragrunt destroy -auto-approve -lock=false
           else
-            terragrunt plan
+            terragrunt plan -lock=false
           fi
 
       - name: Export outputs
