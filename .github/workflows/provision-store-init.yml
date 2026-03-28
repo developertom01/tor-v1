@@ -63,7 +63,9 @@ jobs:
       - name: Configure Terraform Cloud credentials
         run: |
           mkdir -p ~/.terraform.d
-          echo "{\"credentials\":{\"app.terraform.io\":{\"token\":\"$TF_CLOUD_TOKEN\"}}}" > ~/.terraform.d/credentials.tfrc.json
+          jq -n --arg token "$TF_CLOUD_TOKEN" \
+            '{"credentials":{"app.terraform.io":{"token":$token}}}' \
+            > ~/.terraform.d/credentials.tfrc.json
 
       - uses: hashicorp/setup-terraform@v3
         with:
