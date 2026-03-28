@@ -31,7 +31,7 @@ permissions:
   contents: read
 
 jobs:
-  # --- Step 1: Provision shared Supabase project (must exist before any store) ---
+  # --- Step 1: Shared Supabase project (must exist before any store) ---
   shared-supabase:
     runs-on: ubuntu-latest
     defaults:
@@ -92,10 +92,9 @@ jobs:
             terragrunt plan -lock=false
           fi
 
-  # --- Step 2: Create Doppler project + environments (per store, after Supabase) ---
+  # --- Step 2: Create Doppler project + environments (per store) ---
   doppler-project:
     needs: shared-supabase
-    if: always() && !cancelled() && (needs.shared-supabase.result == 'success' || needs.shared-supabase.result == 'skipped')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -145,14 +144,19 @@ jobs:
       - name: Terragrunt Init
         run: terragrunt init -upgrade
 
-      - name: Terragrunt Apply
-        if: inputs.action == 'apply'
-        run: terragrunt apply -auto-approve -lock=false
+      - name: Terragrunt ${{ inputs.action }} (Doppler project)
+        run: |
+          if [ "${{ inputs.action }}" = "apply" ]; then
+            terragrunt apply -auto-approve -lock=false
+          elif [ "${{ inputs.action }}" = "destroy" ]; then
+            terragrunt destroy -auto-approve -lock=false
+          else
+            terragrunt plan -lock=false
+          fi
 
   # --- Step 3: Provision store (Vercel, Resend, Doppler secrets) ---
   provision-store:
     needs: doppler-project
-    if: always() && !cancelled() && needs.doppler-project.result != 'failure'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -212,7 +216,7 @@ jobs:
             terragrunt plan -lock=false
           fi
 
-  # --- Step 4: Run migrations + seed admin ---
+  # --- Step 4: Run migrations + seed admin (apply only) ---
   post-provision:
     needs: provision-store
     if: inputs.action == 'apply'

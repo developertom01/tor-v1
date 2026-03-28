@@ -8,6 +8,14 @@ dependency "doppler" {
 
 dependency "supabase" {
   config_path = "${get_repo_root()}/terraform/shared/supabase/prod"
+  mock_outputs = {
+    url              = "https://mock.supabase.co"
+    anon_key         = "mock-anon-key"
+    service_role_key = "mock-service-role-key"
+    db_password      = "mock-db-password"
+    database_url     = "postgresql://mock@localhost/postgres"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 locals {

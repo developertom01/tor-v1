@@ -31,3 +31,39 @@ variable "domains" {
   description = "List of all store domains that use this Supabase project (for auth redirect URLs)"
   type        = list(string)
 }
+
+# ── Provider variables (declared by root.hcl generated providers.tf) ──
+
+variable "supabase_access_token" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+variable "google_project_id" {
+  type    = string
+  default = ""
+}
+
+variable "vercel_token" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+variable "vercel_team_id" {
+  type    = string
+  default = ""
+}
+
+variable "resend_api_key" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+variable "doppler_token" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
