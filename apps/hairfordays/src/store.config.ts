@@ -14,9 +14,8 @@ const config: StoreConfig = {
   },
   categories: [
     { name: 'Wigs', slug: 'wigs', description: 'Premium wigs', emoji: '✨' },
-    { name: 'Extensions', slug: 'extensions', description: 'Hair extensions', emoji: '✂️' },
-    { name: 'Accessories', slug: 'accessories', description: 'Hair accessories', emoji: '💎' },
-    { name: 'Others', slug: 'others', description: 'Other products', emoji: '📦' },
+    { name: 'Hair Bundles', slug: 'hair-bundles', description: 'Hair bundles', emoji: '💇' },
+    { name: 'Ponytails Extensions', slug: 'ponytails-extensions', description: 'Ponytails extensions', emoji: '✂️' },
   ],
   testimonials: [
     { name: 'Adwoa B.', text: "I've tried so many wig shops in Accra but Hair For Days is on a different level. The quality is unmatched and my wig stayed flawless for months!", rating: 5 },

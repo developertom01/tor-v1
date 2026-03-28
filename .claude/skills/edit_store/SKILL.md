@@ -42,14 +42,14 @@ When a value changes, you often need to update multiple files. Use this map:
 | **Store name / display name** | `store.config.ts` (name), `layout.tsx` (metadata), `page.tsx` (copy referencing store name), `CLAUDE.md`, `init/{slug}.yaml`, terragrunt locals (display_name) |
 | **Domain** | `store.config.ts` (domain), `init/{slug}.yaml`, `terraform/stores/{slug}/dev/terragrunt.hcl` (locals), `terraform/stores/{slug}/prod/terragrunt.hcl` (locals), `.env.example` |
 | **Contact info** | `store.config.ts` (contact) only |
-| **Categories** | `store.config.ts` (categories), `page.tsx` (if categories are referenced in landing page copy), seed data in `supabase/seed.sql` (if product categories changed) |
+| **Categories** | `store.config.ts` (categories), `page.tsx` (if categories are referenced in landing page copy), `supabase/seeds/{slug}.json` (update `category` field on every product to use the new category slugs — the seed script always deletes and re-inserts, so stale slugs will break filtering) |
 | **Hero / landing page copy** | `store.config.ts` (hero), `page.tsx` (landing page content) |
 | **Landing page design** | `page.tsx` only |
 | **SEO metadata** | `layout.tsx` only |
 | **Tagline** | `store.config.ts` (tagline) |
 | **Testimonials** | `store.config.ts` (testimonials), `page.tsx` (if testimonials are inline rather than from config) |
 | **From email** | `init/{slug}.yaml`, terragrunt locals (from_email) |
-| **Seed products** | `supabase/seed.sql` only |
+| **Seed products** | `supabase/seeds/{slug}.json` only |
 
 ## Rules
 

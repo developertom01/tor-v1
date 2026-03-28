@@ -7,9 +7,10 @@
  * Requires env vars: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY
  *
  * - Ensures the store row + settings exist
- * - Inserts products from supabase/seeds/<store>.json
- * - Skips products that already exist (by slug + store_id)
- * - Creates product_media for each new product
+ * - Deletes all existing products for the store, then re-inserts from supabase/seeds/<store>.json
+ * - Creates product_media for each product
+ *
+ * Always re-seeds so category changes in the seed file take effect on re-run.
  */
 
 import { readFileSync } from 'fs'
@@ -63,13 +64,6 @@ async function api(path, method, body, customHeaders) {
   return res
 }
 
-async function apiGet(path) {
-  const res = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
-    method: 'GET',
-    headers: { Authorization: headers.Authorization, apikey: headers.apikey },
-  })
-  return res.json()
-}
 
 // Load seed data
 const seedPath = resolve(__dirname, '..', 'supabase', 'seeds', `${storeId}.json`)
@@ -96,17 +90,12 @@ await upsertIgnore('store_settings', {
   online_payments_enabled: true,
 }, 'store_id')
 
-// 3. Get existing product slugs for this store
-const existing = await apiGet(`products?store_id=eq.${storeId}&select=slug`)
-const existingSlugs = new Set(existing.map((p) => p.slug))
+// 3. Delete all existing products for this store (cascades to product_media via FK)
+await api(`products?store_id=eq.${storeId}`, 'DELETE')
 
 // 4. Insert products + media
 let inserted = 0
 for (const product of seedData.products) {
-  if (existingSlugs.has(product.slug)) {
-    continue
-  }
-
   // Insert product
   const res = await fetch(`${supabaseUrl}/rest/v1/products`, {
     method: 'POST',
@@ -150,4 +139,4 @@ for (const product of seedData.products) {
   inserted++
 }
 
-console.log(`Seeded ${inserted} new products for ${storeId} (${existingSlugs.size} already existed)`)
+console.log(`Seeded ${inserted} products for ${storeId}`)
