@@ -84,12 +84,12 @@ jobs:
         run: terragrunt init -upgrade
 
       - name: Terragrunt Apply
-        run: terragrunt apply -auto-approve
+        run: terragrunt apply -auto-approve -lock=false
 
   # --- Step 2: Provision store environment (supabase, vercel, secrets) ---
-  terragrunt:
+  provision-store:
     needs: doppler-project
-    if: always() && !cancelled()
+    if: always() && !cancelled() && needs.doppler-project.result != 'failure'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -174,7 +174,7 @@ jobs:
 
   # --- Step 3: Run migrations + seed admin ---
   post-provision:
-    needs: terragrunt
+    needs: provision-store
     if: inputs.action == 'apply'
     runs-on: ubuntu-latest
 
@@ -203,7 +203,7 @@ jobs:
           supabase link --project-ref "$PROJECT_REF"
           supabase db push
         env:
-          PROJECT_REF: ${{ needs.terragrunt.outputs.supabase_project_ref }}
+          PROJECT_REF: ${{ needs.provision-store.outputs.supabase_project_ref }}
 
       - name: Seed admin user
         run: |
@@ -248,7 +248,7 @@ jobs:
 
           echo "Admin role set for $ADMIN_EMAIL"
         env:
-          SUPABASE_URL: ${{ needs.terragrunt.outputs.supabase_url }}
-          SERVICE_ROLE_KEY: ${{ needs.terragrunt.outputs.service_role_key }}
-          ADMIN_EMAIL: ${{ needs.terragrunt.outputs.admin_email }}
-          ADMIN_PASSWORD: ${{ needs.terragrunt.outputs.admin_password }}
+          SUPABASE_URL: ${{ needs.provision-store.outputs.supabase_url }}
+          SERVICE_ROLE_KEY: ${{ needs.provision-store.outputs.service_role_key }}
+          ADMIN_EMAIL: ${{ needs.provision-store.outputs.admin_email }}
+          ADMIN_PASSWORD: ${{ needs.provision-store.outputs.admin_password }}
