@@ -337,7 +337,14 @@ jobs:
             exit 1
           fi
 
-          # 3. Create admin profile for this store (or update existing)
+          # 3. Seed products (dev only — prod starts empty for real data)
+          if [ "${{ inputs.env }}" = "dev" ]; then
+            echo "Seeding dev products..."
+            psql "$SUPABASE_DATABASE_URL" -f supabase/seed.sql
+            echo "Dev seed data applied"
+          fi
+
+          # 4. Create admin profile for this store (or update existing)
           sleep 2
 
           PROFILE_CHECK=$(curl -s \

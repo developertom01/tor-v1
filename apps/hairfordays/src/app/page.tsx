@@ -38,7 +38,7 @@ export default async function HomePage() {
                 </h1>
               </Animate>
               <Animate animation="fade-up" delay={400}>
-                <p className="mt-6 text-lg md:text-xl text-teal-100 max-w-lg">
+                <p className="mt-6 text-lg md:text-xl text-brand-200 max-w-lg">
                   Discover our collection of premium wigs, extensions, and hair accessories.
                   Luxury hair delivered straight to your door in Ghana.
                 </p>
@@ -47,14 +47,14 @@ export default async function HomePage() {
                 <div className="mt-8 flex flex-wrap gap-4">
                   <Link
                     href="/products"
-                    className="inline-flex items-center gap-2 bg-white text-brand-700 font-bold px-8 py-4 rounded-full hover:bg-teal-50 transition-all hover:shadow-lg hover:scale-105"
+                    className="inline-flex items-center gap-2 bg-gold-500 text-black font-bold px-8 py-4 rounded-full hover:bg-gold-400 transition-all hover:shadow-lg hover:shadow-gold-500/20 hover:scale-105"
                   >
                     Shop Now
                     <ArrowRight className="w-5 h-5" />
                   </Link>
                   <Link
                     href="/products?category=wigs"
-                    className="inline-flex items-center gap-2 border-2 border-white/40 text-white font-semibold px-8 py-4 rounded-full hover:bg-white/10 transition-all hover:scale-105"
+                    className="inline-flex items-center gap-2 border-2 border-white/20 text-white font-semibold px-8 py-4 rounded-full hover:border-gold-500/60 hover:text-gold-400 transition-all hover:scale-105"
                   >
                     Browse Wigs
                   </Link>
@@ -74,7 +74,7 @@ export default async function HomePage() {
               <Animate animation="scale-up" delay={700}>
                 <div className="absolute -bottom-4 -left-4 glass-card rounded-2xl p-4 text-center">
                   <p className="text-3xl font-bold text-gold-400">500+</p>
-                  <p className="text-sm text-teal-100">Happy Customers</p>
+                  <p className="text-sm text-brand-200">Happy Customers</p>
                 </div>
               </Animate>
             </Animate>
@@ -83,7 +83,7 @@ export default async function HomePage() {
       </section>
 
       {/* Trust Badges */}
-      <section className="bg-white border-b border-gray-100">
+      <section className="bg-brand-800 border-b border-brand-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Animate animation="fade-up">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -93,12 +93,12 @@ export default async function HomePage() {
                 { icon: Star, title: 'Premium Quality', desc: '100% Quality Guaranteed', align: 'sm:justify-end' },
               ].map((b) => (
                 <div key={b.title} className={`flex items-center gap-4 justify-center ${b.align}`}>
-                  <div className="w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center">
-                    <b.icon className="w-6 h-6 text-brand-600" />
+                  <div className="w-12 h-12 rounded-full bg-brand-700 flex items-center justify-center">
+                    <b.icon className="w-6 h-6 text-gold-400" />
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900">{b.title}</p>
-                    <p className="text-sm text-gray-500">{b.desc}</p>
+                    <p className="font-semibold text-white">{b.title}</p>
+                    <p className="text-sm text-brand-300">{b.desc}</p>
                   </div>
                 </div>
               ))}
@@ -108,11 +108,11 @@ export default async function HomePage() {
       </section>
 
       {/* Categories */}
-      <section className="bg-gray-50 py-16 md:py-24">
+      <section className="bg-brand-900 py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Animate animation="fade-up" className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">Shop by Category</h2>
-            <p className="mt-3 text-gray-500 text-lg">Find the perfect hair for every occasion</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-white">Shop by Category</h2>
+            <p className="mt-3 text-brand-300 text-lg">Find the perfect hair for every occasion</p>
           </Animate>
           <Animate animation="fade-up" delay={200}>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
@@ -125,14 +125,14 @@ export default async function HomePage() {
                 <Link
                   key={cat.slug}
                   href={`/products?category=${cat.slug}`}
-                  className="group relative bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-center"
+                  className="group relative bg-brand-800 border border-brand-700 hover:border-gold-500/50 rounded-2xl p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40 text-center"
                 >
                   <div className="text-5xl mb-4">{cat.emoji}</div>
-                  <h3 className="text-xl font-bold text-gray-900 group-hover:text-brand-600 transition-colors">
+                  <h3 className="text-xl font-bold text-white group-hover:text-gold-400 transition-colors">
                     {cat.name}
                   </h3>
-                  <p className="mt-2 text-gray-500">{cat.desc}</p>
-                  <div className="mt-4 inline-flex items-center gap-1 text-brand-600 font-semibold text-sm">
+                  <p className="mt-2 text-brand-300">{cat.desc}</p>
+                  <div className="mt-4 inline-flex items-center gap-1 text-gold-500 font-semibold text-sm">
                     Shop {cat.name}
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
@@ -170,27 +170,27 @@ export default async function HomePage() {
       )}
 
       {/* Testimonials */}
-      <section className="bg-brand-50 py-16 md:py-24">
+      <section className="bg-brand-900 py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Animate animation="fade-up" className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">What Our Customers Say</h2>
-            <p className="mt-3 text-gray-500 text-lg">Real reviews from real queens</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-white">What Our Customers Say</h2>
+            <p className="mt-3 text-brand-300 text-lg">Real reviews from real queens</p>
           </Animate>
           <Animate animation="fade-up" delay={200}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[
-                { name: 'Esi M.', text: 'The quality of the wigs is amazing! I get compliments everywhere I go. Delivery was super fast too.', rating: 5 },
-                { name: 'Abena D.', text: 'Best hair shop in Ghana! The prices are very affordable and the hair lasts for days. Will definitely buy again.', rating: 5 },
-                { name: 'Serwaa K.', text: 'I love that I can see videos of the products before buying. The hair looks exactly like what I received!', rating: 5 },
+                { name: 'Adwoa B.', text: "I've tried so many wig shops in Accra but Hair For Days is on a different level. The quality is unmatched and my wig stayed flawless for months!", rating: 5 },
+                { name: 'Nana A.', text: "Ordered a lace front wig and it arrived the next day. The hairline is so natural — I've been getting compliments everywhere I go.", rating: 5 },
+                { name: 'Maame O.', text: "They helped me pick the right shade and the wig looks absolutely stunning on me. Best hair purchase I've ever made in Ghana.", rating: 5 },
               ].map((review, i) => (
-                <div key={i} className="bg-white rounded-2xl p-6 shadow-sm">
+                <div key={i} className="bg-brand-800 border border-brand-700 rounded-2xl p-6">
                   <div className="flex gap-1 mb-3">
                     {Array.from({ length: review.rating }).map((_, j) => (
                       <Star key={j} className="w-4 h-4 fill-gold-400 text-gold-400" />
                     ))}
                   </div>
-                  <p className="text-gray-600 mb-4">&ldquo;{review.text}&rdquo;</p>
-                  <p className="font-semibold text-gray-900">{review.name}</p>
+                  <p className="text-brand-200 mb-4">&ldquo;{review.text}&rdquo;</p>
+                  <p className="font-semibold text-white">{review.name}</p>
                 </div>
               ))}
             </div>
@@ -203,12 +203,12 @@ export default async function HomePage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <Animate animation="blur-in">
             <h2 className="text-3xl md:text-4xl font-bold">Ready for Hair That Lasts?</h2>
-            <p className="mt-4 text-lg text-teal-100 max-w-2xl mx-auto">
+            <p className="mt-4 text-lg text-brand-200 max-w-2xl mx-auto">
               Join hundreds of happy customers who trust Hair For Days for their premium hair needs.
             </p>
             <Link
               href="/products"
-              className="mt-8 inline-flex items-center gap-2 bg-white text-brand-700 font-bold px-10 py-4 rounded-full hover:bg-teal-50 transition-all hover:shadow-lg hover:scale-105"
+              className="mt-8 inline-flex items-center gap-2 bg-gold-500 text-black font-bold px-10 py-4 rounded-full hover:bg-gold-400 transition-all hover:shadow-lg hover:shadow-gold-500/20 hover:scale-105"
             >
               Shop Now <ArrowRight className="w-5 h-5" />
             </Link>
