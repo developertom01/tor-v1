@@ -4,9 +4,9 @@ resource "supabase_project" "this" {
   database_password  = var.db_password
   region            = var.region
 
-  lifecycle {
-    ignore_changes = [database_password]
-  }
+  # lifecycle {
+  #   ignore_changes = [database_password]
+  # }
 }
 
 data "supabase_apikeys" "this" {
