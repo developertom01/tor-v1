@@ -175,10 +175,20 @@ jobs:
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
+      - name: Get Supabase access token
+        run: |
+          TOKEN=$(doppler secrets get TF_VAR_SUPABASE_ACCESS_TOKEN --plain --project provisioner --config ${{ inputs.env }})
+          echo "::add-mask::$TOKEN"
+          echo "SUPABASE_ACCESS_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
       - name: Run database migrations
         working-directory: apps/${{ inputs.store }}
         run: |
-          supabase db push --db-url "$SUPABASE_DATABASE_URL"
+          PROJECT_REF=$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co||')
+          supabase link --project-ref "$PROJECT_REF"
+          supabase db push
 
       - name: Seed admin user
         run: |
