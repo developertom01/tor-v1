@@ -38,10 +38,15 @@ const headers = {
   Prefer: 'resolution=merge-duplicates,return=minimal',
 }
 
-async function api(path, method, body) {
+const headersIgnoreDupes = {
+  ...headers,
+  Prefer: 'resolution=ignore-duplicates,return=minimal',
+}
+
+async function api(path, method, body, customHeaders) {
   const res = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     method,
-    headers,
+    headers: customHeaders ?? headers,
     body: body ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {
@@ -75,14 +80,14 @@ await api('stores', 'POST', {
   id: storeId,
   display_name: seedData.display_name,
   domain: seedData.domain,
-})
+}, headersIgnoreDupes)
 
 // 2. Ensure store settings
 await api('store_settings', 'POST', {
   store_id: storeId,
   bypass_payment: false,
   online_payments_enabled: true,
-})
+}, headersIgnoreDupes)
 
 // 3. Get existing product slugs for this store
 const existing = await apiGet(`products?store_id=eq.${storeId}&select=slug`)
