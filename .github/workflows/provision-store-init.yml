@@ -1,4 +1,4 @@
-name: Provision Store
+name: Provision Store && Setup
 
 on:
   workflow_dispatch:
