@@ -165,9 +165,9 @@ jobs:
           echo "::add-mask::$SRK"
           echo "service_role_key=$SRK" >> "$GITHUB_OUTPUT"
 
-          DB_PW=$(terragrunt output -raw supabase_db_password)
-          echo "::add-mask::$DB_PW"
-          echo "db_password=$DB_PW" >> "$GITHUB_OUTPUT"
+          DB_URL=$(terragrunt output -raw supabase_database_url)
+          echo "::add-mask::$DB_URL"
+          echo "database_url=$DB_URL" >> "$GITHUB_OUTPUT"
 
     outputs:
       supabase_project_ref: ${{ steps.outputs.outputs.supabase_project_ref }}
@@ -175,7 +175,7 @@ jobs:
       service_role_key: ${{ steps.outputs.outputs.service_role_key }}
       admin_email: ${{ steps.outputs.outputs.admin_email }}
       admin_password: ${{ steps.outputs.outputs.admin_password }}
-      db_password: ${{ steps.outputs.outputs.db_password }}
+      database_url: ${{ steps.outputs.outputs.database_url }}
 
   # --- Step 3: Run migrations + seed admin ---
   post-provision:
@@ -196,7 +196,7 @@ jobs:
         run: |
           supabase db push --db-url "$DATABASE_URL"
         env:
-          DATABASE_URL: postgresql://postgres.${{ needs.provision-store.outputs.supabase_project_ref }}:${{ needs.provision-store.outputs.db_password }}@aws-0-eu-west-2.pooler.supabase.com:5432/postgres
+          DATABASE_URL: ${{ needs.provision-store.outputs.database_url }}
 
       - name: Seed admin user
         run: |

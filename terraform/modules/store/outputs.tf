@@ -30,6 +30,12 @@ output "supabase_db_password" {
   sensitive   = true
 }
 
+output "supabase_database_url" {
+  description = "Pooler connection string for migrations"
+  value       = module.supabase.database_url
+  sensitive   = true
+}
+
 output "vercel_domains" {
   value = module.vercel.domains
 }

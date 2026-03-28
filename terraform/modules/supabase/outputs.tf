@@ -20,6 +20,12 @@ output "service_role_key" {
   sensitive   = true
 }
 
+output "database_url" {
+  description = "Pooler connection string for migrations"
+  value       = "postgresql://postgres.${supabase_project.this.id}:${var.db_password}@aws-0-${var.region}.pooler.supabase.com:5432/postgres"
+  sensitive   = true
+}
+
 output "env_vars" {
   description = "Env vars map for downstream modules"
   value = {
