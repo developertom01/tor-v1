@@ -279,14 +279,7 @@ jobs:
 
           # Seed products (dev only — prod starts empty for real data)
           if [ "${{ inputs.env }}" = "dev" ]; then
-            SEED_FILE="../../supabase/seeds/${{ inputs.store }}.sql"
-            if [ -f "$SEED_FILE" ]; then
-              echo "Seeding dev products for ${{ inputs.store }}..."
-              supabase db query -f "$SEED_FILE" --linked
-              echo "Dev seed data applied"
-            else
-              echo "No seed file found at $SEED_FILE — skipping"
-            fi
+            node ../../scripts/seed-store.mjs "${{ inputs.store }}"
           fi
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}

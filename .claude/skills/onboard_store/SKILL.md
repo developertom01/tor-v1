@@ -125,18 +125,19 @@ For inspiration on how different two pages can be, read `apps/hairlukgud/src/app
 
 Generate compelling SEO metadata (title, description, keywords, OpenGraph, Twitter cards) based on the store's name, products, and location. Think about what someone in Ghana would search for.
 
-### Seed products (`supabase/seeds/{slug}.sql`)
+### Seed products (`supabase/seeds/{slug}.json`)
 
-Create a per-store seed file at `supabase/seeds/{slug}.sql`. Each store has its own seed file — CI runs only that store's file during provisioning. The file should:
+Create a per-store JSON seed file at `supabase/seeds/{slug}.json`. CI runs `node scripts/seed-store.mjs {slug}` which reads this file and inserts via the Supabase REST API — no hardcoded UUIDs, fully idempotent (skips existing slugs).
 
-- Create the store row and store_settings (with `ON CONFLICT DO NOTHING`)
-- Define the `_seed_product()` helper function (same pattern as existing seed files)
-- Seed 8-14 realistic products with Unsplash image URLs, creative names, and descriptions that match the store's brand voice
-- Drop the helper function at the end
+The JSON file should contain:
+- `display_name` and `domain` for the store row
+- `products` array with 8-14 realistic products, each having: `name`, `slug`, `description`, `price`, `compare_at_price` (optional), `category`, `in_stock`, `stock_quantity`, `featured`, `image_url`
 
-Also add a `\i seeds/{slug}.sql` line to the shared `supabase/seed.sql` so local `db:reset` includes the new store.
+Generate creative product names and descriptions that match the store's brand voice. Use Unsplash image URLs.
 
-Reference `supabase/seeds/hairlukgud.sql` or `supabase/seeds/hairfordays.sql` for the exact format.
+Also add the store row to `supabase/seed.sql` so local `db:reset` includes it.
+
+Reference `supabase/seeds/hairlukgud.json` or `supabase/seeds/hairfordays.json` for the exact format.
 
 ## What You MUST NOT Change
 
@@ -198,8 +199,8 @@ Reference the existing stores' terragrunt files for exact structure. Key values:
 ### Phase 4: Provisioning Config & Seed Data
 
 19. Create `init/{slug}.yaml` provisioning config (reference existing stores)
-20. Create `supabase/seeds/{slug}.sql` with store row, settings, and seed products (reference existing seed files for format)
-21. Add `\i seeds/{slug}.sql` to `supabase/seed.sql` so local `db:reset` includes the new store
+20. Create `supabase/seeds/{slug}.json` with store row, settings, and seed products (reference existing JSON seed files for format)
+21. Add the store row to `supabase/seed.sql` so local `db:reset` includes it
 
 ### Phase 5: CI Integration
 
@@ -229,7 +230,8 @@ When you need to understand the exact format or structure, read these files:
 - **Example config.toml**: `apps/hairlukgud/supabase/config.toml` and `apps/hairfordays/supabase/config.toml`
 - **Example terragrunt**: `terraform/stores/hairfordays/prod/terragrunt.hcl`
 - **Example init yaml**: `init/hairlukgud.yaml`
-- **Seed data**: `supabase/seeds/hairlukgud.sql` or `supabase/seeds/hairfordays.sql`
+- **Seed data**: `supabase/seeds/hairlukgud.json` or `supabase/seeds/hairfordays.json`
+- **Seed script**: `scripts/seed-store.mjs`
 - **Provisioning workflow**: `.github/workflows/provision-store-init.yml`
 - **Full onboarding guide**: `docs/onboard-new-store.md`
 

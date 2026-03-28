@@ -1,7 +1,6 @@
 ---
 name: edit_store
 description: Update an existing store's configuration — theme colors, landing page, contact info, categories, metadata, or Terraform config. Compares current values with requested changes and only modifies what's needed.
-user-invocable: true
 ---
 
 # Edit Store
