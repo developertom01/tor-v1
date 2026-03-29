@@ -30,8 +30,7 @@ create trigger form_drafts_updated_at
 -- RLS: all mutations go through supabaseAdmin (service role), so no user-level policies needed
 alter table public.form_drafts enable row level security;
 
--- pg_cron: purge drafts not touched in the last hour (runs every hour)
--- Requires pg_cron extension enabled in Supabase dashboard
+-- Purge drafts not touched in the last hour (runs every hour)
 select cron.schedule(
   'delete-stale-form-drafts',
   '0 * * * *',

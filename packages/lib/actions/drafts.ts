@@ -7,6 +7,13 @@ export type FormDraftStatus = 'active' | 'closed'
 
 export async function createFormDraft(formType: string, data: object): Promise<string> {
   const storeId = getStoreId()
+
+  // Opportunistic cleanup: delete drafts not touched in the last hour
+  await supabaseAdmin
+    .from('form_drafts')
+    .delete()
+    .lt('updated_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
+
   const { data: draft, error } = await supabaseAdmin
     .from('form_drafts')
     .insert({ store_id: storeId, form_type: formType, data })
@@ -49,4 +56,40 @@ export async function closeFormDraft(id: string): Promise<void> {
     .update({ status: 'closed' })
     .eq('id', id)
     .eq('store_id', storeId)
+}
+
+export type FormDraftRow = {
+  id: string
+  form_type: string
+  data: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export async function listActiveFormDrafts(
+  formType: string,
+  offset = 0,
+  limit = 10
+): Promise<{ drafts: FormDraftRow[]; total: number }> {
+  const storeId = getStoreId()
+
+  const [{ data: drafts, error }, { count }] = await Promise.all([
+    supabaseAdmin
+      .from('form_drafts')
+      .select('id, form_type, data, created_at, updated_at')
+      .eq('store_id', storeId)
+      .eq('form_type', formType)
+      .eq('status', 'active')
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + limit - 1),
+    supabaseAdmin
+      .from('form_drafts')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', storeId)
+      .eq('form_type', formType)
+      .eq('status', 'active'),
+  ])
+
+  if (error) throw error
+  return { drafts: (drafts ?? []) as FormDraftRow[], total: count ?? 0 }
 }
