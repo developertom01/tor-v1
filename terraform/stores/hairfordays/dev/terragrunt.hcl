@@ -36,4 +36,6 @@ inputs = {
   supabase_anon_key         = get_env("TF_VAR_SUPABASE_ANON_KEY", get_env("TF_VAR_supabase_anon_key", ""))
   supabase_service_role_key = get_env("TF_VAR_SUPABASE_SERVICE_ROLE_KEY", get_env("TF_VAR_supabase_service_role_key", ""))
   supabase_db_password      = get_env("TF_VAR_SUPABASE_DB_PASSWORD", get_env("TF_VAR_supabase_db_password", ""))
-but were 
+  supabase_database_url     = get_env("TF_VAR_SUPABASE_DATABASE_URL", get_env("TF_VAR_supabase_database_url", ""))
+  auth_encryption_key       = get_env("TF_VAR_AUTH_ENCRYPTION_KEY", get_env("TF_VAR_auth_encryption_key", ""))
+}
