@@ -34,11 +34,8 @@ module "resend" {
 module "vercel" {
   source = "../vercel"
 
-  name       = var.name
+  project_id = var.vercel_project_id
   domain     = var.domain
-  root_dir   = var.root_dir
-  git_repo   = var.git_repo
-  git_branch = var.git_branch
   team_id    = var.vercel_team_id
   env        = var.env
 

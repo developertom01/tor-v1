@@ -1,23 +1,17 @@
-variable "project_id" {
-  description = "Vercel project ID (created separately by vercel-project module)"
+variable "name" {
+  description = "Vercel project name (e.g. hairlukgud)"
   type        = string
 }
 
-variable "domain" {
-  description = "Domain for this environment"
+variable "root_dir" {
+  description = "Monorepo root directory (e.g. apps/hairlukgud)"
   type        = string
 }
 
-variable "env" {
-  description = "Environment name (dev, prod)"
+variable "git_repo" {
+  description = "GitHub repository (org/repo)"
   type        = string
-}
-
-variable "env_vars" {
-  description = "Environment variables to set on the project"
-  type        = map(string)
-  sensitive   = true
-  default     = {}
+  default     = "developertom01/tor-v1"
 }
 
 variable "team_id" {
@@ -98,4 +92,9 @@ variable "paystack_secret_key" {
   type      = string
   sensitive = true
   default   = ""
+}
+
+variable "git_repo_full" {
+  type    = string
+  default = ""
 }

@@ -7,6 +7,10 @@ dependency "doppler" {
   skip_outputs = true
 }
 
+dependency "vercel" {
+  config_path = "../vercel"
+}
+
 locals {
   name         = "hairfordays"
   display_name = "Hair For Days"
@@ -38,4 +42,5 @@ inputs = {
   supabase_db_password      = get_env("TF_VAR_SUPABASE_DB_PASSWORD", get_env("TF_VAR_supabase_db_password", ""))
   supabase_database_url     = get_env("TF_VAR_SUPABASE_DATABASE_URL", get_env("TF_VAR_supabase_database_url", ""))
   auth_encryption_key       = get_env("TF_VAR_AUTH_ENCRYPTION_KEY", get_env("TF_VAR_auth_encryption_key", ""))
+  vercel_project_id         = dependency.vercel.outputs.project_id
 }
