@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       const storeId = getStoreId()
       const { data: profile } = await supabaseAdmin
         .from('profiles')
-        .select('id')
+        .select('id, role')
         .eq('id', user.id)
         .eq('store_id', storeId)
         .single()
@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
           store_id: storeId,
           hashed_password: null,
         })
+      } else if (!redirectTo && profile.role === 'admin') {
+        return NextResponse.redirect(`${origin}/admin`)
       }
     }
   }

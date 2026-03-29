@@ -6,6 +6,7 @@ import { ShoppingBag, Menu, X, User, ClipboardList, MessageSquareText, LayoutDas
 import { useCart } from '@tor/lib/cart-context'
 import { useState, useEffect } from 'react'
 import { isAdmin } from '@tor/lib/actions/auth'
+import { createClient } from '@tor/lib/supabase/client'
 import { useStore } from '@tor/store/context'
 
 export default function Navbar() {
@@ -16,6 +17,12 @@ export default function Navbar() {
 
   useEffect(() => {
     isAdmin().then(setAdmin).catch(() => {})
+
+    const supabase = createClient()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      isAdmin().then(setAdmin).catch(() => setAdmin(false))
+    })
+    return () => subscription.unsubscribe()
   }, [])
 
   // Prevent body scroll when mobile panel is open
