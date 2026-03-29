@@ -118,12 +118,11 @@ export default async function HomePage() {
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-14">Shop by Category</h2>
           </Animate>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
               { name: 'Wigs', slug: 'wigs', desc: 'Lace fronts, closures & full wigs', icon: Crown },
-              { name: 'Extensions', slug: 'extensions', desc: 'Bundles, clip-ins & weaves', icon: Zap },
-              { name: 'Accessories', slug: 'accessories', desc: 'Care products & styling tools', icon: Gem },
-              { name: 'Others', slug: 'others', desc: 'More finds we love', icon: Heart },
+              { name: 'Hair Bundles', slug: 'hair-bundles', desc: 'Bundles, clip-ins & weaves', icon: Zap },
+              { name: 'Ponytail Extensions', slug: 'ponytails-extensions', desc: 'Sleek ponytails & extensions', icon: Gem },
             ].map((cat, i) => (
               <Animate key={cat.slug} animation="fade-up" delay={i * 100}>
                 <Link

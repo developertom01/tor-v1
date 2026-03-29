@@ -5,6 +5,12 @@ vars:
   ENV: '{{default "" .ENV}}'
 
 tasks:
+  # Claude Code
+  claude:
+    desc: Launch Claude Code with secrets from Doppler (provisioner project)
+    cmds:
+      - doppler run --project provisioner --config dev -- claude --mcp-config mcp.json
+
   # Install
   install:
     desc: Install all dependencies

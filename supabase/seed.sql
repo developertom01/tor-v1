@@ -8,7 +8,7 @@
 -- Stores
 INSERT INTO public.stores (id, display_name, domain) VALUES
   ('hairlukgud', 'Hair Luk Gud GH', 'hairlukgud.com'),
-  ('hairfordays', 'Hair For Days', 'hairfordays.com')
+  ('hairfordays', 'Hair For Days', 'hairfordays.store')
 ON CONFLICT (id) DO NOTHING;
 
 -- Store settings

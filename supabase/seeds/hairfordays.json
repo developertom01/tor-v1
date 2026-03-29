@@ -1,6 +1,6 @@
 {
   "display_name": "Hair For Days",
-  "domain": "hairfordays.com",
+  "domain": "hairfordays.store",
   "products": [
     { "name": "Silk Straight Lace Front Wig - Jet Black", "slug": "silk-straight-lace-front-wig-jet-black", "description": "Ultra-sleek silk straight lace front wig in jet black. 100% human hair with a natural hairline. Pre-plucked with baby hair for a seamless, undetectable finish. 20-26 inches.", "price": 920.00, "compare_at_price": 1150.00, "category": "wigs", "in_stock": true, "stock_quantity": 12, "featured": true, "image_url": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80" },
     { "name": "Water Wave Wig - Chocolate Brown", "slug": "water-wave-wig-chocolate-brown", "description": "Gorgeous water wave textured wig in rich chocolate brown. Lightweight, breathable cap with adjustable straps. Effortless beachy waves that hold their shape wash after wash.", "price": 850.00, "category": "wigs", "in_stock": true, "stock_quantity": 10, "featured": true, "image_url": "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?w=800&q=80" },

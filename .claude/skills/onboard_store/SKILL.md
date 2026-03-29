@@ -198,7 +198,7 @@ Read the existing store files first to understand the exact format, then create 
     - Read existing stores' config.toml files to find the next available range.
 11. Create symlink: `apps/{slug}/supabase/migrations` -> `../../../supabase/migrations`
 12. Create `apps/{slug}/.env.example` with the store's `NEXT_PUBLIC_STORE_ID`
-13. Create `apps/{slug}/src/middleware.ts` (copy from existing store — it's identical)
+13. Create `apps/{slug}/src/middleware.ts` with a single re-export: `export { middleware, config } from '@tor/lib/middleware'`
 14. Verify `apps/{slug}/next.config.ts` has all `@tor/*` in `transpilePackages`
 15. Verify `apps/{slug}/tsconfig.json` has `@/*` path alias pointing to `./src/*`
 
