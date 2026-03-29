@@ -10,7 +10,8 @@ import {
   checkCustomerEmail,
   saveOrderDraftStep,
 } from '@tor/lib/actions/orders'
-import type { OrderDraftData, OrderDraftStep1, OrderDraftStep2, OrderDraftStep3 } from '@tor/lib/actions/orders'
+import type { OrderDraftData, OrderDraftStep1, OrderDraftStep2, OrderDraftStep3, Step } from '@tor/lib/actions/orders'
+export type { Step }
 import { closeFormDraft, deleteFormDraft } from '@tor/lib/actions/drafts'
 import { formatPrice } from '@tor/lib/utils'
 import Image from 'next/image'
@@ -19,8 +20,6 @@ import type { CustomerSummary } from '@tor/lib/types'
 
 import type { searchProductsForOrder } from '@tor/lib/actions/orders'
 export type PickedProduct = Awaited<ReturnType<typeof searchProductsForOrder>>[number]
-
-export type Step = 1 | 2 | 3 | 4
 
 interface CreateOrderClientProps {
   sessionId: string

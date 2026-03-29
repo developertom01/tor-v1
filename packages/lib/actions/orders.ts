@@ -934,8 +934,10 @@ export type OrderDraftStep3 = {
   region: string
 }
 
+export type Step = 1 | 2 | 3 | 4
+
 export type OrderDraftData = {
-  currentStep: 1 | 2 | 3 | 4
+  currentStep: Step
   steps: {
     1?: OrderDraftStep1
     2?: OrderDraftStep2
@@ -949,7 +951,7 @@ export type OrderDraftData = {
  */
 export async function saveOrderDraftStep(
   sessionId: string,
-  fromStep: 1 | 2 | 3,
+  fromStep: Exclude<Step, 4>,
   data: OrderDraftStep1 | OrderDraftStep2 | OrderDraftStep3
 ): Promise<OrderDraftStep2 | OrderDraftStep3 | null> {
   const { isAdmin: checkIsAdmin } = await import('./auth')
@@ -965,10 +967,10 @@ export async function saveOrderDraftStep(
     .maybeSingle()
 
   const current = (row?.data ?? { currentStep: 1, steps: {} }) as OrderDraftData
-  const nextStep = (fromStep + 1) as 1 | 2 | 3 | 4
+  const nextStep = (fromStep + 1) as Step
 
   const updated: OrderDraftData = {
-    currentStep: nextStep,
+    currentStep: Math.max(current.currentStep, nextStep) as Step,
     steps: { ...current.steps, [fromStep]: data },
   }
 
