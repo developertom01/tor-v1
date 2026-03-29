@@ -71,8 +71,17 @@ const inputClass =
 
 const errorClass = 'text-xs text-red-500 mt-1'
 
-export default function CreateOrderClient({ products, sessionId }: CreateOrderClientProps) {
+export default function CreateOrderClient({ products, sessionId, initialData }: CreateOrderClientProps) {
   const router = useRouter()
+
+  // Seed all state from saved draft on mount
+  const d = initialData as {
+    step?: number
+    isNewCustomer?: boolean
+    selectedCustomer?: SearchResult | null
+    orderItems?: OrderItem[]
+    formValues?: Partial<OrderFormFields>
+  }
 
   const {
     register,
@@ -82,24 +91,24 @@ export default function CreateOrderClient({ products, sessionId }: CreateOrderCl
     watch,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<OrderFormFields>({ mode: 'onTouched' })
+  } = useForm<OrderFormFields>({ mode: 'onTouched', defaultValues: d.formValues ?? {} })
 
   // Step
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
+  const [step, setStep] = useState<1 | 2 | 3 | 4>((d.step as 1 | 2 | 3 | 4) ?? 1)
 
   // Customer mode
-  const [isNewCustomer, setIsNewCustomer] = useState(true)
+  const [isNewCustomer, setIsNewCustomer] = useState(d.isNewCustomer ?? true)
 
   // Customer search
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
-  const [selectedCustomer, setSelectedCustomer] = useState<SearchResult | null>(null)
+  const [selectedCustomer, setSelectedCustomer] = useState<SearchResult | null>(d.selectedCustomer ?? null)
   const [showDropdown, setShowDropdown] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Products
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([])
+  const [orderItems, setOrderItems] = useState<OrderItem[]>(d.orderItems ?? [])
   const [selectedProductId, setSelectedProductId] = useState('')
   const [selectedVariantId, setSelectedVariantId] = useState('')
   const [selectedQty, setSelectedQty] = useState(1)
@@ -110,6 +119,17 @@ export default function CreateOrderClient({ products, sessionId }: CreateOrderCl
 
   // Existing customer conflict — set when server finds a match on "new customer" email
   const [foundCustomer, setFoundCustomer] = useState<CustomerSummary | null>(null)
+
+  function persistDraft(overrides: Record<string, unknown> = {}) {
+    saveFormDraft(sessionId, {
+      step,
+      isNewCustomer,
+      selectedCustomer,
+      orderItems,
+      formValues: watch(),
+      ...overrides,
+    }).catch(() => {})
+  }
 
   const totalAmount = orderItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const selectedProduct = products.find((p) => p.id === selectedProductId)
@@ -141,11 +161,11 @@ export default function CreateOrderClient({ products, sessionId }: CreateOrderCl
     setSelectedCustomer(result)
     setShowDropdown(false)
     setIsNewCustomer(false)
-    // Pre-fill shipping fields from customer's last known address
     setValue('customerPhone', result.phone ?? '', { shouldValidate: false })
     setValue('shippingAddress', result.shippingAddress ?? '', { shouldValidate: false })
     setValue('city', result.city ?? '', { shouldValidate: false })
     setValue('region', result.region ?? '', { shouldValidate: false })
+    persistDraft({ selectedCustomer: result, isNewCustomer: false })
   }
 
   function clearSelectedCustomer() {
@@ -153,6 +173,7 @@ export default function CreateOrderClient({ products, sessionId }: CreateOrderCl
     setCustomerSearchQuery('')
     setSearchResults([])
     reset()
+    persistDraft({ selectedCustomer: null, isNewCustomer: true, formValues: {} })
   }
 
   function addItem() {
@@ -175,31 +196,33 @@ export default function CreateOrderClient({ products, sessionId }: CreateOrderCl
       unitPrice,
     }
 
+    let nextItems: OrderItem[]
     const existingIndex = orderItems.findIndex(
       (i) => i.productId === newItem.productId && i.variantId === newItem.variantId
     )
     if (existingIndex >= 0) {
-      setOrderItems((prev) =>
-        prev.map((item, idx) =>
-          idx === existingIndex ? { ...item, quantity: item.quantity + selectedQty } : item
-        )
+      nextItems = orderItems.map((item, idx) =>
+        idx === existingIndex ? { ...item, quantity: item.quantity + selectedQty } : item
       )
     } else {
-      setOrderItems((prev) => [...prev, newItem])
+      nextItems = [...orderItems, newItem]
     }
 
+    setOrderItems(nextItems)
     setItemsError('')
     setSelectedProductId('')
     setSelectedVariantId('')
     setSelectedQty(1)
+    persistDraft({ orderItems: nextItems })
   }
 
   function removeItem(index: number) {
-    setOrderItems((prev) => prev.filter((_, i) => i !== index))
+    const nextItems = orderItems.filter((_, i) => i !== index)
+    setOrderItems(nextItems)
+    persistDraft({ orderItems: nextItems })
   }
 
   async function goNext() {
-    const formValues = watch()
     if (step === 1) {
       if (isNewCustomer) {
         const valid = await trigger(STEP_FIELDS[1])
@@ -218,13 +241,7 @@ export default function CreateOrderClient({ products, sessionId }: CreateOrderCl
     }
     const nextStep = (step + 1) as 1 | 2 | 3 | 4
     setStep(nextStep)
-    saveFormDraft(sessionId, {
-      step: nextStep,
-      isNewCustomer,
-      selectedCustomer,
-      orderItems,
-      formValues,
-    }).catch(() => {})
+    persistDraft({ step: nextStep })
   }
 
   function goBack() {
