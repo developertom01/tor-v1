@@ -5,9 +5,8 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { Upload, Trash2, Play, Loader2, ImageIcon, Video } from 'lucide-react'
 import { ProductWithMedia } from '@tor/lib/types'
-import { addProductMedia, deleteProductMedia } from '@tor/lib/actions/products'
+import { uploadProductMedia, addProductMedia, deleteProductMedia } from '@tor/lib/actions/products'
 import { MAX_MEDIA_PER_PRODUCT } from '@tor/lib/utils'
-import { createClient } from '@tor/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@tor/ui/Toast'
 
@@ -31,22 +30,9 @@ export default function MediaManager({ product }: { product: ProductWithMedia })
 
     setUploading(true)
     try {
-      const supabase = createClient()
-      const fileType = file.type.startsWith('video') ? 'video' : 'image'
-      const ext = file.name.split('.').pop()
-      const fileName = `${product.id}/${Date.now()}.${ext}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('products')
-        .upload(fileName, file)
-
-      if (uploadError) throw uploadError
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('products')
-        .getPublicUrl(fileName)
-
-      await addProductMedia(product.id, publicUrl, fileType as 'image' | 'video')
+      const formData = new FormData()
+      formData.append('file', file)
+      await uploadProductMedia(product.id, formData)
       router.refresh()
     } catch {
       toast('Upload failed. Please try again.', 'error')

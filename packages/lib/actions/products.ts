@@ -287,6 +287,28 @@ export async function deleteProducts(ids: string[]) {
   revalidatePath('/')
 }
 
+export async function uploadProductMedia(productId: string, formData: FormData) {
+  const file = formData.get('file') as File
+  if (!file) throw new Error('No file provided')
+
+  const storeId = getStoreId()
+  const ext = file.name.split('.').pop()
+  const fileType = file.type.startsWith('video') ? 'video' : 'image'
+  const path = `${storeId}/${productId}/${Date.now()}.${ext}`
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from('products')
+    .upload(path, file)
+
+  if (uploadError) throw uploadError
+
+  const { data: { publicUrl } } = supabaseAdmin.storage
+    .from('products')
+    .getPublicUrl(path)
+
+  await addProductMedia(productId, publicUrl, fileType)
+}
+
 export async function addProductMedia(productId: string, url: string, type: 'image' | 'video') {
   const supabase = await createClient()
 
