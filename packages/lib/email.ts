@@ -104,7 +104,7 @@ export async function sendPasswordResetEmail({
   email: string
   resetLink: string
 }) {
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: email,
     subject: `Reset your ${STORE_NAME} password`,
@@ -124,6 +124,7 @@ export async function sendPasswordResetEmail({
       </div>
     `,
   })
+  if (error) throw new Error(error.message)
 }
 
 export async function sendVerificationEmail({
