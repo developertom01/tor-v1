@@ -161,8 +161,13 @@ export async function signInWithEmail(formData: FormData) {
   }
 
   if (!profile.hashed_password) {
-    // Google OAuth user — no password set
-    return { error: 'This account uses Google sign-in. Please use the Google button.' }
+    // Distinguish Google OAuth users from email users who need to reset
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(profile.id)
+    const isGoogleUser = authUser.user?.identities?.some(i => i.provider === 'google')
+    if (isGoogleUser) {
+      return { error: 'This account uses Google sign-in. Please use the Google button.' }
+    }
+    return { error: 'Please reset your password to continue.' }
   }
 
   // 2. Verify per-store password
@@ -214,15 +219,46 @@ export async function requestPasswordReset(email: string) {
 
 export async function updatePassword(newPassword: string) {
   const supabase = await createClient()
+  const storeId = getStoreId()
 
-  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
 
-  if (error) {
-    logger.error({ error }, 'Password update failed')
-    return { error: error.message }
+  // Generate a new random global password for Supabase auth
+  const { randomBytes } = await import('crypto')
+  const globalPassword = randomBytes(32).toString('hex')
+
+  // Update Supabase auth password to the new global password
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+    password: globalPassword,
+  })
+  if (authError) {
+    logger.error({ error: authError }, 'Failed to update Supabase auth password')
+    return { error: 'Password update failed. Please try again.' }
   }
 
-  logger.info('Password updated successfully')
+  // Update global credentials
+  const { error: credsError } = await supabaseAdmin
+    .from('user_credentials')
+    .upsert({ user_id: user.id, encrypted_password: encrypt(globalPassword) })
+  if (credsError) {
+    logger.error({ error: credsError }, 'Failed to update user_credentials')
+    return { error: 'Password update failed. Please try again.' }
+  }
+
+  // Update per-store hashed password
+  const hashed = await bcrypt.hash(newPassword, 12)
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .update({ hashed_password: hashed })
+    .eq('id', user.id)
+    .eq('store_id', storeId)
+  if (profileError) {
+    logger.error({ error: profileError }, 'Failed to update hashed_password')
+    return { error: 'Password update failed. Please try again.' }
+  }
+
+  logger.info({ userId: user.id, storeId }, 'Password updated successfully')
   return { success: true }
 }
 
