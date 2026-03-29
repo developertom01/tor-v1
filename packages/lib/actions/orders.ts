@@ -2,7 +2,7 @@
 
 import { createClient } from '../supabase/server'
 import { supabaseAdmin } from '../supabase/admin'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { CartItem, CustomerSummary, CheckCustomerResult } from '../types'
 import { logger } from '../logger'
 import { getStoreId } from '../store-id'
@@ -977,6 +977,8 @@ export async function saveOrderDraftStep(
     .update({ data: updated })
     .eq('id', sessionId)
     .eq('store_id', storeId)
+
+  updateTag(`form-draft:${sessionId}`)
 
   if (nextStep === 2) return (updated.steps[2] ?? null)
   if (nextStep === 3) return (updated.steps[3] ?? null)
