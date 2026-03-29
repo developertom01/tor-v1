@@ -9,8 +9,8 @@ output "admin_password" {
   sensitive   = true
 }
 
-output "vercel_domains" {
-  value = module.vercel.domains
+output "vercel_domain" {
+  value = module.vercel.domain
 }
 
 output "resend_dns_records" {

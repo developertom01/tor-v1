@@ -122,6 +122,11 @@ variable "git_branch" {
   default = "main"
 }
 
+variable "vercel_project_id" {
+  description = "Vercel project ID (created by vercel-project module)"
+  type        = string
+}
+
 variable "auth_encryption_key" {
   description = "AES-256 key from tor-common (64 hex chars)"
   type        = string
