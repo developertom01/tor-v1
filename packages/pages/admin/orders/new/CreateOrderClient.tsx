@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, UserCheck } from 'lucide-react'
@@ -16,6 +16,7 @@ export type PickedProduct = Awaited<ReturnType<typeof searchProductsForOrder>>[n
 
 // Shape stored in form_drafts.data — flat, matches exactly what's needed to hydrate state
 type OrderDraft = {
+  step: Step
   isNewCustomer: boolean
   selectedCustomer: SearchResult | null
   customerName: string
@@ -113,6 +114,13 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
     router.replace(`?${params.toString()}`)
   }
 
+  // If there's no step in the URL but the draft knows where we were, restore it
+  useEffect(() => {
+    if (!searchParams.get('step') && d.step) {
+      navigateTo(d.step)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const [isNewCustomer, setIsNewCustomer] = useState(d.isNewCustomer ?? true)
 
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
@@ -139,6 +147,7 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
   function persistDraft(overrides: Partial<OrderDraft> = {}) {
     const f = watch()
     const snapshot: OrderDraft = {
+      step,
       isNewCustomer,
       selectedCustomer,
       customerName: f.customerName,
