@@ -2,10 +2,12 @@
 
 import { createClient } from '../supabase/server'
 import { supabaseAdmin } from '../supabase/admin'
-import { revalidatePath } from 'next/cache'
-import { CartItem } from '../types'
+import { revalidatePath, updateTag } from 'next/cache'
+import { CartItem, CustomerSummary, CheckCustomerResult } from '../types'
 import { logger } from '../logger'
 import { getStoreId } from '../store-id'
+import { sendAdminCreatedVerificationEmail } from '../email'
+import { randomBytes } from 'crypto'
 
 export async function createOrder(formData: FormData, cartItems: CartItem[], totalAmount: number) {
   const supabase = await createClient()
@@ -906,7 +908,145 @@ export async function handleCheckoutSuccess(reference: string) {
   return order
 }
 
+// ─── Order draft step types ────────────────────────────────────────────────
+
+export type OrderDraftStep1 =
+  | { type: 'existing'; userId: string; fullName: string; email: string; phone: string | null; shippingAddress: string | null; city: string | null; region: string | null }
+  | { type: 'new'; customerName: string; customerEmail: string }
+
+export type OrderDraftStep2 = {
+  orderItems: Array<{
+    productId: string
+    productName: string
+    productDescription: string | null
+    productImage: string | null
+    variantId: string | null
+    variantName: string | null
+    quantity: number
+    unitPrice: number
+  }>
+}
+
+export type OrderDraftStep3 = {
+  customerPhone: string
+  shippingAddress: string
+  city: string
+  region: string
+}
+
+export type Step = 1 | 2 | 3 | 4
+
+export type OrderDraftData = {
+  currentStep: Step
+  steps: {
+    1?: OrderDraftStep1
+    2?: OrderDraftStep2
+    3?: OrderDraftStep3
+  }
+}
+
+/**
+ * Saves the current step's data, advances currentStep, and returns the next
+ * step's previously-saved data (if any) — one round trip for navigation.
+ */
+export async function saveOrderDraftStep(
+  sessionId: string,
+  fromStep: Exclude<Step, 4>,
+  data: OrderDraftStep1 | OrderDraftStep2 | OrderDraftStep3
+): Promise<OrderDraftStep2 | OrderDraftStep3 | null> {
+  const { isAdmin: checkIsAdmin } = await import('./auth')
+  if (!(await checkIsAdmin())) throw new Error('Unauthorized')
+
+  const storeId = getStoreId()
+
+  const { data: row } = await supabaseAdmin
+    .from('form_drafts')
+    .select('data')
+    .eq('id', sessionId)
+    .eq('store_id', storeId)
+    .maybeSingle()
+
+  const current = (row?.data ?? { currentStep: 1, steps: {} }) as OrderDraftData
+  const nextStep = (fromStep + 1) as Step
+
+  const updated: OrderDraftData = {
+    currentStep: Math.max(current.currentStep, nextStep) as Step,
+    steps: { ...current.steps, [fromStep]: data },
+  }
+
+  await supabaseAdmin
+    .from('form_drafts')
+    .update({ data: updated })
+    .eq('id', sessionId)
+    .eq('store_id', storeId)
+
+  updateTag(`form-draft:${sessionId}`)
+
+  if (nextStep === 2) return (updated.steps[2] ?? null)
+  if (nextStep === 3) return (updated.steps[3] ?? null)
+  return null
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+
+export async function checkCustomerEmail(email: string): Promise<CheckCustomerResult> {
+  const { isAdmin: checkIsAdmin } = await import('./auth')
+  if (!(await checkIsAdmin())) throw new Error('Unauthorized')
+
+  const storeId = getStoreId()
+
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('id, full_name, email, phone, shipping_address, city, region')
+    .eq('email', email)
+    .eq('store_id', storeId)
+    .maybeSingle()
+
+  if (profile) {
+    return {
+      existingCustomer: {
+        userId: profile.id,
+        fullName: profile.full_name ?? email,
+        email: profile.email,
+        phone: profile.phone ?? null,
+        shippingAddress: profile.shipping_address ?? null,
+        city: profile.city ?? null,
+        region: profile.region ?? null,
+      } satisfies CustomerSummary,
+    }
+  }
+
+  return { available: true }
+}
+
+async function sendAdminCreatedVerification(userId: string, name: string, email: string, storeId: string) {
+  try {
+    const token = randomBytes(32).toString('hex')
+    const verificationLink = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/verify-email?token=${token}`
+
+    // Delete old tokens and fetch store name in parallel
+    const [, { data: store }] = await Promise.all([
+      supabaseAdmin.from('email_verification_tokens').delete().eq('user_id', userId).eq('store_id', storeId),
+      supabaseAdmin.from('stores').select('display_name').eq('id', storeId).single(),
+    ])
+
+    // Insert token and send email in parallel (token string is already known)
+    await Promise.all([
+      supabaseAdmin.from('email_verification_tokens').insert({ token, user_id: userId, store_id: storeId }),
+      sendAdminCreatedVerificationEmail({
+        fullName: name,
+        email,
+        verificationLink,
+        storeName: store?.display_name ?? storeId,
+      }),
+    ])
+  } catch (err) {
+    logger.error({ err, userId, storeId }, 'Failed to send admin-created verification email')
+  }
+}
+
 export async function createAdminOrder(data: {
+  userId?: string        // provided for existing customers; absent for new
   customerEmail: string
   customerName: string
   customerPhone: string
@@ -924,52 +1064,58 @@ export async function createAdminOrder(data: {
     unitPrice: number
   }>
   totalAmount: number
-  isNewCustomer: boolean
 }): Promise<{ orderId: string }> {
   const { isAdmin: checkIsAdmin } = await import('./auth')
   if (!(await checkIsAdmin())) throw new Error('Unauthorized')
 
   const storeId = getStoreId()
 
+  // New customer — create Auth user + profile now, at order creation time
   let userId: string
-  let setupLink: string | undefined
 
-  if (data.isNewCustomer) {
+  if (data.userId) {
+    userId = data.userId
+  } else {
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: data.customerEmail,
       email_confirm: true,
       user_metadata: { full_name: data.customerName, store_id: storeId },
     })
 
-    if (createError) throw createError
+    if (createError && createError.code !== 'email_exists') throw createError
 
-    await supabaseAdmin
-      .from('profiles')
-      .update({ admin_created: true })
-      .eq('id', newUser.user.id)
-      .eq('store_id', storeId)
-
-    const resetToken = crypto.randomUUID()
-    await supabaseAdmin
-      .from('password_reset_tokens')
-      .insert({ token: resetToken, user_id: newUser.user.id, store_id: storeId })
-
-    setupLink = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${resetToken}`
-    userId = newUser.user.id
-  } else {
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .eq('email', data.customerEmail)
-      .eq('store_id', storeId)
-      .single()
-
-    if (profileError || !profile) {
-      throw profileError || new Error('Customer not found')
+    if (createError?.code === 'email_exists') {
+      // Exists in Auth from another store — create profile in this store
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+      const serviceKey = process.env.SUPABASE_SECRET_KEY!
+      const res = await fetch(
+        `${supabaseUrl}/auth/v1/admin/users?email=${encodeURIComponent(data.customerEmail)}`,
+        { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
+      )
+      const body = await res.json() as { users?: Array<{ id: string }> }
+      const authUser = body.users?.[0]
+      if (!authUser) throw new Error('Could not resolve existing auth user')
+      userId = authUser.id
+      await supabaseAdmin.from('profiles').insert({
+        id: userId,
+        store_id: storeId,
+        email: data.customerEmail,
+        full_name: data.customerName,
+        role: 'customer',
+        admin_created: true,
+      })
+    } else {
+      if (!newUser?.user) throw new Error('Failed to create auth user')
+      userId = newUser.user.id
+      await supabaseAdmin
+        .from('profiles')
+        .update({ admin_created: true })
+        .eq('id', userId)
+        .eq('store_id', storeId)
     }
 
-    userId = profile.id
-    setupLink = undefined
+    // Send verification email non-blocking — only once, at order creation
+    sendAdminCreatedVerification(userId, data.customerName, data.customerEmail, storeId).catch(() => {})
   }
 
   const reference = `${storeId.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
@@ -1018,7 +1164,7 @@ export async function createAdminOrder(data: {
 
   await logStatusChange(order.id, 'pending')
 
-  sendAdminCreatedOrderNotification(order.id, setupLink).catch(() => {})
+  sendAdminCreatedOrderNotification(order.id).catch(() => {})
 
   logger.info({ orderId: order.id }, 'Admin order created')
 
@@ -1027,16 +1173,38 @@ export async function createAdminOrder(data: {
   return { orderId: order.id }
 }
 
-async function sendAdminCreatedOrderNotification(orderId: string, setupLink?: string) {
+async function sendAdminCreatedOrderNotification(orderId: string) {
   try {
     const fullOrder = await fetchFullOrder(orderId)
     if (!fullOrder) return
     const { sendAdminCreatedOrderEmail } = await import('../email')
-    await sendAdminCreatedOrderEmail({ order: fullOrder, setupLink })
+    await sendAdminCreatedOrderEmail({ order: fullOrder })
     logger.info({ orderId }, 'Admin-created order notification sent')
   } catch (err) {
     logger.error({ error: err, orderId }, 'Failed to send admin-created order notification')
   }
+}
+
+export async function searchProductsForOrder(query: string) {
+  const { isAdmin: checkIsAdmin } = await import('./auth')
+  if (!(await checkIsAdmin())) throw new Error('Unauthorized')
+
+  const storeId = getStoreId()
+
+  let q = supabaseAdmin
+    .from('products')
+    .select('id, name, price, product_variants(id, name, price, stock_quantity), product_media(url, is_primary)')
+    .eq('store_id', storeId)
+    .limit(10)
+
+  if (query.trim()) {
+    q = q.ilike('name', `%${query.trim()}%`)
+  } else {
+    q = q.order('created_at', { ascending: false })
+  }
+
+  const { data } = await q
+  return data ?? []
 }
 
 export async function searchCustomersForOrder(query: string): Promise<Array<{

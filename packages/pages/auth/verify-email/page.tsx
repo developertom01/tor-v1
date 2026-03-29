@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@tor/lib/supabase/admin'
+import { resendVerificationEmail } from '@tor/lib/actions/auth'
 import { CheckCircle, XCircle } from 'lucide-react'
 import Link from 'next/link'
 
@@ -27,7 +28,15 @@ export default async function VerifyEmailPage({
   }
 
   if (new Date(record.expires_at) < new Date()) {
-    return <Result success={false} message="This verification link has expired. Please sign up again to receive a new one." />
+    // Look up the email so we can offer a resend
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('email')
+      .eq('id', record.user_id)
+      .eq('store_id', storeId)
+      .single()
+
+    return <ExpiredResult email={profile?.email ?? ''} />
   }
 
   await supabaseAdmin
@@ -63,6 +72,40 @@ function Result({ success, message }: { success: boolean; message: string }) {
       >
         {success ? 'Sign In' : 'Back to Sign In'}
       </Link>
+    </div>
+  )
+}
+
+async function resendAction(formData: FormData) {
+  'use server'
+  const email = formData.get('email') as string
+  if (email) await resendVerificationEmail(email)
+}
+
+function ExpiredResult({ email }: { email: string }) {
+  return (
+    <div className="max-w-md mx-auto px-4 py-20 text-center">
+      <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-6">
+        <span className="text-2xl">⚠</span>
+      </div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-3">Link Expired</h1>
+      <p className="text-gray-500 mb-6">
+        This verification link has expired. Request a new one and we'll send it to your inbox right away.
+      </p>
+      <form action={resendAction}>
+        <input type="hidden" name="email" value={email} />
+        <button
+          type="submit"
+          className="bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 px-8 rounded-full transition-colors"
+        >
+          Send new verification link
+        </button>
+      </form>
+      <p className="mt-4">
+        <Link href="/auth/login" className="text-sm text-brand-600 hover:text-brand-700 font-medium">
+          Back to Sign In
+        </Link>
+      </p>
     </div>
   )
 }

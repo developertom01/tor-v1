@@ -203,7 +203,7 @@ export async function signInWithEmail(formData: FormData) {
   // 1. Check profile exists for this store
   const { data: profile } = await supabaseAdmin
     .from('profiles')
-    .select('id, hashed_password, email_verified')
+    .select('id, hashed_password, email_verified, role')
     .eq('email', email)
     .eq('store_id', storeId)
     .single()
@@ -273,7 +273,7 @@ export async function signInWithEmail(formData: FormData) {
   }
 
   logger.info({ email, storeId }, 'Email sign-in successful')
-  redirect(redirectTo || '/')
+  redirect(redirectTo || (profile.role === 'admin' ? '/admin' : '/'))
 }
 
 export async function requestPasswordReset(email: string): Promise<{ success: boolean } | { error: string }> {

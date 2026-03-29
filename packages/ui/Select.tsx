@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
 
 export interface SelectOption {
@@ -33,20 +33,9 @@ export default function Select({
 }: SelectProps) {
   const [open, setOpen] = useState(false)
   const [internalValue, setInternalValue] = useState(defaultValue || '')
-  const ref = useRef<HTMLDivElement>(null)
 
   const value = controlledValue !== undefined ? controlledValue : internalValue
   const selected = options.find((o) => o.value === value)
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   function handleSelect(optionValue: string) {
     if (controlledValue === undefined) {
@@ -57,7 +46,7 @@ export default function Select({
   }
 
   return (
-    <div ref={ref} className={`relative ${className}`}>
+    <div className={`relative ${className}`}>
       {/* Hidden input for form submission */}
       {name && <input type="hidden" name={name} value={value} required={required} />}
 
@@ -86,38 +75,40 @@ export default function Select({
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto py-1 animate-dropdown">
-          {options.map((option) => {
-            const isSelected = option.value === value
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => handleSelect(option.value)}
-                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
-                  isSelected
-                    ? 'bg-brand-50 text-brand-700'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {option.icon && (
-                  <span className={`flex-shrink-0 ${isSelected ? 'text-brand-600' : 'text-gray-400'}`}>
-                    {option.icon}
-                  </span>
-                )}
-                <span className="flex-1 min-w-0">
-                  <span className={`block text-sm ${isSelected ? 'font-medium' : ''}`}>
-                    {option.label}
-                  </span>
-                  {option.description && (
-                    <span className="block text-xs text-gray-400">{option.description}</span>
+        <>
+          {/* Backdrop — closes dropdown on outside click, no useEffect needed */}
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute z-50 mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto py-1 animate-dropdown">
+            {options.map((option) => {
+              const isSelected = option.value === value
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleSelect(option.value)}
+                  className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
+                    isSelected ? 'bg-brand-50 text-brand-700' : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {option.icon && (
+                    <span className={`flex-shrink-0 ${isSelected ? 'text-brand-600' : 'text-gray-400'}`}>
+                      {option.icon}
+                    </span>
                   )}
-                </span>
-                {isSelected && <Check className="w-4 h-4 text-brand-600 flex-shrink-0" />}
-              </button>
-            )
-          })}
-        </div>
+                  <span className="flex-1 min-w-0">
+                    <span className={`block text-sm ${isSelected ? 'font-medium' : ''}`}>
+                      {option.label}
+                    </span>
+                    {option.description && (
+                      <span className="block text-xs text-gray-400">{option.description}</span>
+                    )}
+                  </span>
+                  {isSelected && <Check className="w-4 h-4 text-brand-600 flex-shrink-0" />}
+                </button>
+              )
+            })}
+          </div>
+        </>
       )}
     </div>
   )

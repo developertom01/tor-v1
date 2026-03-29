@@ -5,7 +5,9 @@ import Image from 'next/image'
 import { ShoppingBag, Menu, X, User, ClipboardList, MessageSquareText, LayoutDashboard } from 'lucide-react'
 import { useCart } from '@tor/lib/cart-context'
 import { useState, useEffect } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { isAdmin } from '@tor/lib/actions/auth'
+import { createClient } from '@tor/lib/supabase/client'
 import { useStore } from '@tor/store/context'
 
 export default function Navbar() {
@@ -13,9 +15,25 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [admin, setAdmin] = useState(false)
   const store = useStore()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  function isNavActive(href: string) {
+    const [hrefPath, hrefQuery] = href.split('?')
+    if (pathname !== hrefPath) return false
+    if (!hrefQuery) return !searchParams.get('category')
+    const params = new URLSearchParams(hrefQuery)
+    return searchParams.get('category') === params.get('category')
+  }
 
   useEffect(() => {
     isAdmin().then(setAdmin).catch(() => {})
+
+    const supabase = createClient()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      isAdmin().then(setAdmin).catch(() => setAdmin(false))
+    })
+    return () => subscription.unsubscribe()
   }, [])
 
   // Prevent body scroll when mobile panel is open
@@ -45,11 +63,11 @@ export default function Navbar() {
 
             {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-8">
-              <Link href="/products" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">
+              <Link href="/products" className={`font-medium transition-colors ${isNavActive('/products') ? 'text-brand-600' : 'text-gray-600 hover:text-brand-600'}`}>
                 Shop
               </Link>
               {store.categories.map((cat) => (
-                <Link key={cat.slug} href={`/products?category=${cat.slug}`} className="text-gray-600 hover:text-brand-600 font-medium transition-colors">
+                <Link key={cat.slug} href={`/products?category=${cat.slug}`} className={`font-medium transition-colors ${isNavActive(`/products?category=${cat.slug}`) ? 'text-brand-600' : 'text-gray-600 hover:text-brand-600'}`}>
                   {cat.name}
                 </Link>
               ))}
@@ -57,20 +75,20 @@ export default function Navbar() {
 
             {/* Right side — desktop: icons with labels, mobile: hamburger only */}
             <div className="flex items-center gap-1 sm:gap-3">
-              <Link href="/requests" className="hidden md:flex flex-col items-center text-gray-500 hover:text-brand-600 transition-colors px-2 py-1">
+              <Link href="/requests" className={`hidden md:flex flex-col items-center transition-colors px-2 py-1 ${pathname.startsWith('/requests') ? 'text-brand-600' : 'text-gray-500 hover:text-brand-600'}`}>
                 <MessageSquareText className="w-5 h-5" />
                 <span className="text-[10px] font-medium mt-0.5">Requests</span>
               </Link>
-              <Link href="/orders" className="hidden md:flex flex-col items-center text-gray-500 hover:text-brand-600 transition-colors px-2 py-1">
+              <Link href="/orders" className={`hidden md:flex flex-col items-center transition-colors px-2 py-1 ${pathname.startsWith('/orders') ? 'text-brand-600' : 'text-gray-500 hover:text-brand-600'}`}>
                 <ClipboardList className="w-5 h-5" />
                 <span className="text-[10px] font-medium mt-0.5">Orders</span>
               </Link>
-              <Link href="/auth" className="hidden md:flex flex-col items-center text-gray-500 hover:text-brand-600 transition-colors px-2 py-1">
+              <Link href="/auth" className={`hidden md:flex flex-col items-center transition-colors px-2 py-1 ${pathname.startsWith('/auth') ? 'text-brand-600' : 'text-gray-500 hover:text-brand-600'}`}>
                 <User className="w-5 h-5" />
                 <span className="text-[10px] font-medium mt-0.5">Account</span>
               </Link>
               {admin && (
-                <Link href="/admin" className="hidden md:flex flex-col items-center text-brand-600 hover:text-brand-700 transition-colors px-2 py-1">
+                <Link href="/admin" className={`hidden md:flex flex-col items-center transition-colors px-2 py-1 ${pathname.startsWith('/admin') ? 'text-brand-600' : 'text-gray-500 hover:text-brand-600'}`}>
                   <LayoutDashboard className="w-5 h-5" />
                   <span className="text-[10px] font-medium mt-0.5">Admin</span>
                 </Link>
@@ -145,15 +163,15 @@ export default function Navbar() {
               <div className="px-5">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">My Account</p>
                 <div className="space-y-1">
-                  <Link href="/requests" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 text-gray-700 hover:text-brand-600 hover:bg-brand-50 font-medium py-2.5 px-3 rounded-lg transition-colors">
+                  <Link href="/requests" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 font-medium py-2.5 px-3 rounded-lg transition-colors ${pathname.startsWith('/requests') ? 'text-brand-600 bg-brand-50' : 'text-gray-700 hover:text-brand-600 hover:bg-brand-50'}`}>
                     <MessageSquareText className="w-4 h-4" />
                     My Requests
                   </Link>
-                  <Link href="/orders" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 text-gray-700 hover:text-brand-600 hover:bg-brand-50 font-medium py-2.5 px-3 rounded-lg transition-colors">
+                  <Link href="/orders" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 font-medium py-2.5 px-3 rounded-lg transition-colors ${pathname.startsWith('/orders') ? 'text-brand-600 bg-brand-50' : 'text-gray-700 hover:text-brand-600 hover:bg-brand-50'}`}>
                     <ClipboardList className="w-4 h-4" />
                     My Orders
                   </Link>
-                  <Link href="/cart" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 text-gray-700 hover:text-brand-600 hover:bg-brand-50 font-medium py-2.5 px-3 rounded-lg transition-colors">
+                  <Link href="/cart" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 font-medium py-2.5 px-3 rounded-lg transition-colors ${pathname.startsWith('/cart') ? 'text-brand-600 bg-brand-50' : 'text-gray-700 hover:text-brand-600 hover:bg-brand-50'}`}>
                     <ShoppingBag className="w-4 h-4" />
                     Cart
                     {totalItems > 0 && (
@@ -162,12 +180,12 @@ export default function Navbar() {
                       </span>
                     )}
                   </Link>
-                  <Link href="/auth" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 text-gray-700 hover:text-brand-600 hover:bg-brand-50 font-medium py-2.5 px-3 rounded-lg transition-colors">
+                  <Link href="/auth" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 font-medium py-2.5 px-3 rounded-lg transition-colors ${pathname.startsWith('/auth') ? 'text-brand-600 bg-brand-50' : 'text-gray-700 hover:text-brand-600 hover:bg-brand-50'}`}>
                     <User className="w-4 h-4" />
                     Account
                   </Link>
                   {admin && (
-                    <Link href="/admin" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 text-brand-600 hover:text-brand-700 hover:bg-brand-50 font-medium py-2.5 px-3 rounded-lg transition-colors">
+                    <Link href="/admin" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 font-medium py-2.5 px-3 rounded-lg transition-colors ${pathname.startsWith('/admin') ? 'text-brand-600 bg-brand-50' : 'text-gray-700 hover:text-brand-600 hover:bg-brand-50'}`}>
                       <LayoutDashboard className="w-4 h-4" />
                       Admin Dashboard
                     </Link>

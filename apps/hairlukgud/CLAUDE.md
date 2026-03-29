@@ -80,4 +80,9 @@ All emails via Resend — Supabase email is bypassed entirely. Auth emails (welc
 - Icons: `lucide-react`.
 - Products page uses infinite scroll (Intersection Observer) with SSR for the initial 12 products.
 
+## Rules
+
+- **Avoid `useEffect` for event-driven logic.** Handle mouse events, clicks, keyboard, focus/blur directly in event handler props. `useEffect` is only for true side-effects: data fetching on mount, syncing with an external system, or cleanup.
+- **Never use native `<select>`.** Always use the custom `Select` component from `@tor/ui`. If the component lacks a needed feature (e.g. search, images in options), extend the shared component — don't use a native element or one-off solution.
+
 @AGENTS.md

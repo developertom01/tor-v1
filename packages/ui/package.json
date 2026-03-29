@@ -11,7 +11,8 @@
     "./Toast": "./Toast.tsx",
     "./Select": "./Select.tsx",
     "./Navbar": "./Navbar.tsx",
-    "./Footer": "./Footer.tsx"
+    "./Footer": "./Footer.tsx",
+    "./AdminNav": "./AdminNav.tsx"
   },
   "dependencies": {
     "@tor/lib": "*",

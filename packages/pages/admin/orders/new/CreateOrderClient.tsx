@@ -1,23 +1,30 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package } from 'lucide-react'
-import { searchCustomersForOrder, createAdminOrder } from '@tor/lib/actions/orders'
+import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, UserCheck } from 'lucide-react'
+import {
+  searchCustomersForOrder,
+  createAdminOrder,
+  checkCustomerEmail,
+  saveOrderDraftStep,
+} from '@tor/lib/actions/orders'
+import type { OrderDraftData, OrderDraftStep1, OrderDraftStep2, OrderDraftStep3, Step } from '@tor/lib/actions/orders'
+export type { Step }
+import { closeFormDraft, deleteFormDraft } from '@tor/lib/actions/drafts'
 import { formatPrice } from '@tor/lib/utils'
 import Image from 'next/image'
+import ProductPicker from './ProductPicker'
+import type { CustomerSummary } from '@tor/lib/types'
 
-interface Product {
-  id: string
-  name: string
-  price: number
-  product_variants: Array<{ id: string; name: string; price: number; stock_quantity: number }>
-  product_media: Array<{ url: string; is_primary: boolean }>
-}
+import type { searchProductsForOrder } from '@tor/lib/actions/orders'
+export type PickedProduct = Awaited<ReturnType<typeof searchProductsForOrder>>[number]
 
 interface CreateOrderClientProps {
-  products: Product[]
+  sessionId: string
+  initialStep: Step
+  initialData: OrderDraftData
 }
 
 type SearchResult = {
@@ -41,19 +48,15 @@ type OrderItem = {
   unitPrice: number
 }
 
-// All form fields in one flat shape
 interface OrderFormFields {
-  // Step 1 — new customer
   customerName: string
   customerEmail: string
-  // Step 3 — shipping
   customerPhone: string
   shippingAddress: string
   city: string
   region: string
 }
 
-// Fields to validate per step
 const STEP_FIELDS: Record<number, (keyof OrderFormFields)[]> = {
   1: ['customerName', 'customerEmail'],
   3: ['customerPhone', 'shippingAddress', 'city', 'region'],
@@ -66,8 +69,18 @@ const inputClass =
 
 const errorClass = 'text-xs text-red-500 mt-1'
 
-export default function CreateOrderClient({ products }: CreateOrderClientProps) {
+export default function CreateOrderClient({ sessionId, initialStep, initialData }: CreateOrderClientProps) {
   const router = useRouter()
+
+  const s1 = initialData.steps?.[1]
+  const s2 = initialData.steps?.[2]
+  const s3 = initialData.steps?.[3]
+
+  const isNewCustomerInitial = !s1 || s1.type === 'new'
+  const selectedCustomerInitial: SearchResult | null =
+    s1?.type === 'existing'
+      ? { userId: s1.userId, fullName: s1.fullName, email: s1.email, phone: s1.phone, shippingAddress: s1.shippingAddress, city: s1.city, region: s1.region }
+      : null
 
   const {
     register,
@@ -77,49 +90,63 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
     watch,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<OrderFormFields>({ mode: 'onTouched' })
+  } = useForm<OrderFormFields>({
+    mode: 'onTouched',
+    defaultValues: {
+      customerName: s1?.type === 'new' ? s1.customerName : '',
+      customerEmail: s1?.type === 'new' ? s1.customerEmail : '',
+      // Step 3 takes priority; fall back to existing customer's saved address
+      customerPhone: s3?.customerPhone ?? (s1?.type === 'existing' ? s1.phone ?? '' : ''),
+      shippingAddress: s3?.shippingAddress ?? (s1?.type === 'existing' ? s1.shippingAddress ?? '' : ''),
+      city: s3?.city ?? (s1?.type === 'existing' ? s1.city ?? '' : ''),
+      region: s3?.region ?? (s1?.type === 'existing' ? s1.region ?? '' : ''),
+    },
+  })
 
-  // Step
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
+  const [step, setStep] = useState<Step>(initialStep)
 
-  // Customer mode
-  const [isNewCustomer, setIsNewCustomer] = useState(true)
+  function navigateTo(s: Step) {
+    setStep(s)
+    router.replace(`?session=${sessionId}&step=${s}`)
+  }
 
-  // Customer search
+  const [isNewCustomer, setIsNewCustomer] = useState(isNewCustomerInitial)
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
-  const [selectedCustomer, setSelectedCustomer] = useState<SearchResult | null>(null)
+  const [selectedCustomer, setSelectedCustomer] = useState<SearchResult | null>(selectedCustomerInitial)
   const [showDropdown, setShowDropdown] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Products
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([])
+  const [orderItems, setOrderItems] = useState<OrderItem[]>(s2?.orderItems ?? [])
   const [selectedProductId, setSelectedProductId] = useState('')
   const [selectedVariantId, setSelectedVariantId] = useState('')
+  const [selectedProduct, setSelectedProduct] = useState<PickedProduct | null>(null)
   const [selectedQty, setSelectedQty] = useState(1)
   const [itemsError, setItemsError] = useState('')
+  const [isDiscarding, setIsDiscarding] = useState(false)
+  const [isGoingNext, setIsGoingNext] = useState(false)
 
-  // Submission error
+  const [step1Checking, setStep1Checking] = useState(false)
+  const [step1Conflict, setStep1Conflict] = useState<CustomerSummary | null>(null)
+
   const [submitError, setSubmitError] = useState('')
 
   const totalAmount = orderItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
-  const selectedProduct = products.find((p) => p.id === selectedProductId)
 
-  // Watched for review display
   const watchedName = watch('customerName')
   const watchedEmail = watch('customerEmail')
 
-  // Debounced customer search
-  useEffect(() => {
-    if (isNewCustomer || selectedCustomer || customerSearchQuery.length < 2) return
+  async function handleCustomerSearch(value: string) {
+    setCustomerSearchQuery(value)
+    if (value.length < 2) { setSearchResults([]); setShowDropdown(false); return }
+    if (isNewCustomer || selectedCustomer) return
 
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
-
     searchDebounceRef.current = setTimeout(async () => {
       setSearchLoading(true)
       try {
-        const results = await searchCustomersForOrder(customerSearchQuery)
+        const results = await searchCustomersForOrder(value)
         setSearchResults(results)
         setShowDropdown(true)
       } catch {
@@ -127,17 +154,12 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
       }
       setSearchLoading(false)
     }, 300)
-
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
-    }
-  }, [customerSearchQuery, isNewCustomer, selectedCustomer])
+  }
 
   function selectCustomer(result: SearchResult) {
     setSelectedCustomer(result)
     setShowDropdown(false)
     setIsNewCustomer(false)
-    // Pre-fill shipping fields from customer's last known address
     setValue('customerPhone', result.phone ?? '', { shouldValidate: false })
     setValue('shippingAddress', result.shippingAddress ?? '', { shouldValidate: false })
     setValue('city', result.city ?? '', { shouldValidate: false })
@@ -152,7 +174,7 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
   }
 
   function addItem() {
-    const product = products.find((p) => p.id === selectedProductId)
+    const product = selectedProduct
     if (!product) return
 
     const variant = product.product_variants?.find((v) => v.id === selectedVariantId)
@@ -171,57 +193,144 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
       unitPrice,
     }
 
+    let nextItems: OrderItem[]
     const existingIndex = orderItems.findIndex(
       (i) => i.productId === newItem.productId && i.variantId === newItem.variantId
     )
     if (existingIndex >= 0) {
-      setOrderItems((prev) =>
-        prev.map((item, idx) =>
-          idx === existingIndex ? { ...item, quantity: item.quantity + selectedQty } : item
-        )
+      nextItems = orderItems.map((item, idx) =>
+        idx === existingIndex ? { ...item, quantity: item.quantity + selectedQty } : item
       )
     } else {
-      setOrderItems((prev) => [...prev, newItem])
+      nextItems = [...orderItems, newItem]
     }
 
+    setOrderItems(nextItems)
     setItemsError('')
     setSelectedProductId('')
     setSelectedVariantId('')
+    setSelectedProduct(null)
     setSelectedQty(1)
   }
 
   function removeItem(index: number) {
-    setOrderItems((prev) => prev.filter((_, i) => i !== index))
+    setOrderItems(orderItems.filter((_, i) => i !== index))
   }
 
   async function goNext() {
-    if (step === 1) {
-      if (isNewCustomer) {
-        const valid = await trigger(STEP_FIELDS[1])
+    setIsGoingNext(true)
+    try {
+      if (step === 1) {
+        if (isNewCustomer) {
+          const valid = await trigger(STEP_FIELDS[1])
+          if (!valid) return
+
+          setStep1Conflict(null)
+          setStep1Checking(true)
+          let conflictCheck
+          try {
+            conflictCheck = await checkCustomerEmail(watch('customerEmail'))
+          } catch (err) {
+            setSubmitError(err instanceof Error ? err.message : 'Failed to verify customer')
+            return
+          } finally {
+            setStep1Checking(false)
+          }
+
+          if ('existingCustomer' in conflictCheck) {
+            setStep1Conflict(conflictCheck.existingCustomer)
+            return
+          }
+
+          const f = watch()
+          const step1Data: OrderDraftStep1 = { type: 'new', customerName: f.customerName, customerEmail: f.customerEmail }
+          const nextData = await saveOrderDraftStep(sessionId, 1, step1Data) as OrderDraftStep2 | null
+          if (nextData) setOrderItems(nextData.orderItems)
+        } else {
+          if (!selectedCustomer) return
+          const step1Data: OrderDraftStep1 = {
+            type: 'existing',
+            userId: selectedCustomer.userId,
+            fullName: selectedCustomer.fullName,
+            email: selectedCustomer.email,
+            phone: selectedCustomer.phone,
+            shippingAddress: selectedCustomer.shippingAddress,
+            city: selectedCustomer.city,
+            region: selectedCustomer.region,
+          }
+          const nextData = await saveOrderDraftStep(sessionId, 1, step1Data) as OrderDraftStep2 | null
+          if (nextData) setOrderItems(nextData.orderItems)
+        }
+        navigateTo(2)
+      } else if (step === 2) {
+        if (orderItems.length === 0) {
+          setItemsError('Add at least one product.')
+          return
+        }
+        const step2Data: OrderDraftStep2 = { orderItems }
+        const nextData = await saveOrderDraftStep(sessionId, 2, step2Data) as OrderDraftStep3 | null
+        if (nextData) {
+          setValue('customerPhone', nextData.customerPhone)
+          setValue('shippingAddress', nextData.shippingAddress)
+          setValue('city', nextData.city)
+          setValue('region', nextData.region)
+        }
+        navigateTo(3)
+      } else if (step === 3) {
+        const valid = await trigger(STEP_FIELDS[3])
         if (!valid) return
-      } else if (!selectedCustomer) {
-        return
+        const f = watch()
+        const step3Data: OrderDraftStep3 = {
+          customerPhone: f.customerPhone,
+          shippingAddress: f.shippingAddress,
+          city: f.city,
+          region: f.region,
+        }
+        await saveOrderDraftStep(sessionId, 3, step3Data)
+        navigateTo(4)
       }
-    } else if (step === 2) {
-      if (orderItems.length === 0) {
-        setItemsError('Add at least one product.')
-        return
-      }
-    } else if (step === 3) {
-      const valid = await trigger(STEP_FIELDS[3])
-      if (!valid) return
+    } finally {
+      setIsGoingNext(false)
     }
-    setStep((s) => (s + 1) as 1 | 2 | 3 | 4)
+  }
+
+  async function useExistingFromConflict(customer: CustomerSummary) {
+    selectCustomer(customer)
+    setStep1Conflict(null)
+    const step1Data: OrderDraftStep1 = {
+      type: 'existing',
+      userId: customer.userId,
+      fullName: customer.fullName,
+      email: customer.email,
+      phone: customer.phone,
+      shippingAddress: customer.shippingAddress,
+      city: customer.city,
+      region: customer.region,
+    }
+    const nextData = await saveOrderDraftStep(sessionId, 1, step1Data) as OrderDraftStep2 | null
+    if (nextData) setOrderItems(nextData.orderItems)
+    navigateTo(2)
   }
 
   function goBack() {
-    setStep((s) => (s - 1) as 1 | 2 | 3 | 4)
+    navigateTo((step - 1) as Step)
+  }
+
+  async function discardDraft() {
+    setIsDiscarding(true)
+    try {
+      await deleteFormDraft(sessionId)
+      router.push('/admin/orders')
+    } catch {
+      setIsDiscarding(false)
+    }
   }
 
   const onSubmit = handleSubmit(async (data) => {
     setSubmitError('')
     try {
       const result = await createAdminOrder({
+        userId: isNewCustomer ? undefined : selectedCustomer!.userId,
         customerEmail: isNewCustomer ? data.customerEmail : selectedCustomer!.email,
         customerName: isNewCustomer ? data.customerName : selectedCustomer!.fullName,
         customerPhone: data.customerPhone,
@@ -230,8 +339,8 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
         region: data.region,
         items: orderItems,
         totalAmount,
-        isNewCustomer,
       })
+      await closeFormDraft(sessionId)
       router.push(`/admin/orders/${result.orderId}`)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to create order')
@@ -242,7 +351,7 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
   const reviewEmail = isNewCustomer ? watchedEmail : selectedCustomer?.email ?? ''
 
   return (
-    <form onSubmit={onSubmit} noValidate>
+    <form noValidate>
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-8 max-w-2xl">
         {STEPS.map((label, i) => {
@@ -327,7 +436,7 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
                     </div>
                     <button
                       type="button"
-                      onClick={clearSelectedCustomer}
+                      onClick={() => clearSelectedCustomer()}
                       className="text-xs text-brand-600 hover:text-brand-700 font-medium flex-shrink-0"
                     >
                       Change
@@ -342,11 +451,7 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
                       type="text"
                       placeholder="Search by name or email..."
                       value={customerSearchQuery}
-                      onChange={(e) => {
-                        const v = e.target.value
-                        setCustomerSearchQuery(v)
-                        if (v.length < 2) { setSearchResults([]); setShowDropdown(false) }
-                      }}
+                      onChange={(e) => handleCustomerSearch(e.target.value)}
                       onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
                       className="w-full pl-9 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none text-sm"
                     />
@@ -407,117 +512,143 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
                 <p className="text-xs text-gray-400">Phone and shipping address collected in Step 3.</p>
               </div>
             )}
+
+            {/* Existing customer found in this store */}
+            {isNewCustomer && step1Conflict && (
+              <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div className="flex gap-3 mb-3">
+                  <UserCheck className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">Customer already exists</p>
+                    <p className="text-xs text-amber-700 mt-0.5">An account with this email is registered for this store.</p>
+                  </div>
+                </div>
+                <div className="bg-white border border-amber-100 rounded-lg px-4 py-3 mb-3 space-y-0.5">
+                  <p className="text-sm font-semibold text-gray-900">{step1Conflict.fullName}</p>
+                  <p className="text-xs text-gray-500">{step1Conflict.email}</p>
+                  {step1Conflict.phone && <p className="text-xs text-gray-500">{step1Conflict.phone}</p>}
+                  {step1Conflict.city && (
+                    <p className="text-xs text-gray-500">
+                      {step1Conflict.city}{step1Conflict.region ? `, ${step1Conflict.region}` : ''}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => useExistingFromConflict(step1Conflict!)}
+                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                  >
+                    Use this customer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStep1Conflict(null)}
+                    className="flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                  >
+                    Change email
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* Step 2 — Products */}
         {step === 2 && (
-          <div className="bg-white rounded-xl border border-gray-100 p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Add Products</h2>
+          <div className="space-y-4">
+            {/* Product picker card */}
+            <div className="bg-white rounded-xl border border-gray-100 p-6">
+              <h2 className="font-semibold text-gray-900 mb-4">Add Product</h2>
 
-            <div className="space-y-3 mb-5 p-4 bg-gray-50 rounded-xl border border-gray-100">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
-                <select
-                  value={selectedProductId}
-                  onChange={(e) => {
-                    const pid = e.target.value
-                    setSelectedProductId(pid)
-                    const prod = products.find((p) => p.id === pid)
-                    setSelectedVariantId(prod?.product_variants?.[0]?.id ?? '')
-                    setSelectedQty(1)
-                  }}
-                  className={inputClass}
-                >
-                  <option value="">Select a product...</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} — {formatPrice(p.price)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <ProductPicker
+                value={selectedProductId}
+                variantValue={selectedVariantId}
+                selectedProduct={selectedProduct}
+                onChange={(productId, variantId, product) => {
+                  setSelectedProductId(productId)
+                  setSelectedVariantId(variantId)
+                  setSelectedProduct(product)
+                  setSelectedQty(1)
+                }}
+                onClear={() => { setSelectedProductId(''); setSelectedVariantId(''); setSelectedProduct(null); setSelectedQty(1) }}
+              />
 
-              {selectedProduct && selectedProduct.product_variants?.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Variant</label>
-                  <select
-                    value={selectedVariantId}
-                    onChange={(e) => setSelectedVariantId(e.target.value)}
-                    className={inputClass}
+              {selectedProductId && (
+                <div className="flex gap-3 items-end mt-4">
+                  <div className="w-28">
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Qty</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={selectedQty}
+                      onChange={(e) => setSelectedQty(Math.max(1, parseInt(e.target.value) || 1))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-5 py-3 rounded-xl text-sm transition-colors h-[46px]"
                   >
-                    <option value="">No variant</option>
-                    {selectedProduct.product_variants.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name} — {formatPrice(v.price)}
-                        {v.stock_quantity === 0 ? ' (out of stock)' : ` (${v.stock_quantity} in stock)`}
-                      </option>
-                    ))}
-                  </select>
+                    <Plus className="w-4 h-4" />
+                    Add to order
+                  </button>
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={selectedQty}
-                  onChange={(e) => setSelectedQty(Math.max(1, parseInt(e.target.value) || 1))}
-                  className={`${inputClass} w-28`}
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={addItem}
-                disabled={!selectedProductId}
-                className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add Item
-              </button>
+              {itemsError && <p className={`${errorClass} mt-3`}>{itemsError}</p>}
             </div>
 
-            {orderItems.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <Package className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">No items added yet</p>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-2 mb-4">
+            {/* Order items list */}
+            {orderItems.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h3 className="font-semibold text-gray-900 text-sm">
+                    Order Items <span className="text-brand-600 ml-1">{orderItems.length}</span>
+                  </h3>
+                </div>
+                <div className="divide-y divide-gray-100">
                   {orderItems.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <div key={idx} className="flex items-center gap-4 px-6 py-4">
                       {item.productImage ? (
-                        <Image src={item.productImage} alt={item.productName} width={40} height={40} className="w-10 h-10 object-cover rounded-lg flex-shrink-0" />
+                        <Image src={item.productImage} alt={item.productName} width={52} height={52} className="w-13 h-13 object-cover rounded-xl flex-shrink-0" />
                       ) : (
-                        <div className="w-10 h-10 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center">
-                          <Package className="w-4 h-4 text-gray-400" />
+                        <div className="w-13 h-13 bg-gray-100 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ width: 52, height: 52 }}>
+                          <Package className="w-5 h-5 text-gray-300" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.productName}</p>
-                        {item.variantName && <p className="text-xs text-gray-500">{item.variantName}</p>}
-                        <p className="text-xs text-gray-500">{item.quantity} × {formatPrice(item.unitPrice)}</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{item.productName}</p>
+                        {item.variantName && (
+                          <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full mt-0.5">{item.variantName}</span>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-400">{item.quantity} × {formatPrice(item.unitPrice)}</span>
+                        </div>
                       </div>
-                      <div className="text-sm font-semibold text-gray-900 flex-shrink-0">
-                        {formatPrice(item.unitPrice * item.quantity)}
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-bold text-gray-900">{formatPrice(item.unitPrice * item.quantity)}</p>
                       </div>
-                      <button type="button" onClick={() => removeItem(idx)} className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0">
+                      <button type="button" onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 ml-1">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-600">Subtotal</span>
-                  <span className="font-bold text-gray-900">{formatPrice(totalAmount)}</span>
+                  <span className="text-base font-bold text-gray-900">{formatPrice(totalAmount)}</span>
                 </div>
-              </>
+              </div>
             )}
 
-            {itemsError && <p className={`${errorClass} mt-3`}>{itemsError}</p>}
+            {orderItems.length === 0 && (
+              <div className="text-center py-10 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">
+                <Package className="w-9 h-9 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">No items added yet</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -573,6 +704,7 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
         {/* Step 4 — Review */}
         {step === 4 && (
           <div className="space-y-4">
+
             <div className="bg-white rounded-xl border border-gray-100 p-6">
               <h2 className="font-semibold text-gray-900 mb-3">Customer</h2>
               <div className="flex items-start gap-3">
@@ -651,34 +783,48 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
 
         {/* Navigation */}
         <div className="flex items-center justify-between mt-6">
-          {step > 1 ? (
+          <div className="flex items-center gap-2">
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={isSubmitting || isDiscarding || isGoingNext}
+                className="flex items-center gap-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 cursor-pointer px-4 py-2.5 rounded-xl transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Back
+              </button>
+            )}
             <button
               type="button"
-              onClick={goBack}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 px-4 py-2.5 rounded-xl transition-colors"
+              onClick={discardDraft}
+              disabled={isSubmitting || isDiscarding || isGoingNext}
+              className="flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 cursor-pointer px-4 py-2.5 rounded-xl transition-colors"
             >
-              <ChevronLeft className="w-4 h-4" />
-              Back
+              {isDiscarding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Discard
             </button>
-          ) : (
-            <div />
-          )}
+          </div>
 
           {step < 4 ? (
             <button
               type="button"
               onClick={goNext}
-              className="flex items-center gap-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 px-5 py-2.5 rounded-xl transition-colors"
+              disabled={isGoingNext || isDiscarding}
+              className="flex items-center gap-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-70 cursor-pointer px-5 py-2.5 rounded-xl transition-colors"
             >
-              Next
-              <ChevronRight className="w-4 h-4" />
+              {isGoingNext ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Saving...</>
+              ) : (
+                <>Next<ChevronRight className="w-4 h-4" /></>
+              )}
             </button>
           ) : (
             <button
-              type="submit"
+              type="button"
+              onClick={onSubmit}
               disabled={isSubmitting}
-              className="flex items-center gap-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 px-5 py-2.5 rounded-xl transition-colors"
+              className="flex items-center gap-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-70 cursor-pointer px-5 py-2.5 rounded-xl transition-colors"
             >
               {isSubmitting ? (
                 <><Loader2 className="w-4 h-4 animate-spin" />Creating...</>

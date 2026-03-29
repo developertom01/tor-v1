@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
 import './globals.css'
@@ -55,7 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <StoreProvider config={storeConfig}>
           <CartProvider>
             <ToastProvider>
-              <Navbar />
+              <Suspense><Navbar /></Suspense>
               <main className="flex-1">{children}</main>
               <Footer />
             </ToastProvider>
