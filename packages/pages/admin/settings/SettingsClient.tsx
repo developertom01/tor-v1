@@ -9,9 +9,10 @@ import Dialog, { DialogBody, DialogFooter } from '@tor/ui/Dialog'
 interface Props {
   bypassPayment: boolean
   onlinePaymentsEnabled: boolean
+  onlinePaymentAllowed: boolean
 }
 
-export default function SettingsClient({ bypassPayment, onlinePaymentsEnabled }: Props) {
+export default function SettingsClient({ bypassPayment, onlinePaymentsEnabled, onlinePaymentAllowed }: Props) {
   const [bypass, setBypass] = useState(bypassPayment)
   const [onlineEnabled, setOnlineEnabled] = useState(onlinePaymentsEnabled)
   const [savingBypass, setSavingBypass] = useState(false)
@@ -105,10 +106,11 @@ export default function SettingsClient({ bypassPayment, onlinePaymentsEnabled }:
           </div>
           <button
             onClick={handleOnlineToggle}
-            disabled={savingOnline}
+            disabled={savingOnline || !onlinePaymentAllowed}
+            title={!onlinePaymentAllowed ? 'Online payments are disabled by your platform configuration' : undefined}
             className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors ${
               onlineEnabled ? 'bg-brand-600' : 'bg-gray-200'
-            } ${savingOnline ? 'opacity-50' : 'cursor-pointer'}`}
+            } ${savingOnline || !onlinePaymentAllowed ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
           >
             {savingOnline ? (
               <Loader2 className="w-4 h-4 animate-spin mx-auto text-white" />

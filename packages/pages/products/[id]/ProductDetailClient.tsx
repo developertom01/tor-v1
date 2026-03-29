@@ -137,9 +137,13 @@ export default function ProductDetailClient({ product }: { product: ProductWithM
                 }`}
               >
                 {m.type === 'video' ? (
-                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                    <Play className="w-6 h-6 text-gray-500 fill-gray-500" />
-                  </div>
+                  <video
+                    src={m.url}
+                    preload="metadata"
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover pointer-events-none"
+                  />
                 ) : (
                   <Image src={m.url} alt="" fill className="object-cover" sizes="80px" />
                 )}

@@ -1,0 +1,91 @@
+import { Suspense } from 'react'
+import type { Metadata } from 'next'
+import { Geist } from 'next/font/google'
+import './globals.css'
+import Navbar from '@tor/ui/Navbar'
+import Footer from '@tor/ui/Footer'
+import { CartProvider } from '@tor/lib/cart-context'
+import { ToastProvider } from '@tor/ui/Toast'
+import { StoreProvider } from '@tor/store/context'
+import storeConfig from '@/store.config'
+
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+})
+
+export const metadata: Metadata = {
+  title: {
+    default: "Asse's Threads | Athleisure & Casual Fashion in Ghana",
+    template: "%s | Asse's Threads",
+  },
+  description:
+    "Shop stylish athleisure and casual fashion from Kumasi, Ghana. Wide-leg joggers, fitted basics, seamless bodysuits and spandex co-ord sets for the fashion-forward. Clean, minimal, confident.",
+  keywords: [
+    'athleisure Ghana',
+    'joggers Kumasi',
+    'seamless bodysuits Ghana',
+    'spandex sets Ghana',
+    'casual fashion Ghana',
+    "Asse's Threads",
+    'wide-leg joggers Ghana',
+    'fashion Kumasi',
+    'fitted basics Ghana',
+    'co-ord sets Ghana',
+  ],
+  openGraph: {
+    title: "Asse's Threads | Athleisure & Casual Fashion",
+    description: 'Clean, minimal, confident athleisure and casual fashion from Kumasi, Ghana.',
+    type: 'website',
+    locale: 'en_GH',
+    siteName: "Asse's Threads",
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "Asse's Threads | Athleisure & Casual Fashion",
+    description: 'Stylish athleisure and casual fashion from Kumasi, Ghana.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className={`${geistSans.variable} h-full`}>
+      <body className="min-h-full flex flex-col antialiased" suppressHydrationWarning>
+        <StoreProvider config={storeConfig}>
+          <CartProvider>
+            <ToastProvider>
+              <Suspense><Navbar /></Suspense>
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </ToastProvider>
+          </CartProvider>
+        </StoreProvider>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'ClothingStore',
+              name: "Asse's Threads",
+              description:
+                'Stylish athleisure and casual fashion brand from Kumasi, Ghana — wide-leg joggers, fitted basics, seamless bodysuits and spandex sets.',
+              url: process.env.NEXT_PUBLIC_SITE_URL,
+              telephone: '+233591885951',
+              email: 'mohayideenaseefa83@gmail.com',
+              address: {
+                '@type': 'PostalAddress',
+                addressLocality: 'Kumasi',
+                addressCountry: 'GH',
+              },
+              priceRange: '$$',
+            }),
+          }}
+        />
+      </body>
+    </html>
+  )
+}

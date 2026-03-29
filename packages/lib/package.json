@@ -21,8 +21,9 @@
     "./usePaystack": "./usePaystack.ts",
     "./useDebounce": "./useDebounce.ts",
     "./store-id": "./store-id.ts",
-    "./middleware": "./middleware.ts",
-    "./crypto": "./crypto.ts"
+    "./proxy": "./proxy.ts",
+    "./crypto": "./crypto.ts",
+    "./feature-flags": "./feature-flags.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

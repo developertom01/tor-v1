@@ -47,6 +47,7 @@ tasks:
     cmds:
       - cd apps/hairlukgud && node ../../scripts/inject-pages.mjs
       - cd apps/hairfordays && node ../../scripts/inject-pages.mjs
+      - cd apps/aseesthreads && node ../../scripts/inject-pages.mjs
 
   # Clean injected pages
   clean:pages:
@@ -54,39 +55,21 @@ tasks:
     cmds:
       - npx turbo clean:pages
 
-  # Database
+  # Database — single shared Supabase instance for all stores
   db:start:
-    desc: "Start Supabase (all apps, or APP=name for one)"
+    desc: Start shared Supabase instance
     cmds:
-      - |
-        {{if .APP}}
-          cd apps/{{.APP}} && npx supabase start
-        {{else}}
-          cd apps/hairlukgud && npx supabase start
-          cd apps/hairfordays && npx supabase start
-        {{end}}
+      - npx supabase start
 
   db:stop:
-    desc: "Stop Supabase (all apps, or APP=name for one)"
+    desc: Stop shared Supabase instance
     cmds:
-      - |
-        {{if .APP}}
-          cd apps/{{.APP}} && npx supabase stop
-        {{else}}
-          cd apps/hairlukgud && npx supabase stop
-          cd apps/hairfordays && npx supabase stop
-        {{end}}
+      - npx supabase stop
 
   db:reset:
-    desc: "Reset Supabase DB (all apps, or APP=name for one)"
+    desc: Reset shared Supabase DB (re-runs all migrations + seed)
     cmds:
-      - |
-        {{if .APP}}
-          cd apps/{{.APP}} && npx supabase db reset
-        {{else}}
-          cd apps/hairlukgud && npx supabase db reset
-          cd apps/hairfordays && npx supabase db reset
-        {{end}}
+      - npx supabase db reset
 
   # Terragrunt — Vercel project (once per store, no env)
   tg:vercel:
