@@ -235,6 +235,7 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
     setItemsError('')
     setSelectedProductId('')
     setSelectedVariantId('')
+    setSelectedProduct(null)
     setSelectedQty(1)
     persistDraft({ orderItems: nextItems })
   }
@@ -335,7 +336,7 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
 
 
   return (
-    <form onSubmit={onSubmit} noValidate>
+    <form noValidate>
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-8 max-w-2xl">
         {STEPS.map((label, i) => {
@@ -806,7 +807,8 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
             </button>
           ) : (
             <button
-              type="submit"
+              type="button"
+              onClick={onSubmit}
               disabled={isSubmitting}
               className="flex items-center gap-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-70 cursor-pointer px-5 py-2.5 rounded-xl transition-colors"
             >
