@@ -46,6 +46,86 @@ function orderItemsTableHtml(items: { product_name: string; product_image?: stri
   `
 }
 
+export async function sendWelcomeEmail({
+  fullName,
+  email,
+}: {
+  fullName: string
+  email: string
+}) {
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `Welcome to ${STORE_NAME}!`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+        <h2 style="color: ${BRAND_COLOR};">${STORE_NAME}</h2>
+        <p>Hi ${fullName},</p>
+        <p>Welcome! Your account has been created successfully. You can now sign in and start shopping.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="color: #aaa; font-size: 12px;">${STORE_NAME} — ${STORE_TAGLINE}</p>
+      </div>
+    `,
+  })
+}
+
+export async function sendNewStoreNotificationEmail({
+  fullName,
+  email,
+  storeName,
+}: {
+  fullName: string
+  email: string
+  storeName: string
+}) {
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `You now have an account on ${storeName}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+        <h2 style="color: ${BRAND_COLOR};">${storeName}</h2>
+        <p>Hi ${fullName},</p>
+        <p>An account has been created for you on <strong>${storeName}</strong> using your existing email address.</p>
+        <p>You can sign in using the same email and your new password for this store.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="color: #aaa; font-size: 12px;">${storeName} — ${STORE_TAGLINE}</p>
+      </div>
+    `,
+  })
+}
+
+export async function sendPasswordResetEmail({
+  fullName,
+  email,
+  resetLink,
+}: {
+  fullName: string
+  email: string
+  resetLink: string
+}) {
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `Reset your ${STORE_NAME} password`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+        <h2 style="color: ${BRAND_COLOR};">${STORE_NAME}</h2>
+        <p>Hi ${fullName},</p>
+        <p>We received a request to reset your password. Click the button below to set a new one:</p>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${resetLink}" style="background: ${BRAND_COLOR}; color: white; text-decoration: none; padding: 14px 32px; border-radius: 999px; font-weight: bold; display: inline-block;">
+            Reset Password
+          </a>
+        </p>
+        <p style="color: #888; font-size: 13px;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="color: #aaa; font-size: 12px;">${STORE_NAME} — ${STORE_TAGLINE}</p>
+      </div>
+    `,
+  })
+}
+
 export async function sendRequestNotification({
   customerName,
   customerEmail,

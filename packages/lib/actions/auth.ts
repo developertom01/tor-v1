@@ -8,6 +8,7 @@ import { logger } from '../logger'
 import { getStoreId } from '../store-id'
 import { encrypt, decrypt } from '../crypto'
 import bcrypt from 'bcryptjs'
+import { sendWelcomeEmail, sendNewStoreNotificationEmail, sendPasswordResetEmail } from '../email'
 
 export async function signInWithGoogle(formData: FormData) {
   const supabase = await createClient()
@@ -96,6 +97,7 @@ export async function signUp(formData: FormData) {
       return { error: 'Account created but sign-in failed. Please sign in manually.' }
     }
 
+    await sendNewStoreNotificationEmail({ fullName, email, storeName: process.env.NEXT_PUBLIC_STORE_NAME || 'Store' })
     logger.info({ email, storeId }, 'Existing user registered on new store')
     redirect(redirectTo || '/')
   }
@@ -136,6 +138,7 @@ export async function signUp(formData: FormData) {
     .eq('id', data.user.id)
     .eq('store_id', storeId)
 
+  await sendWelcomeEmail({ fullName, email })
   logger.info({ email, storeId }, 'New user signed up')
   redirect(redirectTo || '/')
 }
@@ -202,18 +205,36 @@ export async function signInWithEmail(formData: FormData) {
 }
 
 export async function requestPasswordReset(email: string) {
-  const supabase = await createClient()
+  const storeId = getStoreId()
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?redirect=/auth/reset-password`,
-  })
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('full_name')
+    .eq('email', email)
+    .eq('store_id', storeId)
+    .single()
 
-  if (error) {
-    logger.error({ error, email }, 'Password reset request failed')
-    return { error: error.message }
+  if (!profile) {
+    // Don't reveal whether account exists
+    return { success: true }
   }
 
-  logger.info({ email }, 'Password reset email sent')
+  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'recovery',
+    email,
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?redirect=/auth/reset-password`,
+    },
+  })
+
+  if (error || !data.properties?.action_link) {
+    logger.error({ error, email }, 'Password reset link generation failed')
+    return { error: 'Failed to send reset email. Please try again.' }
+  }
+
+  await sendPasswordResetEmail({ fullName: profile.full_name, email, resetLink: data.properties.action_link })
+
+  logger.info({ email }, 'Password reset email sent via Resend')
   return { success: true }
 }
 
