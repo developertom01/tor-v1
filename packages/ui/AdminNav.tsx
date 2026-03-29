@@ -12,7 +12,7 @@ const NAV_ITEMS = [
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ]
 
-export default function AdminNav() {
+export default function AdminNav({ pendingOrders }: { pendingOrders: number }) {
   const pathname = usePathname()
 
   return (
@@ -21,15 +21,23 @@ export default function AdminNav() {
       <nav className="flex items-center gap-1 sm:hidden">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href)
+          const showBadge = href === '/admin/orders' && pendingOrders > 0
           return (
             <Link
               key={href}
               href={href}
-              className={`flex-1 text-center text-xs font-medium py-2 rounded-lg transition-colors flex flex-col items-center gap-0.5 ${
+              className={`flex-1 text-center text-xs font-medium py-2 rounded-lg transition-colors flex flex-col items-center gap-0.5 relative ${
                 active ? 'text-brand-600 bg-brand-50' : 'text-gray-600 hover:text-brand-600 hover:bg-gray-50'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <span className="relative">
+                <Icon className="w-4 h-4" />
+                {showBadge && (
+                  <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold min-w-[14px] h-3.5 px-0.5 rounded-full flex items-center justify-center">
+                    {pendingOrders > 99 ? '99+' : pendingOrders}
+                  </span>
+                )}
+              </span>
               {label}
             </Link>
           )
@@ -40,6 +48,7 @@ export default function AdminNav() {
       <nav className="hidden sm:flex items-center gap-3 -mb-3">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href)
+          const showBadge = href === '/admin/orders' && pendingOrders > 0
           return (
             <Link
               key={href}
@@ -52,6 +61,11 @@ export default function AdminNav() {
             >
               <Icon className="w-4 h-4" />
               {label}
+              {showBadge && (
+                <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-4 px-1 rounded-full flex items-center justify-center">
+                  {pendingOrders > 99 ? '99+' : pendingOrders}
+                </span>
+              )}
             </Link>
           )
         })}

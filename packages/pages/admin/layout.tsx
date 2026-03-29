@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { isAdmin } from '@tor/lib/actions/auth'
+import { getPendingOrderCount } from '@tor/lib/actions/orders'
 import Link from 'next/link'
 import { LayoutDashboard } from 'lucide-react'
 import AdminNav from '@tor/ui/AdminNav'
@@ -7,6 +8,8 @@ import AdminNav from '@tor/ui/AdminNav'
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await isAdmin()
   if (!admin) redirect('/auth')
+
+  const pendingOrders = await getPendingOrderCount()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -18,7 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               Admin
             </Link>
           </div>
-          <AdminNav />
+          <AdminNav pendingOrders={pendingOrders} />
         </div>
       </div>
 
