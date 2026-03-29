@@ -107,6 +107,7 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
 
   const rawStep = Number(searchParams.get('step'))
   const step: Step = (rawStep >= 1 && rawStep <= 4 ? rawStep : 1) as Step
+  const isRestoring = !searchParams.get('step') && !!draft.step && draft.step > 1
 
   function navigateTo(s: Step) {
     const params = new URLSearchParams(searchParams.toString())
@@ -137,6 +138,7 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
   const [selectedQty, setSelectedQty] = useState(1)
   const [itemsError, setItemsError] = useState('')
   const [isDiscarding, setIsDiscarding] = useState(false)
+  const [isGoingNext, setIsGoingNext] = useState(false)
 
   // Step 1 — email check state
   const [step1Checking, setStep1Checking] = useState(false)
@@ -254,42 +256,46 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
   }
 
   async function goNext() {
-    if (step === 1) {
-      if (isNewCustomer) {
-        const valid = await trigger(STEP_FIELDS[1])
-        if (!valid) return
+    setIsGoingNext(true)
+    try {
+      if (step === 1) {
+        if (isNewCustomer) {
+          const valid = await trigger(STEP_FIELDS[1])
+          if (!valid) return
 
-        setStep1Conflict(null)
-        setStep1Checking(true)
-        try {
-          const f = watch()
-          const result = await checkCustomerEmail(f.customerEmail)
-          if ('existingCustomer' in result) {
-            setStep1Conflict(result.existingCustomer)
+          setStep1Conflict(null)
+          setStep1Checking(true)
+          try {
+            const f = watch()
+            const result = await checkCustomerEmail(f.customerEmail)
+            if ('existingCustomer' in result) {
+              setStep1Conflict(result.existingCustomer)
+              return
+            }
+          } catch (err) {
+            setSubmitError(err instanceof Error ? err.message : 'Failed to verify customer')
             return
+          } finally {
+            setStep1Checking(false)
           }
-          // Email available — proceed to next step
-        } catch (err) {
-          setSubmitError(err instanceof Error ? err.message : 'Failed to verify customer')
+        } else if (!selectedCustomer) {
           return
-        } finally {
-          setStep1Checking(false)
         }
-      } else if (!selectedCustomer) {
-        return
+      } else if (step === 2) {
+        if (orderItems.length === 0) {
+          setItemsError('Add at least one product.')
+          return
+        }
+      } else if (step === 3) {
+        const valid = await trigger(STEP_FIELDS[3])
+        if (!valid) return
       }
-    } else if (step === 2) {
-      if (orderItems.length === 0) {
-        setItemsError('Add at least one product.')
-        return
-      }
-    } else if (step === 3) {
-      const valid = await trigger(STEP_FIELDS[3])
-      if (!valid) return
+      const nextStep = (step + 1) as Step
+      navigateTo(nextStep)
+      persistDraft()
+    } finally {
+      setIsGoingNext(false)
     }
-    const nextStep = (step + 1) as Step
-    navigateTo(nextStep)
-    persistDraft()
   }
 
   function useExistingFromConflict(customer: CustomerSummary) {
@@ -336,6 +342,15 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
 
   const reviewName = isNewCustomer ? watchedName : selectedCustomer?.fullName ?? ''
   const reviewEmail = isNewCustomer ? watchedEmail : selectedCustomer?.email ?? ''
+
+  if (isRestoring) {
+    return (
+      <div className="flex items-center gap-3 text-sm text-gray-400 py-16 justify-center">
+        <Loader2 className="w-5 h-5 animate-spin" />
+        Restoring your progress...
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={onSubmit} noValidate>
@@ -776,8 +791,8 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
               <button
                 type="button"
                 onClick={goBack}
-                disabled={isSubmitting || isDiscarding}
-                className="flex items-center gap-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 px-4 py-2.5 rounded-xl transition-colors"
+                disabled={isSubmitting || isDiscarding || isGoingNext}
+                className="flex items-center gap-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 cursor-pointer px-4 py-2.5 rounded-xl transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Back
@@ -786,8 +801,8 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
             <button
               type="button"
               onClick={discardDraft}
-              disabled={isSubmitting || isDiscarding}
-              className="flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 px-4 py-2.5 rounded-xl transition-colors"
+              disabled={isSubmitting || isDiscarding || isGoingNext}
+              className="flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 cursor-pointer px-4 py-2.5 rounded-xl transition-colors"
             >
               {isDiscarding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               Discard
@@ -798,16 +813,20 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
             <button
               type="button"
               onClick={goNext}
-              className="flex items-center gap-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 px-5 py-2.5 rounded-xl transition-colors"
+              disabled={isGoingNext || isDiscarding}
+              className="flex items-center gap-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-70 cursor-pointer px-5 py-2.5 rounded-xl transition-colors"
             >
-              Next
-              <ChevronRight className="w-4 h-4" />
+              {isGoingNext ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Checking...</>
+              ) : (
+                <>Next<ChevronRight className="w-4 h-4" /></>
+              )}
             </button>
           ) : (
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex items-center gap-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 px-5 py-2.5 rounded-xl transition-colors"
+              className="flex items-center gap-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-70 cursor-pointer px-5 py-2.5 rounded-xl transition-colors"
             >
               {isSubmitting ? (
                 <><Loader2 className="w-4 h-4 animate-spin" />Creating...</>
