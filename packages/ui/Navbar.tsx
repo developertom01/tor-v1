@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { ShoppingBag, Menu, X, User, ClipboardList, MessageSquareText, LayoutDashboard } from 'lucide-react'
 import { useCart } from '@tor/lib/cart-context'
 import { useState, useEffect } from 'react'
@@ -34,6 +35,9 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2">
+              {store.logo && (
+                <Image src={store.logo} alt={store.name} width={32} height={32} className="rounded-sm" />
+              )}
               <span className="text-2xl font-bold bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">
                 {store.name}
               </span>

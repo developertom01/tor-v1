@@ -30,6 +30,7 @@ export interface StoreConfig {
   name: string
   tagline: string
   domain: string
+  logo?: string
   theme: StoreTheme
   categories: StoreCategory[]
   testimonials: StoreTestimonial[]

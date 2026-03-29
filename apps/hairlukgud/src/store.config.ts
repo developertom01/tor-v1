@@ -4,6 +4,7 @@ const config: StoreConfig = {
   name: 'Hair Luk Gud GH',
   tagline: 'Premium quality wigs and hair extensions in Ghana. Look your best, feel confident.',
   domain: 'hairlookgoodgh.com',
+  logo: '/logo.jpg',
   theme: {
     brand: {
       50: '#fdf2f8', 100: '#fce7f3', 200: '#fbcfe8', 300: '#f9a8d4', 400: '#f472b6',
