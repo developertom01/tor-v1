@@ -8,7 +8,7 @@ import { logger } from '../logger'
 import { getStoreId } from '../store-id'
 import { encrypt, decrypt } from '../crypto'
 import bcrypt from 'bcryptjs'
-import { sendWelcomeEmail, sendNewStoreNotificationEmail, sendPasswordResetEmail } from '../email'
+import { sendNewStoreNotificationEmail, sendPasswordResetEmail, sendVerificationEmail } from '../email'
 
 export async function signInWithGoogle(formData: FormData) {
   const supabase = await createClient()
@@ -102,16 +102,15 @@ export async function signUp(formData: FormData) {
     redirect(redirectTo || '/')
   }
 
-  // Brand new user — create auth.users row
-  const { data, error } = await supabase.auth.signUp({
+  // Brand new user — use admin API to create and auto-confirm (bypasses Supabase emails)
+  const { randomBytes } = await import('crypto')
+  const globalRaw = randomBytes(32).toString('hex')
+
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-        store_id: storeId,
-      },
-    },
+    password: globalRaw,
+    email_confirm: true,
+    user_metadata: { full_name: fullName, store_id: storeId },
   })
 
   if (error) {
@@ -123,24 +122,40 @@ export async function signUp(formData: FormData) {
     return { error: 'Sign-up failed. Please try again.' }
   }
 
-  // Store global encrypted password (used for all future Supabase sign-ins)
+  // Store global encrypted password
   const hashed = await bcrypt.hash(password, 12)
   await supabaseAdmin.from('user_credentials').insert({
     user_id: data.user.id,
-    encrypted_password: encrypt(password),
+    encrypted_password: encrypt(globalRaw),
   })
 
-  // Store per-store hashed password in profile
-  // Profile row was created by handle_new_user trigger — update it with hashed_password
+  // Profile row created by handle_new_user trigger — update with hashed_password
   await supabaseAdmin
     .from('profiles')
     .update({ hashed_password: hashed })
     .eq('id', data.user.id)
     .eq('store_id', storeId)
 
-  await sendWelcomeEmail({ fullName, email })
-  logger.info({ email, storeId }, 'New user signed up')
-  redirect(redirectTo || '/')
+  // Sign in the new user
+  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: globalRaw })
+  if (signInError) {
+    logger.error({ error: signInError, email }, 'Auto sign-in after signup failed')
+    return { error: 'Account created. Please sign in.' }
+  }
+
+  // Generate per-store email verification token
+  const { randomBytes: randBytes } = await import('crypto')
+  const token = randBytes(32).toString('hex')
+  await supabaseAdmin.from('email_verification_tokens').insert({
+    token,
+    user_id: data.user.id,
+    store_id: storeId,
+  })
+  const verificationLink = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/verify-email?token=${token}`
+  await sendVerificationEmail({ fullName, email, verificationLink })
+
+  logger.info({ email, storeId }, 'New user signed up — verification email sent')
+  redirect('/auth/verify-email/sent')
 }
 
 export async function signInWithEmail(formData: FormData) {
@@ -154,13 +169,17 @@ export async function signInWithEmail(formData: FormData) {
   // 1. Check profile exists for this store
   const { data: profile } = await supabaseAdmin
     .from('profiles')
-    .select('id, hashed_password')
+    .select('id, hashed_password, email_verified')
     .eq('email', email)
     .eq('store_id', storeId)
     .single()
 
   if (!profile) {
     return { error: 'No account found for this store. Please sign up first.' }
+  }
+
+  if (!profile.email_verified) {
+    return { error: 'Please verify your email before signing in. Check your inbox.' }
   }
 
   if (!profile.hashed_password) {
@@ -209,7 +228,7 @@ export async function requestPasswordReset(email: string) {
 
   const { data: profile } = await supabaseAdmin
     .from('profiles')
-    .select('full_name')
+    .select('id, full_name')
     .eq('email', email)
     .eq('store_id', storeId)
     .single()
@@ -219,38 +238,56 @@ export async function requestPasswordReset(email: string) {
     return { success: true }
   }
 
-  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'recovery',
-    email,
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?redirect=/auth/reset-password`,
-    },
+  const { randomBytes } = await import('crypto')
+  const token = randomBytes(32).toString('hex')
+
+  await supabaseAdmin.from('password_reset_tokens').insert({
+    token,
+    user_id: profile.id,
+    store_id: storeId,
   })
 
-  if (error || !data.properties?.action_link) {
-    logger.error({ error, email }, 'Password reset link generation failed')
-    return { error: 'Failed to send reset email. Please try again.' }
-  }
-
-  await sendPasswordResetEmail({ fullName: profile.full_name, email, resetLink: data.properties.action_link })
+  const resetLink = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${token}`
+  await sendPasswordResetEmail({ fullName: profile.full_name, email, resetLink })
 
   logger.info({ email }, 'Password reset email sent via Resend')
   return { success: true }
 }
 
-export async function updatePassword(newPassword: string) {
-  const supabase = await createClient()
+export async function updatePassword(newPassword: string, token?: string) {
   const storeId = getStoreId()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
-
-  // Generate a new random global password for Supabase auth
   const { randomBytes } = await import('crypto')
+
+  let userId: string
+
+  if (token) {
+    // Password reset via token (unauthenticated)
+    const { data: resetToken } = await supabaseAdmin
+      .from('password_reset_tokens')
+      .select('user_id, expires_at')
+      .eq('token', token)
+      .eq('store_id', storeId)
+      .single()
+
+    if (!resetToken) return { error: 'Invalid or expired reset link.' }
+    if (new Date(resetToken.expires_at) < new Date()) {
+      await supabaseAdmin.from('password_reset_tokens').delete().eq('token', token)
+      return { error: 'Reset link has expired. Please request a new one.' }
+    }
+
+    userId = resetToken.user_id
+    await supabaseAdmin.from('password_reset_tokens').delete().eq('token', token)
+  } else {
+    // Authenticated password change
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated.' }
+    userId = user.id
+  }
+
   const globalPassword = randomBytes(32).toString('hex')
 
-  // Update Supabase auth password to the new global password
-  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
     password: globalPassword,
   })
   if (authError) {
@@ -258,28 +295,26 @@ export async function updatePassword(newPassword: string) {
     return { error: 'Password update failed. Please try again.' }
   }
 
-  // Update global credentials
   const { error: credsError } = await supabaseAdmin
     .from('user_credentials')
-    .upsert({ user_id: user.id, encrypted_password: encrypt(globalPassword) })
+    .upsert({ user_id: userId, encrypted_password: encrypt(globalPassword) })
   if (credsError) {
     logger.error({ error: credsError }, 'Failed to update user_credentials')
     return { error: 'Password update failed. Please try again.' }
   }
 
-  // Update per-store hashed password
   const hashed = await bcrypt.hash(newPassword, 12)
   const { error: profileError } = await supabaseAdmin
     .from('profiles')
     .update({ hashed_password: hashed })
-    .eq('id', user.id)
+    .eq('id', userId)
     .eq('store_id', storeId)
   if (profileError) {
     logger.error({ error: profileError }, 'Failed to update hashed_password')
     return { error: 'Password update failed. Please try again.' }
   }
 
-  logger.info({ userId: user.id, storeId }, 'Password updated successfully')
+  logger.info({ userId, storeId }, 'Password updated successfully')
   return { success: true }
 }
 
