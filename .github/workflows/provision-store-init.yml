@@ -111,9 +111,142 @@ jobs:
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
-  # --- Step 2: Create Doppler project + environments (per store) ---
-  doppler-project:
+  # --- Step 2: Create tor-common Doppler project (runs once, idempotent) ---
+  common-doppler:
     needs: shared-supabase
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/common/doppler
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/326684407897/locations/global/workloadIdentityPools/github-auth/providers/github
+          service_account: terraform@directed-relic-343301.iam.gserviceaccount.com
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Fetch secrets from Doppler
+        run: |
+          doppler secrets download --project provisioner --config ${{ inputs.env }} --no-file --format json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while IFS='=' read -r key val; do
+            if [[ "$key" == TF_VAR_* ]]; then
+              suffix="${key#TF_VAR_}"
+              key="TF_VAR_$(echo "$suffix" | tr '[:upper:]' '[:lower:]')"
+            fi
+            echo "$key=$val" >> "$GITHUB_ENV"
+          done
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Configure Terraform Cloud credentials
+        run: |
+          mkdir -p ~/.terraform.d
+          jq -n --arg token "$TF_CLOUD_TOKEN" \
+            '{"credentials":{"app.terraform.io":{"token":$token}}}' \
+            > ~/.terraform.d/credentials.tfrc.json
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+          terraform_wrapper: false
+
+      - name: Setup Terragrunt
+        run: |
+          curl -sL https://github.com/gruntwork-io/terragrunt/releases/latest/download/terragrunt_linux_amd64 -o terragrunt
+          chmod +x terragrunt
+          sudo mv terragrunt /usr/local/bin/
+
+      - name: Terragrunt Init
+        run: terragrunt init -upgrade
+
+      - name: Terragrunt ${{ inputs.action }} (common Doppler project)
+        run: |
+          if [ "${{ inputs.action }}" = "apply" ]; then
+            terragrunt apply -auto-approve
+          elif [ "${{ inputs.action }}" = "destroy" ]; then
+            echo "Skipping destroy for tor-common — it is shared across all stores"
+          else
+            terragrunt plan
+          fi
+
+  # --- Step 3: Generate AUTH_ENCRYPTION_KEY and store in tor-common ---
+  common-env:
+    needs: common-doppler
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/common/${{ inputs.env }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/326684407897/locations/global/workloadIdentityPools/github-auth/providers/github
+          service_account: terraform@directed-relic-343301.iam.gserviceaccount.com
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Fetch secrets from Doppler
+        run: |
+          doppler secrets download --project provisioner --config ${{ inputs.env }} --no-file --format json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while IFS='=' read -r key val; do
+            if [[ "$key" == TF_VAR_* ]]; then
+              suffix="${key#TF_VAR_}"
+              key="TF_VAR_$(echo "$suffix" | tr '[:upper:]' '[:lower:]')"
+            fi
+            echo "$key=$val" >> "$GITHUB_ENV"
+          done
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Configure Terraform Cloud credentials
+        run: |
+          mkdir -p ~/.terraform.d
+          jq -n --arg token "$TF_CLOUD_TOKEN" \
+            '{"credentials":{"app.terraform.io":{"token":$token}}}' \
+            > ~/.terraform.d/credentials.tfrc.json
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+          terraform_wrapper: false
+
+      - name: Setup Terragrunt
+        run: |
+          curl -sL https://github.com/gruntwork-io/terragrunt/releases/latest/download/terragrunt_linux_amd64 -o terragrunt
+          chmod +x terragrunt
+          sudo mv terragrunt /usr/local/bin/
+
+      - name: Terragrunt Init
+        run: terragrunt init -upgrade
+
+      - name: Terragrunt ${{ inputs.action }} (common env — generates AUTH_ENCRYPTION_KEY)
+        run: |
+          if [ "${{ inputs.action }}" = "apply" ]; then
+            terragrunt apply -auto-approve
+          elif [ "${{ inputs.action }}" = "destroy" ]; then
+            echo "Skipping destroy for common env — AUTH_ENCRYPTION_KEY must never be rotated"
+          else
+            terragrunt plan
+          fi
+
+      - name: Write AUTH_ENCRYPTION_KEY to provisioner Doppler
+        if: inputs.action == 'apply'
+        run: |
+          KEY=$(terragrunt output -raw auth_encryption_key)
+          doppler secrets set TF_VAR_AUTH_ENCRYPTION_KEY="$KEY" \
+            --project provisioner --config ${{ inputs.env }}
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+  # --- Step 4: Create Doppler project + environments (per store) ---
+  doppler-project:
+    needs: [shared-supabase, common-env]
     runs-on: ubuntu-latest
     defaults:
       run:

@@ -8,10 +8,10 @@ dependency "doppler" {
 }
 
 terraform {
-  source = "${get_repo_root()}/terraform//modules/shared"
+  source = "${get_repo_root()}/terraform//modules/common"
 }
 
 inputs = {
   env             = "dev"
-  doppler_project = "tor-shared"
+  doppler_project = "tor-common"
 }

@@ -7,5 +7,5 @@ terraform {
 }
 
 inputs = {
-  project_name = "tor-shared"
+  project_name = "tor-common"
 }

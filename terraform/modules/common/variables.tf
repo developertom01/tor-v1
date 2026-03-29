@@ -4,7 +4,7 @@ variable "env" {
 }
 
 variable "doppler_project" {
-  description = "Doppler project name for shared secrets (e.g. tor-shared)"
+  description = "Doppler project name for common secrets (e.g. tor-common)"
   type        = string
-  default     = "tor-shared"
+  default     = "tor-common"
 }
