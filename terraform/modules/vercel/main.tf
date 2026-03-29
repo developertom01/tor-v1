@@ -1,9 +1,9 @@
 resource "vercel_project_environment_variable" "vars" {
-  for_each   = var.env_vars
+  for_each   = nonsensitive(toset(keys(var.env_vars)))
   project_id = var.project_id
   team_id    = var.team_id != "" ? var.team_id : null
   key        = each.key
-  value      = each.value
+  value      = var.env_vars[each.key]
   target     = var.env == "prod" ? ["production"] : ["preview", "development"]
 }
 
