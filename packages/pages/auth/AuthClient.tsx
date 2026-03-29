@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { signUp, signInWithEmail, requestPasswordReset } from '@tor/lib/actions/auth'
 import { createClient } from '@tor/lib/supabase/client'
 import { Sparkles, Loader2, Eye, EyeOff, ArrowLeft, Mail } from 'lucide-react'
+import Link from 'next/link'
 
 interface SignUpFields {
   first_name: string
@@ -24,8 +25,8 @@ interface ForgotFields {
 
 const inputClass = 'w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none'
 
-export default function AuthClient({ redirectTo }: { redirectTo?: string }) {
-  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin')
+export default function AuthClient({ redirectTo, defaultMode = 'signin' }: { redirectTo?: string; defaultMode?: 'signin' | 'signup' | 'forgot' }) {
+  const [mode] = useState<'signin' | 'signup' | 'forgot'>(defaultMode)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [resetSent, setResetSent] = useState(false)
@@ -100,13 +101,13 @@ export default function AuthClient({ redirectTo }: { redirectTo?: string }) {
             <p className="text-sm text-gray-500">
               We&apos;ve sent a password reset link to your email address. Click the link to set a new password.
             </p>
-            <button
-              onClick={() => { setMode('signin'); setResetSent(false); setError('') }}
+            <Link
+              href="/auth/login"
               className="inline-flex items-center gap-1.5 text-brand-600 font-semibold hover:text-brand-700 text-sm"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Sign In
-            </button>
+            </Link>
           </div>
         ) : (
           <>
@@ -127,13 +128,13 @@ export default function AuthClient({ redirectTo }: { redirectTo?: string }) {
               </button>
             </form>
             <p className="text-center mt-4">
-              <button
-                onClick={() => { setMode('signin'); setError('') }}
+              <Link
+                href="/auth/login"
                 className="inline-flex items-center gap-1.5 text-brand-600 font-semibold hover:text-brand-700 text-sm"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Sign In
-              </button>
+              </Link>
             </p>
           </>
         )
@@ -244,13 +245,12 @@ export default function AuthClient({ redirectTo }: { redirectTo?: string }) {
                 </button>
               </div>
               <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => { setMode('forgot'); setError('') }}
+                <Link
+                  href="/auth/forgot-password"
                   className="text-sm text-brand-600 hover:text-brand-700 font-medium"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
               {error && <p className="text-red-500 text-sm">{error}</p>}
               <button
@@ -268,12 +268,18 @@ export default function AuthClient({ redirectTo }: { redirectTo?: string }) {
             {mode === 'signin' ? (
               <>
                 Don&apos;t have an account?{' '}
-                <button onClick={() => { setMode('signup'); setError('') }} className="text-brand-600 font-semibold hover:text-brand-700">Sign Up</button>
+                <Link
+                  href={redirectTo ? `/auth/signup?redirect=${encodeURIComponent(redirectTo)}` : '/auth/signup'}
+                  className="text-brand-600 font-semibold hover:text-brand-700"
+                >Sign Up</Link>
               </>
             ) : (
               <>
                 Already have an account?{' '}
-                <button onClick={() => { setMode('signin'); setError('') }} className="text-brand-600 font-semibold hover:text-brand-700">Sign In</button>
+                <Link
+                  href={redirectTo ? `/auth/login?redirect=${encodeURIComponent(redirectTo)}` : '/auth/login'}
+                  className="text-brand-600 font-semibold hover:text-brand-700"
+                >Sign In</Link>
               </>
             )}
           </p>
