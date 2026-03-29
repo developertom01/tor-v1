@@ -8,7 +8,6 @@ import { searchCustomersForOrder, createAdminOrder } from '@tor/lib/actions/orde
 import { saveFormDraft, closeFormDraft } from '@tor/lib/actions/drafts'
 import { formatPrice } from '@tor/lib/utils'
 import Image from 'next/image'
-import Select from '@tor/ui/Select'
 import ProductPicker from './ProductPicker'
 import type { CustomerSummary } from '@tor/lib/types'
 
@@ -458,61 +457,40 @@ export default function CreateOrderClient({ products, sessionId }: CreateOrderCl
             <div className="bg-white rounded-xl border border-gray-100 p-6">
               <h2 className="font-semibold text-gray-900 mb-4">Add Product</h2>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Product</label>
-                <ProductPicker
-                  products={products}
-                  value={selectedProductId}
-                  onChange={(productId, firstVariantId) => {
-                    setSelectedProductId(productId)
-                    setSelectedVariantId(firstVariantId)
-                    setSelectedQty(1)
-                  }}
-                  onClear={() => { setSelectedProductId(''); setSelectedVariantId(''); setSelectedQty(1) }}
-                />
-              </div>
+              <ProductPicker
+                products={products}
+                value={selectedProductId}
+                variantValue={selectedVariantId}
+                onChange={(productId, variantId) => {
+                  setSelectedProductId(productId)
+                  setSelectedVariantId(variantId)
+                  setSelectedQty(1)
+                }}
+                onClear={() => { setSelectedProductId(''); setSelectedVariantId(''); setSelectedQty(1) }}
+              />
 
-              {/* Variant + qty row */}
-              <div className="flex gap-3 items-end">
-                {selectedProduct && selectedProduct.product_variants?.length > 0 && (
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Variant</label>
-                    <Select
-                      value={selectedVariantId}
-                      onChange={setSelectedVariantId}
-                      placeholder="No variant"
-                      options={[
-                        { value: '', label: 'No variant' },
-                        ...selectedProduct.product_variants.map((v) => ({
-                          value: v.id,
-                          label: `${v.name} — ${formatPrice(v.price)}${v.stock_quantity === 0 ? ' (out of stock)' : ''}`,
-                        })),
-                      ]}
+              {selectedProductId && (
+                <div className="flex gap-3 items-end mt-4">
+                  <div className="w-28">
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Qty</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={selectedQty}
+                      onChange={(e) => setSelectedQty(Math.max(1, parseInt(e.target.value) || 1))}
+                      className={inputClass}
                     />
                   </div>
-                )}
-
-                <div className={selectedProduct && selectedProduct.product_variants?.length > 0 ? 'w-24' : 'w-32'}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Qty</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={selectedQty}
-                    onChange={(e) => setSelectedQty(Math.max(1, parseInt(e.target.value) || 1))}
-                    className={inputClass}
-                  />
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-5 py-3 rounded-xl text-sm transition-colors h-[46px]"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add to order
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={addItem}
-                  disabled={!selectedProductId}
-                  className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-100 disabled:text-gray-400 text-white font-semibold px-4 py-3 rounded-xl text-sm transition-colors flex-shrink-0 h-[46px]"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add
-                </button>
-              </div>
+              )}
 
               {itemsError && <p className={`${errorClass} mt-3`}>{itemsError}</p>}
             </div>
