@@ -37,6 +37,11 @@ export default async function CreateOrderPage({
     draftStep >= 1 && draftStep <= 4 ? (draftStep as Step) :
     1
 
+  // Sync step into URL if missing (e.g. returning via draft list)
+  if (!stepParam && initialStep > 1) {
+    redirect(`/admin/orders/new?session=${session}&step=${initialStep}`)
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Create Order</h1>

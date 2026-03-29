@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, UserCheck } from 'lucide-react'
@@ -106,14 +106,6 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
   })
 
   const [step, setStep] = useState<Step>(initialStep)
-
-  // Sync URL on mount if step is missing (e.g. returning via draft list)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (!params.get('step')) {
-      router.replace(`?session=${sessionId}&step=${initialStep}`)
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function navigateTo(s: Step) {
     setStep(s)
