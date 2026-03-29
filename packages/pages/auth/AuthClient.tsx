@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { signUp, signInWithEmail, requestPasswordReset } from '@tor/lib/actions/auth'
+import { signUp, signInWithEmail, requestPasswordReset, resendVerificationEmail } from '@tor/lib/actions/auth'
 import { createClient } from '@tor/lib/supabase/client'
 import { Sparkles, Loader2, Eye, EyeOff, ArrowLeft, Mail } from 'lucide-react'
 import Link from 'next/link'
@@ -30,6 +30,9 @@ export default function AuthClient({ redirectTo, defaultMode = 'signin' }: { red
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [resetSent, setResetSent] = useState(false)
+  const [unverifiedState, setUnverifiedState] = useState<{ email: string; tokenExpired: boolean } | null>(null)
+  const [resendSent, setResendSent] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
 
   const signUpForm = useForm<SignUpFields>()
   const signInForm = useForm<SignInFields>()
@@ -53,12 +56,26 @@ export default function AuthClient({ redirectTo, defaultMode = 'signin' }: { red
 
   async function onSignIn(data: SignInFields) {
     setError('')
+    setUnverifiedState(null)
+    setResendSent(false)
     const formData = new FormData()
     formData.set('email', data.email)
     formData.set('password', data.password)
     formData.set('redirect_to', redirectTo || '/')
-    const result = await signInWithEmail(formData)
-    if (result?.error) setError(result.error)
+    const result = await signInWithEmail(formData) as { error?: string; unverified?: boolean; tokenExpired?: boolean; email?: string } | undefined
+    if (result?.unverified) {
+      setUnverifiedState({ email: result.email ?? '', tokenExpired: result.tokenExpired ?? false })
+    } else if (result?.error) {
+      setError(result.error ?? '')
+    }
+  }
+
+  async function onResendVerification() {
+    if (!unverifiedState) return
+    setResendLoading(true)
+    await resendVerificationEmail(unverifiedState.email)
+    setResendLoading(false)
+    setResendSent(true)
   }
 
   async function onForgot(data: ForgotFields) {
@@ -221,47 +238,77 @@ export default function AuthClient({ redirectTo, defaultMode = 'signin' }: { red
               </button>
             </form>
           ) : (
-            <form onSubmit={signInForm.handleSubmit(onSignIn)} className="space-y-3">
-              <input
-                {...signInForm.register('email', { required: true })}
-                type="email"
-                placeholder="Email Address"
-                className={inputClass}
-              />
-              <div className="relative">
+            <>
+              <form onSubmit={signInForm.handleSubmit(onSignIn)} className="space-y-3">
                 <input
-                  {...signInForm.register('password', { required: true })}
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Password"
-                  className={`${inputClass} pr-12`}
+                  {...signInForm.register('email', { required: true })}
+                  type="email"
+                  placeholder="Email Address"
+                  className={inputClass}
                 />
+                <div className="relative">
+                  <input
+                    {...signInForm.register('password', { required: true })}
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Password"
+                    className={`${inputClass} pr-12`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                <div className="flex justify-end">
+                  <Link
+                    href="/auth/forgot-password"
+                    className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                {error && <p className="text-red-500 text-sm">{error}</p>}
                 <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 text-white font-semibold py-3.5 rounded-full transition-colors flex items-center justify-center gap-2"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Signing In...</> : 'Sign In'}
                 </button>
-              </div>
-              <div className="flex justify-end">
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-sm text-brand-600 hover:text-brand-700 font-medium"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              {error && <p className="text-red-500 text-sm">{error}</p>}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 text-white font-semibold py-3.5 rounded-full transition-colors flex items-center justify-center gap-2"
-              >
-                {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Signing In...</> : 'Sign In'}
-              </button>
-            </form>
+              </form>
+              {unverifiedState && (
+                <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
+                  {resendSent ? (
+                    <div className="text-center">
+                      <p className="font-semibold text-amber-900">Verification email sent!</p>
+                      <p className="text-amber-700 mt-1">Check your inbox and click the link to verify your email.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="font-semibold text-amber-900">
+                        {unverifiedState.tokenExpired ? 'Your verification link has expired.' : 'Email not verified yet.'}
+                      </p>
+                      <p className="text-amber-700 mt-1">
+                        {unverifiedState.tokenExpired
+                          ? 'Request a new link below to verify your email and sign in.'
+                          : 'Check your inbox for the verification email, or request a new one.'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={onResendVerification}
+                        disabled={resendLoading}
+                        className="mt-3 w-full bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white font-semibold py-2.5 rounded-full transition-colors flex items-center justify-center gap-2"
+                      >
+                        {resendLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</> : 'Resend Verification Email'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </>
           )}
-
           {/* Toggle */}
           <p className="text-center text-sm text-gray-500 mt-6">
             {mode === 'signin' ? (

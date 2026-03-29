@@ -36,7 +36,12 @@ export default async function AdminOrdersPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Orders</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+        <Link href="/admin/orders/new" className="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-full text-sm transition-colors">
+          + Create Order
+        </Link>
+      </div>
 
       {/* Status Filter */}
       <div className="flex flex-wrap gap-2 mb-4">
