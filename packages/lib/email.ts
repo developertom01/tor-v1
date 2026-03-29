@@ -143,6 +143,29 @@ export class EmailService {
     if (error) throw new Error(error.message)
   }
 
+  async sendAdminCreatedVerificationEmail({ fullName, email, verificationLink, storeName }: { fullName: string; email: string; verificationLink: string; storeName: string }) {
+    await this.resend.emails.send({
+      from: this.config.fromEmail,
+      to: email,
+      subject: `Verify your account — ${this.config.storeName}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+          ${this.header()}
+          <p>Hi ${fullName},</p>
+          <p>An order was placed on your behalf at <strong>${storeName}</strong>, so we created an account for you.</p>
+          <p>Click the button below to verify your email address and activate your account:</p>
+          <p style="text-align: center; margin: 32px 0;">
+            <a href="${verificationLink}" style="background: ${this.config.brandColor}; color: white; text-decoration: none; padding: 14px 32px; border-radius: 999px; font-weight: bold; display: inline-block;">
+              Verify My Account
+            </a>
+          </p>
+          <p style="color: #888; font-size: 13px;">This link expires in 24 hours. If you weren't expecting this, you can safely ignore it.</p>
+          ${this.footer()}
+        </div>
+      `,
+    })
+  }
+
   async sendVerificationEmail({ fullName, email, verificationLink }: { fullName: string; email: string; verificationLink: string }) {
     await this.resend.emails.send({
       from: this.config.fromEmail,
@@ -452,6 +475,7 @@ export const sendWelcomeEmail = emailService.sendWelcomeEmail.bind(emailService)
 export const sendNewStoreNotificationEmail = emailService.sendNewStoreNotificationEmail.bind(emailService)
 export const sendPasswordResetEmail = emailService.sendPasswordResetEmail.bind(emailService)
 export const sendVerificationEmail = emailService.sendVerificationEmail.bind(emailService)
+export const sendAdminCreatedVerificationEmail = emailService.sendAdminCreatedVerificationEmail.bind(emailService)
 export const sendRequestNotification = emailService.sendRequestNotification.bind(emailService)
 export const sendOrderPaymentRequestEmail = emailService.sendOrderPaymentRequestEmail.bind(emailService)
 export const sendOrderConfirmationEmail = emailService.sendOrderConfirmationEmail.bind(emailService)

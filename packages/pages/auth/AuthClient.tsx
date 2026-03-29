@@ -279,31 +279,24 @@ export default function AuthClient({ redirectTo, defaultMode = 'signin' }: { red
                 </button>
               </form>
               {unverifiedState && (
-                <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
+                <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm flex items-start gap-2.5">
+                  <span className="text-amber-500 mt-0.5 flex-shrink-0">⚠</span>
                   {resendSent ? (
-                    <div className="text-center">
-                      <p className="font-semibold text-amber-900">Verification email sent!</p>
-                      <p className="text-amber-700 mt-1">Check your inbox and click the link to verify your email.</p>
-                    </div>
+                    <p className="text-amber-800">Verification email sent — check your inbox.</p>
                   ) : (
-                    <>
-                      <p className="font-semibold text-amber-900">
-                        {unverifiedState.tokenExpired ? 'Your verification link has expired.' : 'Email not verified yet.'}
-                      </p>
-                      <p className="text-amber-700 mt-1">
-                        {unverifiedState.tokenExpired
-                          ? 'Request a new link below to verify your email and sign in.'
-                          : 'Check your inbox for the verification email, or request a new one.'}
-                      </p>
+                    <p className="text-amber-800">
+                      {unverifiedState.tokenExpired
+                        ? 'Your verification link has expired.'
+                        : 'Looks like your email isn\'t verified for this store yet.'}{' '}
                       <button
                         type="button"
                         onClick={onResendVerification}
                         disabled={resendLoading}
-                        className="mt-3 w-full bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white font-semibold py-2.5 rounded-full transition-colors flex items-center justify-center gap-2"
+                        className="font-semibold underline underline-offset-2 hover:text-amber-900 disabled:opacity-50 transition-colors"
                       >
-                        {resendLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</> : 'Resend Verification Email'}
+                        {resendLoading ? 'Sending…' : 'Resend verification email'}
                       </button>
-                    </>
+                    </p>
                   )}
                 </div>
               )}

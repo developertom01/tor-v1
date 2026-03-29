@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache'
 import { CartItem, CustomerSummary, CheckOrCreateCustomerResult } from '../types'
 import { logger } from '../logger'
 import { getStoreId } from '../store-id'
+import { sendAdminCreatedVerificationEmail } from '../email'
+import { randomBytes } from 'crypto'
 
 export async function createOrder(formData: FormData, cartItems: CartItem[], totalAmount: number) {
   const supabase = await createClient()
@@ -962,7 +964,8 @@ export async function checkOrCreateCustomer(
     if (!authUser) throw new Error('Could not resolve existing auth user')
     userId = authUser.id
 
-    // Create profile in this store for the existing auth user
+    // Create profile in this store for the existing auth user.
+    // email_verified stays false — they must verify for this store independently.
     await supabaseAdmin.from('profiles').insert({
       id: userId,
       store_id: storeId,
@@ -970,7 +973,6 @@ export async function checkOrCreateCustomer(
       full_name: name,
       role: 'customer',
       admin_created: true,
-      email_verified: true,
     })
   } else {
     if (!newUser?.user) throw new Error('Failed to create auth user')
@@ -987,11 +989,40 @@ export async function checkOrCreateCustomer(
     .from('password_reset_tokens')
     .insert({ token: resetToken, user_id: userId, store_id: storeId })
 
+  // Send admin-created verification email (non-blocking)
+  sendAdminCreatedVerification(userId, name, email, storeId).catch(() => {})
+
   return {
     newCustomer: {
       userId,
       setupLink: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${resetToken}`,
     },
+  }
+}
+
+async function sendAdminCreatedVerification(userId: string, name: string, email: string, storeId: string) {
+  try {
+    const token = randomBytes(32).toString('hex')
+    const verificationLink = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/verify-email?token=${token}`
+
+    // Delete old tokens and fetch store name in parallel
+    const [, { data: store }] = await Promise.all([
+      supabaseAdmin.from('email_verification_tokens').delete().eq('user_id', userId).eq('store_id', storeId),
+      supabaseAdmin.from('stores').select('display_name').eq('id', storeId).single(),
+    ])
+
+    // Insert token and send email in parallel (token string is already known)
+    await Promise.all([
+      supabaseAdmin.from('email_verification_tokens').insert({ token, user_id: userId, store_id: storeId }),
+      sendAdminCreatedVerificationEmail({
+        fullName: name,
+        email,
+        verificationLink,
+        storeName: store?.display_name ?? storeId,
+      }),
+    ])
+  } catch (err) {
+    logger.error({ err, userId, storeId }, 'Failed to send admin-created verification email')
   }
 }
 
