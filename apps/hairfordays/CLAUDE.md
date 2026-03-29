@@ -37,9 +37,12 @@ Cart state lives in React Context + localStorage (no server involvement).
 ### Auth flow
 
 1. `src/middleware.ts` refreshes Supabase auth session on every request via cookies.
-2. Google OAuth via `signInWithGoogle()` server action → redirects to Google → callback at `/auth/callback`.
-3. Database trigger auto-creates a `profiles` row on signup.
-4. Admin access: `profiles.role = 'admin'` — checked by `isAdmin()` in admin layout.
+2. Google OAuth via `signInWithGoogle()` → Google → callback at `/auth/callback`.
+3. Email signup: `supabaseAdmin.auth.admin.createUser()` with `email_confirm: true` — bypasses Supabase emails. Global password encrypted in `user_credentials`, bcrypt hash in `profiles.hashed_password`.
+4. Email sign-in: decrypts global password → signs in via Supabase, validates against `profiles.hashed_password`. Blocks if `email_verified = false`.
+5. Email verification + password reset handled entirely in-house via `email_verification_tokens` / `password_reset_tokens` tables and Resend. No Supabase-generated links.
+6. Database trigger auto-creates a `profiles` row on signup.
+7. Admin access: `profiles.role = 'admin'` — checked by `isAdmin()` in admin layout.
 
 ### Key directories
 
@@ -51,7 +54,9 @@ Cart state lives in React Context + localStorage (no server involvement).
 
 ### Database (Supabase Postgres)
 
-Tables: `profiles`, `products`, `product_media`, `orders`, `order_items`. All have RLS policies. Products use `gen_random_uuid()` (not `uuid_generate_v4()`). The `product_media` table supports both images and videos with a `type` field and `sort_order`.
+Tables: `profiles`, `products`, `product_media`, `orders`, `order_items`, `stores`, `user_credentials`, `email_verification_tokens`, `password_reset_tokens`. All have RLS policies. Products use `gen_random_uuid()` (not `uuid_generate_v4()`). The `product_media` table supports both images and videos with a `type` field and `sort_order`.
+
+`profiles` has `hashed_password` (bcrypt) and `email_verified` (boolean) columns. `user_credentials` holds the AES-256-GCM encrypted global Supabase auth password per user.
 
 ### Payments
 
@@ -67,7 +72,7 @@ Uses new Supabase key naming: `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (not `ANON_
 
 ### Emails
 
-All order-related emails must include item details (product name, variant name, quantity, price) with product image thumbnails. Use the shared `orderItemsTableHtml()` helper in `src/lib/email.ts` for consistent formatting across all email templates.
+All emails via Resend — Supabase email is bypassed entirely. Auth emails (welcome, verification, password reset) and order emails are all sent from `@tor/lib/email.ts`. Order emails must include item details with thumbnails via `orderItemsTableHtml()`. `FROM_EMAIL` comes from the store's Doppler/Vercel env vars.
 
 ## Style
 
