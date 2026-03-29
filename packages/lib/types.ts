@@ -99,6 +99,7 @@ export interface CustomerSummary {
   region: string | null
 }
 
-export type CreateAdminOrderResult =
-  | { orderId: string }
+export type CheckOrCreateCustomerResult =
   | { existingCustomer: CustomerSummary }
+  | { newCustomer: { userId: string; setupLink: string } }
+  | { crossStoreConflict: true }

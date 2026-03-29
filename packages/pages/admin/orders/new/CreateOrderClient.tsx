@@ -3,8 +3,8 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, AlertTriangle } from 'lucide-react'
-import { searchCustomersForOrder, createAdminOrder } from '@tor/lib/actions/orders'
+import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, AlertTriangle, UserCheck } from 'lucide-react'
+import { searchCustomersForOrder, createAdminOrder, checkOrCreateCustomer } from '@tor/lib/actions/orders'
 import { saveFormDraft, closeFormDraft } from '@tor/lib/actions/drafts'
 import { formatPrice } from '@tor/lib/utils'
 import Image from 'next/image'
@@ -23,6 +23,8 @@ interface Product {
 type OrderDraft = {
   isNewCustomer: boolean
   selectedCustomer: SearchResult | null
+  createdUserId: string | null
+  setupLink: string | null
   customerName: string
   customerEmail: string
   customerPhone: string
@@ -125,8 +127,14 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
   const [selectedQty, setSelectedQty] = useState(1)
   const [itemsError, setItemsError] = useState('')
 
+  // Step 1 — new customer creation state
+  const [createdUserId, setCreatedUserId] = useState<string | null>(d.createdUserId ?? null)
+  const [setupLink, setSetupLink] = useState<string | null>(d.setupLink ?? null)
+  const [step1Checking, setStep1Checking] = useState(false)
+  const [step1Conflict, setStep1Conflict] = useState<CustomerSummary | null>(null)
+  const [step1CrossStoreError, setStep1CrossStoreError] = useState(false)
+
   const [submitError, setSubmitError] = useState('')
-  const [foundCustomer, setFoundCustomer] = useState<CustomerSummary | null>(null)
 
   // Persist a flat snapshot of the draft — matches OrderDraft exactly
   function persistDraft(overrides: Partial<OrderDraft> = {}) {
@@ -134,6 +142,8 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
     const snapshot: OrderDraft = {
       isNewCustomer,
       selectedCustomer,
+      createdUserId,
+      setupLink,
       customerName: f.customerName,
       customerEmail: f.customerEmail,
       customerPhone: f.customerPhone,
@@ -242,6 +252,31 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
       if (isNewCustomer) {
         const valid = await trigger(STEP_FIELDS[1])
         if (!valid) return
+
+        setStep1Conflict(null)
+        setStep1CrossStoreError(false)
+        setStep1Checking(true)
+        try {
+          const f = watch()
+          const result = await checkOrCreateCustomer(f.customerEmail, f.customerName)
+          if ('crossStoreConflict' in result) {
+            setStep1CrossStoreError(true)
+            return
+          }
+          if ('existingCustomer' in result) {
+            setStep1Conflict(result.existingCustomer)
+            return
+          }
+          // New customer created — store userId + setupLink in state and draft
+          setCreatedUserId(result.newCustomer.userId)
+          setSetupLink(result.newCustomer.setupLink)
+          persistDraft({ createdUserId: result.newCustomer.userId, setupLink: result.newCustomer.setupLink })
+        } catch (err) {
+          setSubmitError(err instanceof Error ? err.message : 'Failed to verify customer')
+          return
+        } finally {
+          setStep1Checking(false)
+        }
       } else if (!selectedCustomer) {
         return
       }
@@ -259,15 +294,24 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
     persistDraft()
   }
 
+  function useExistingFromConflict(customer: CustomerSummary) {
+    selectCustomer(customer)
+    setStep1Conflict(null)
+    const nextStep = 2 as const
+    setStep(nextStep)
+    persistDraft({ selectedCustomer: customer, isNewCustomer: false })
+  }
+
   function goBack() {
     setStep((s) => (s - 1) as 1 | 2 | 3 | 4)
   }
 
   const onSubmit = handleSubmit(async (data) => {
     setSubmitError('')
-    setFoundCustomer(null)
+    const userId = isNewCustomer ? createdUserId! : selectedCustomer!.userId
     try {
       const result = await createAdminOrder({
+        userId,
         customerEmail: isNewCustomer ? data.customerEmail : selectedCustomer!.email,
         customerName: isNewCustomer ? data.customerName : selectedCustomer!.fullName,
         customerPhone: data.customerPhone,
@@ -276,43 +320,14 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
         region: data.region,
         items: orderItems,
         totalAmount,
-        isNewCustomer,
+        setupLink: isNewCustomer ? (setupLink ?? undefined) : undefined,
       })
-      if ('existingCustomer' in result) {
-        setFoundCustomer(result.existingCustomer)
-        return
-      }
       await closeFormDraft(sessionId)
       router.push(`/admin/orders/${result.orderId}`)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to create order')
     }
   })
-
-  async function proceedWithFoundCustomer() {
-    if (!foundCustomer) return
-    setSubmitError('')
-    try {
-      const data = { customerPhone: watch('customerPhone'), shippingAddress: watch('shippingAddress'), city: watch('city'), region: watch('region') }
-      const result = await createAdminOrder({
-        customerEmail: foundCustomer.email,
-        customerName: foundCustomer.fullName,
-        customerPhone: data.customerPhone,
-        shippingAddress: data.shippingAddress,
-        city: data.city,
-        region: data.region,
-        items: orderItems,
-        totalAmount,
-        isNewCustomer: false,
-      })
-      if ('orderId' in result) {
-        await closeFormDraft(sessionId)
-        router.push(`/admin/orders/${result.orderId}`)
-      }
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to create order')
-    }
-  }
 
   const reviewName = isNewCustomer ? watchedName : selectedCustomer?.fullName ?? ''
   const reviewEmail = isNewCustomer ? watchedEmail : selectedCustomer?.email ?? ''
@@ -479,6 +494,55 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
                 <p className="text-xs text-gray-400">Phone and shipping address collected in Step 3.</p>
               </div>
             )}
+
+            {/* Cross-store conflict — email taken by another store's user */}
+            {isNewCustomer && step1CrossStoreError && (
+              <div className="flex gap-3 mt-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">
+                  This email is already in use by a customer from another store. Try a different email or switch to <strong>Existing Customer</strong> if they've signed up here.
+                </p>
+              </div>
+            )}
+
+            {/* Existing customer found in this store */}
+            {isNewCustomer && step1Conflict && (
+              <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div className="flex gap-3 mb-3">
+                  <UserCheck className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">Customer already exists</p>
+                    <p className="text-xs text-amber-700 mt-0.5">An account with this email is registered for this store.</p>
+                  </div>
+                </div>
+                <div className="bg-white border border-amber-100 rounded-lg px-4 py-3 mb-3 space-y-0.5">
+                  <p className="text-sm font-semibold text-gray-900">{step1Conflict.fullName}</p>
+                  <p className="text-xs text-gray-500">{step1Conflict.email}</p>
+                  {step1Conflict.phone && <p className="text-xs text-gray-500">{step1Conflict.phone}</p>}
+                  {step1Conflict.city && (
+                    <p className="text-xs text-gray-500">
+                      {step1Conflict.city}{step1Conflict.region ? `, ${step1Conflict.region}` : ''}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => useExistingFromConflict(step1Conflict!)}
+                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                  >
+                    Use this customer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStep1Conflict(null)}
+                    className="flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                  >
+                    Change email
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -631,46 +695,6 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
         {/* Step 4 — Review */}
         {step === 4 && (
           <div className="space-y-4">
-            {/* Existing customer conflict */}
-            {foundCustomer && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-                <div className="flex gap-3 mb-4">
-                  <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-amber-900 text-sm">Customer already exists</p>
-                    <p className="text-sm text-amber-700 mt-0.5">
-                      An account with this email is already registered. Do you want to create the order for this customer instead?
-                    </p>
-                  </div>
-                </div>
-                <div className="bg-white border border-amber-100 rounded-lg p-4 mb-4 space-y-1">
-                  <p className="text-sm font-semibold text-gray-900">{foundCustomer.fullName}</p>
-                  <p className="text-sm text-gray-500">{foundCustomer.email}</p>
-                  {foundCustomer.phone && <p className="text-sm text-gray-500">{foundCustomer.phone}</p>}
-                  {foundCustomer.city && (
-                    <p className="text-sm text-gray-500">
-                      {foundCustomer.city}{foundCustomer.region ? `, ${foundCustomer.region}` : ''}
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={proceedWithFoundCustomer}
-                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
-                  >
-                    Yes, use this customer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFoundCustomer(null)}
-                    className="flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
-                  >
-                    Go back
-                  </button>
-                </div>
-              </div>
-            )}
 
             <div className="bg-white rounded-xl border border-gray-100 p-6">
               <h2 className="font-semibold text-gray-900 mb-3">Customer</h2>

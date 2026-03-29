@@ -3,7 +3,7 @@
 import { createClient } from '../supabase/server'
 import { supabaseAdmin } from '../supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { CartItem, CustomerSummary, CreateAdminOrderResult } from '../types'
+import { CartItem, CustomerSummary, CheckOrCreateCustomerResult } from '../types'
 import { logger } from '../logger'
 import { getStoreId } from '../store-id'
 
@@ -906,7 +906,71 @@ export async function handleCheckoutSuccess(reference: string) {
   return order
 }
 
+export async function checkOrCreateCustomer(
+  email: string,
+  name: string
+): Promise<CheckOrCreateCustomerResult> {
+  const { isAdmin: checkIsAdmin } = await import('./auth')
+  if (!(await checkIsAdmin())) throw new Error('Unauthorized')
+
+  const storeId = getStoreId()
+
+  // Check this store's profiles only — no cross-store queries
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('id, full_name, email, phone, shipping_address, city, region')
+    .eq('email', email)
+    .eq('store_id', storeId)
+    .maybeSingle()
+
+  if (profile) {
+    return {
+      existingCustomer: {
+        userId: profile.id,
+        fullName: profile.full_name ?? name,
+        email: profile.email,
+        phone: profile.phone ?? null,
+        shippingAddress: profile.shipping_address ?? null,
+        city: profile.city ?? null,
+        region: profile.region ?? null,
+      } satisfies CustomerSummary,
+    }
+  }
+
+  const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: { full_name: name, store_id: storeId },
+  })
+
+  // Email exists in Auth from another store — cannot create here
+  if (createError?.code === 'email_exists') {
+    return { crossStoreConflict: true }
+  }
+
+  if (createError) throw createError
+
+  await supabaseAdmin
+    .from('profiles')
+    .update({ admin_created: true })
+    .eq('id', newUser.user.id)
+    .eq('store_id', storeId)
+
+  const resetToken = crypto.randomUUID()
+  await supabaseAdmin
+    .from('password_reset_tokens')
+    .insert({ token: resetToken, user_id: newUser.user.id, store_id: storeId })
+
+  return {
+    newCustomer: {
+      userId: newUser.user.id,
+      setupLink: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${resetToken}`,
+    },
+  }
+}
+
 export async function createAdminOrder(data: {
+  userId: string
   customerEmail: string
   customerName: string
   customerPhone: string
@@ -924,74 +988,13 @@ export async function createAdminOrder(data: {
     unitPrice: number
   }>
   totalAmount: number
-  isNewCustomer: boolean
-}): Promise<CreateAdminOrderResult> {
+  setupLink?: string
+}): Promise<{ orderId: string }> {
   const { isAdmin: checkIsAdmin } = await import('./auth')
   if (!(await checkIsAdmin())) throw new Error('Unauthorized')
 
   const storeId = getStoreId()
-
-  let userId: string
-  let setupLink: string | undefined
-
-  if (data.isNewCustomer) {
-    // Check if a customer with this email already exists in this store
-    const { data: existingProfile } = await supabaseAdmin
-      .from('profiles')
-      .select('id, full_name, email, phone, shipping_address, city, region')
-      .eq('email', data.customerEmail)
-      .eq('store_id', storeId)
-      .single()
-
-    if (existingProfile) {
-      const existingCustomer: CustomerSummary = {
-        userId: existingProfile.id,
-        fullName: existingProfile.full_name ?? data.customerName,
-        email: existingProfile.email,
-        phone: existingProfile.phone ?? null,
-        shippingAddress: existingProfile.shipping_address ?? null,
-        city: existingProfile.city ?? null,
-        region: existingProfile.region ?? null,
-      }
-      return { existingCustomer }
-    }
-
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email: data.customerEmail,
-      email_confirm: true,
-      user_metadata: { full_name: data.customerName, store_id: storeId },
-    })
-
-    if (createError) throw createError
-
-    await supabaseAdmin
-      .from('profiles')
-      .update({ admin_created: true })
-      .eq('id', newUser.user.id)
-      .eq('store_id', storeId)
-
-    const resetToken = crypto.randomUUID()
-    await supabaseAdmin
-      .from('password_reset_tokens')
-      .insert({ token: resetToken, user_id: newUser.user.id, store_id: storeId })
-
-    setupLink = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${resetToken}`
-    userId = newUser.user.id
-  } else {
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .eq('email', data.customerEmail)
-      .eq('store_id', storeId)
-      .single()
-
-    if (profileError || !profile) {
-      throw profileError || new Error('Customer not found')
-    }
-
-    userId = profile.id
-    setupLink = undefined
-  }
+  const userId = data.userId
 
   const reference = `${storeId.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
 
@@ -1039,7 +1042,7 @@ export async function createAdminOrder(data: {
 
   await logStatusChange(order.id, 'pending')
 
-  sendAdminCreatedOrderNotification(order.id, setupLink).catch(() => {})
+  sendAdminCreatedOrderNotification(order.id, data.setupLink).catch(() => {})
 
   logger.info({ orderId: order.id }, 'Admin order created')
 

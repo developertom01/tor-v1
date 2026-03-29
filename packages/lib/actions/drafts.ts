@@ -1,6 +1,6 @@
 'use server'
 
-import { unstable_cache, revalidateTag } from 'next/cache'
+import { unstable_cache, updateTag } from 'next/cache'
 import { supabaseAdmin } from '../supabase/admin'
 import { getStoreId } from '../store-id'
 
@@ -41,7 +41,7 @@ export async function saveFormDraft(id: string, data: object): Promise<void> {
   if (error) throw error
 
   // Invalidate the cache for this draft so the next load fetches fresh data
-  revalidateTag(draftCacheTag(id))
+  updateTag(draftCacheTag(id))
 }
 
 export async function loadFormDraft(id: string): Promise<{ data: object; status: FormDraftStatus } | null> {
