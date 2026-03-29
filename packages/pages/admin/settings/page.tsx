@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import { getStoreSettings } from '@tor/lib/actions/settings'
 import { getAdmins } from '@tor/lib/actions/auth'
-import { getFeatureFlags } from '@tor/lib/feature-flags'
+import { online_payment } from '@tor/lib/feature-flags'
 import SettingsClient from './SettingsClient'
 import AdminManager from './AdminManager'
 
@@ -10,10 +10,10 @@ export const metadata: Metadata = {
 }
 
 export default async function AdminSettingsPage() {
-  const [settings, admins, flags] = await Promise.all([
+  const [settings, admins, onlinePaymentAllowed] = await Promise.all([
     getStoreSettings(),
     getAdmins(),
-    getFeatureFlags(),
+    online_payment(),
   ])
 
   return (
@@ -23,7 +23,7 @@ export default async function AdminSettingsPage() {
         <SettingsClient
           bypassPayment={settings.bypass_payment}
           onlinePaymentsEnabled={settings.online_payments_enabled}
-          onlinePaymentAllowed={flags.online_payment}
+          onlinePaymentAllowed={onlinePaymentAllowed}
         />
         <AdminManager admins={admins} />
       </div>
