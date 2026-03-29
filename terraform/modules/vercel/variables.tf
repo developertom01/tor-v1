@@ -16,6 +16,7 @@ variable "env" {
 variable "env_vars" {
   description = "Environment variables to set on the project"
   type        = map(string)
+  sensitive   = true
   default     = {}
 }
 
