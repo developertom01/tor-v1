@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, UserCheck } from 'lucide-react'
 import { searchCustomersForOrder, createAdminOrder, checkCustomerEmail } from '@tor/lib/actions/orders'
@@ -32,6 +32,7 @@ export type Step = 1 | 2 | 3 | 4
 
 interface CreateOrderClientProps {
   sessionId: string
+  initialStep: Step
   initialData: Partial<OrderDraft>
 }
 
@@ -81,9 +82,8 @@ const inputClass =
 
 const errorClass = 'text-xs text-red-500 mt-1'
 
-export default function CreateOrderClient({ sessionId, initialData: draft }: CreateOrderClientProps) {
+export default function CreateOrderClient({ sessionId, initialStep, initialData: draft }: CreateOrderClientProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   const {
     register,
@@ -105,22 +105,12 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
     },
   })
 
-  const rawStep = Number(searchParams.get('step'))
-  const step: Step = (rawStep >= 1 && rawStep <= 4 ? rawStep : 1) as Step
-  const isRestoring = !searchParams.get('step') && !!draft.step && draft.step > 1
+  const [step, setStep] = useState<Step>(initialStep)
 
   function navigateTo(s: Step) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('step', String(s))
-    router.replace(`?${params.toString()}`)
+    setStep(s)
+    router.replace(`?session=${sessionId}&step=${s}`)
   }
-
-  // If there's no step in the URL but the draft knows where we were, restore it
-  useEffect(() => {
-    if (!searchParams.get('step') && draft.step) {
-      navigateTo(draft.step)
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [isNewCustomer, setIsNewCustomer] = useState(draft.isNewCustomer ?? true)
 
@@ -343,14 +333,6 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
   const reviewName = isNewCustomer ? watchedName : selectedCustomer?.fullName ?? ''
   const reviewEmail = isNewCustomer ? watchedEmail : selectedCustomer?.email ?? ''
 
-  if (isRestoring) {
-    return (
-      <div className="flex items-center gap-3 text-sm text-gray-400 py-16 justify-center">
-        <Loader2 className="w-5 h-5 animate-spin" />
-        Restoring your progress...
-      </div>
-    )
-  }
 
   return (
     <form onSubmit={onSubmit} noValidate>
