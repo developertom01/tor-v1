@@ -55,6 +55,7 @@ module "vercel" {
       NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY     = var.paystack_public_key
       PAYSTACK_SECRET_KEY                = var.paystack_secret_key
       LOG_LEVEL                          = var.env == "dev" ? "debug" : "info"
+      AUTH_ENCRYPTION_KEY                = var.auth_encryption_key
     }
   )
 }
@@ -81,6 +82,8 @@ module "doppler" {
       SUPABASE_DATABASE_URL              = var.supabase_database_url
       ADMIN_EMAIL                        = local.admin_email
       ADMIN_PASSWORD                     = random_password.admin_password.result
+      # Cross-project reference — Doppler resolves this at runtime from tor-common
+      AUTH_ENCRYPTION_KEY                = "$${tor-common.${var.env}.AUTH_ENCRYPTION_KEY}"
     }
   )
 }

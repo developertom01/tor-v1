@@ -121,3 +121,9 @@ variable "git_branch" {
   type    = string
   default = "main"
 }
+
+variable "auth_encryption_key" {
+  description = "AES-256 key from tor-common (64 hex chars)"
+  type        = string
+  sensitive   = true
+}

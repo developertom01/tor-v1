@@ -6,6 +6,8 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { logger } from '../logger'
 import { getStoreId } from '../store-id'
+import { encrypt, decrypt } from '../crypto'
+import bcrypt from 'bcryptjs'
 
 export async function signInWithGoogle(formData: FormData) {
   const supabase = await createClient()
@@ -38,14 +40,74 @@ export async function signUp(formData: FormData) {
   const email = (formData.get('email') as string).trim()
   const password = formData.get('password') as string
   const redirectTo = formData.get('redirect_to') as string | null
+  const storeId = getStoreId()
+  const fullName = `${firstName} ${lastName}`
 
-  const { error } = await supabase.auth.signUp({
+  // Check if auth.users row already exists for this email
+  const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
+  const existingUser = existingUsers?.users.find(u => u.email === email)
+
+  if (existingUser) {
+    // User exists in auth.users (signed up on another store).
+    // Check if they already have a profile on this store.
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('id', existingUser.id)
+      .eq('store_id', storeId)
+      .single()
+
+    if (existingProfile) {
+      return { error: 'An account with this email already exists. Please sign in.' }
+    }
+
+    // New store for this user — create profile + per-store hashed password
+    const hashed = await bcrypt.hash(password, 12)
+    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
+      id: existingUser.id,
+      email,
+      full_name: fullName,
+      store_id: storeId,
+      hashed_password: hashed,
+    })
+
+    if (profileError) {
+      logger.error({ error: profileError, email, storeId }, 'Failed to create profile for existing user on new store')
+      return { error: 'Failed to create account. Please try again.' }
+    }
+
+    // Sign them in using global password
+    const { data: creds } = await supabaseAdmin
+      .from('user_credentials')
+      .select('encrypted_password')
+      .eq('user_id', existingUser.id)
+      .single()
+
+    if (!creds) {
+      logger.error({ email }, 'No global credentials found for existing user')
+      return { error: 'Failed to sign in. Please try again.' }
+    }
+
+    const globalPassword = decrypt(creds.encrypted_password)
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: globalPassword })
+
+    if (signInError) {
+      logger.error({ error: signInError, email }, 'Failed to sign in existing user after store registration')
+      return { error: 'Account created but sign-in failed. Please sign in manually.' }
+    }
+
+    logger.info({ email, storeId }, 'Existing user registered on new store')
+    redirect(redirectTo || '/')
+  }
+
+  // Brand new user — create auth.users row
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
-        full_name: `${firstName} ${lastName}`,
-        store_id: getStoreId(),
+        full_name: fullName,
+        store_id: storeId,
       },
     },
   })
@@ -55,7 +117,26 @@ export async function signUp(formData: FormData) {
     return { error: error.message }
   }
 
-  logger.info({ email }, 'Email sign-up successful')
+  if (!data.user) {
+    return { error: 'Sign-up failed. Please try again.' }
+  }
+
+  // Store global encrypted password (used for all future Supabase sign-ins)
+  const hashed = await bcrypt.hash(password, 12)
+  await supabaseAdmin.from('user_credentials').insert({
+    user_id: data.user.id,
+    encrypted_password: encrypt(password),
+  })
+
+  // Store per-store hashed password in profile
+  // Profile row was created by handle_new_user trigger — update it with hashed_password
+  await supabaseAdmin
+    .from('profiles')
+    .update({ hashed_password: hashed })
+    .eq('id', data.user.id)
+    .eq('store_id', storeId)
+
+  logger.info({ email, storeId }, 'New user signed up')
   redirect(redirectTo || '/')
 }
 
@@ -65,18 +146,53 @@ export async function signInWithEmail(formData: FormData) {
   const email = (formData.get('email') as string).trim()
   const password = formData.get('password') as string
   const redirectTo = formData.get('redirect_to') as string | null
+  const storeId = getStoreId()
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
+  // 1. Check profile exists for this store
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('id, hashed_password')
+    .eq('email', email)
+    .eq('store_id', storeId)
+    .single()
 
-  if (error) {
-    logger.error({ error, email }, 'Email sign-in failed')
-    return { error: error.message }
+  if (!profile) {
+    return { error: 'No account found for this store. Please sign up first.' }
   }
 
-  logger.info({ email }, 'Email sign-in successful')
+  if (!profile.hashed_password) {
+    // Google OAuth user — no password set
+    return { error: 'This account uses Google sign-in. Please use the Google button.' }
+  }
+
+  // 2. Verify per-store password
+  const passwordMatch = await bcrypt.compare(password, profile.hashed_password)
+  if (!passwordMatch) {
+    logger.warn({ email, storeId }, 'Per-store password mismatch')
+    return { error: 'Invalid email or password.' }
+  }
+
+  // 3. Fetch global encrypted password and sign in with Supabase
+  const { data: creds } = await supabaseAdmin
+    .from('user_credentials')
+    .select('encrypted_password')
+    .eq('user_id', profile.id)
+    .single()
+
+  if (!creds) {
+    logger.error({ email, storeId }, 'No global credentials found')
+    return { error: 'Sign-in failed. Please contact support.' }
+  }
+
+  const globalPassword = decrypt(creds.encrypted_password)
+  const { error } = await supabase.auth.signInWithPassword({ email, password: globalPassword })
+
+  if (error) {
+    logger.error({ error, email }, 'Supabase sign-in failed after per-store password verified')
+    return { error: 'Sign-in failed. Please try again.' }
+  }
+
+  logger.info({ email, storeId }, 'Email sign-in successful')
   redirect(redirectTo || '/')
 }
 
