@@ -64,7 +64,7 @@ export default function AuthClient({ redirectTo }: { redirectTo?: string }) {
   async function onForgot(data: ForgotFields) {
     setError('')
     const result = await requestPasswordReset(data.email.trim())
-    if (result?.error) {
+    if ('error' in result) {
       setError(result.error)
     } else {
       setResetSent(true)

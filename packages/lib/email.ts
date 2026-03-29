@@ -126,6 +126,37 @@ export async function sendPasswordResetEmail({
   })
 }
 
+export async function sendVerificationEmail({
+  fullName,
+  email,
+  verificationLink,
+}: {
+  fullName: string
+  email: string
+  verificationLink: string
+}) {
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `Verify your email — ${STORE_NAME}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+        <h2 style="color: ${BRAND_COLOR};">${STORE_NAME}</h2>
+        <p>Hi ${fullName},</p>
+        <p>Thanks for signing up! Please verify your email address to complete your registration.</p>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${verificationLink}" style="background: ${BRAND_COLOR}; color: white; text-decoration: none; padding: 14px 32px; border-radius: 999px; font-weight: bold; display: inline-block;">
+            Verify Email
+          </a>
+        </p>
+        <p style="color: #888; font-size: 13px;">This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="color: #aaa; font-size: 12px;">${STORE_NAME} — ${STORE_TAGLINE}</p>
+      </div>
+    `,
+  })
+}
+
 export async function sendRequestNotification({
   customerName,
   customerEmail,
