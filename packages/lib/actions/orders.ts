@@ -3,7 +3,7 @@
 import { createClient } from '../supabase/server'
 import { supabaseAdmin } from '../supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { CartItem, CustomerSummary, CheckOrCreateCustomerResult } from '../types'
+import { CartItem, CustomerSummary, CheckCustomerResult } from '../types'
 import { logger } from '../logger'
 import { getStoreId } from '../store-id'
 import { sendAdminCreatedVerificationEmail } from '../email'
@@ -908,16 +908,12 @@ export async function handleCheckoutSuccess(reference: string) {
   return order
 }
 
-export async function checkOrCreateCustomer(
-  email: string,
-  name: string
-): Promise<CheckOrCreateCustomerResult> {
+export async function checkCustomerEmail(email: string): Promise<CheckCustomerResult> {
   const { isAdmin: checkIsAdmin } = await import('./auth')
   if (!(await checkIsAdmin())) throw new Error('Unauthorized')
 
   const storeId = getStoreId()
 
-  // Check this store's profiles only — no cross-store queries
   const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('id, full_name, email, phone, shipping_address, city, region')
@@ -929,7 +925,7 @@ export async function checkOrCreateCustomer(
     return {
       existingCustomer: {
         userId: profile.id,
-        fullName: profile.full_name ?? name,
+        fullName: profile.full_name ?? email,
         email: profile.email,
         phone: profile.phone ?? null,
         shippingAddress: profile.shipping_address ?? null,
@@ -939,65 +935,7 @@ export async function checkOrCreateCustomer(
     }
   }
 
-  const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    email_confirm: true,
-    user_metadata: { full_name: name, store_id: storeId },
-  })
-
-  if (createError && createError.code !== 'email_exists') throw createError
-
-  let userId: string
-
-  if (createError?.code === 'email_exists') {
-    // User already exists in Auth (registered via another store).
-    // They are new to THIS store — find their Auth ID and create a profile here.
-    // Supabase listUsers doesn't support email filtering — use the Admin REST API directly
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const serviceKey = process.env.SUPABASE_SECRET_KEY!
-    const res = await fetch(
-      `${supabaseUrl}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
-      { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
-    )
-    const body = await res.json() as { users?: Array<{ id: string }> }
-    const authUser = body.users?.[0]
-    if (!authUser) throw new Error('Could not resolve existing auth user')
-    userId = authUser.id
-
-    // Create profile in this store for the existing auth user.
-    // email_verified stays false — they must verify for this store independently.
-    await supabaseAdmin.from('profiles').insert({
-      id: userId,
-      store_id: storeId,
-      email,
-      full_name: name,
-      role: 'customer',
-      admin_created: true,
-    })
-  } else {
-    if (!newUser?.user) throw new Error('Failed to create auth user')
-    userId = newUser.user.id
-    await supabaseAdmin
-      .from('profiles')
-      .update({ admin_created: true })
-      .eq('id', userId)
-      .eq('store_id', storeId)
-  }
-
-  const resetToken = crypto.randomUUID()
-  await supabaseAdmin
-    .from('password_reset_tokens')
-    .insert({ token: resetToken, user_id: userId, store_id: storeId })
-
-  // Send admin-created verification email (non-blocking)
-  sendAdminCreatedVerification(userId, name, email, storeId).catch(() => {})
-
-  return {
-    newCustomer: {
-      userId,
-      setupLink: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${resetToken}`,
-    },
-  }
+  return { available: true }
 }
 
 async function sendAdminCreatedVerification(userId: string, name: string, email: string, storeId: string) {
@@ -1027,7 +965,7 @@ async function sendAdminCreatedVerification(userId: string, name: string, email:
 }
 
 export async function createAdminOrder(data: {
-  userId: string
+  userId?: string        // provided for existing customers; absent for new
   customerEmail: string
   customerName: string
   customerPhone: string
@@ -1045,13 +983,59 @@ export async function createAdminOrder(data: {
     unitPrice: number
   }>
   totalAmount: number
-  setupLink?: string
 }): Promise<{ orderId: string }> {
   const { isAdmin: checkIsAdmin } = await import('./auth')
   if (!(await checkIsAdmin())) throw new Error('Unauthorized')
 
   const storeId = getStoreId()
-  const userId = data.userId
+
+  // New customer — create Auth user + profile now, at order creation time
+  let userId: string
+
+  if (data.userId) {
+    userId = data.userId
+  } else {
+    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email: data.customerEmail,
+      email_confirm: true,
+      user_metadata: { full_name: data.customerName, store_id: storeId },
+    })
+
+    if (createError && createError.code !== 'email_exists') throw createError
+
+    if (createError?.code === 'email_exists') {
+      // Exists in Auth from another store — create profile in this store
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+      const serviceKey = process.env.SUPABASE_SECRET_KEY!
+      const res = await fetch(
+        `${supabaseUrl}/auth/v1/admin/users?email=${encodeURIComponent(data.customerEmail)}`,
+        { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
+      )
+      const body = await res.json() as { users?: Array<{ id: string }> }
+      const authUser = body.users?.[0]
+      if (!authUser) throw new Error('Could not resolve existing auth user')
+      userId = authUser.id
+      await supabaseAdmin.from('profiles').insert({
+        id: userId,
+        store_id: storeId,
+        email: data.customerEmail,
+        full_name: data.customerName,
+        role: 'customer',
+        admin_created: true,
+      })
+    } else {
+      if (!newUser?.user) throw new Error('Failed to create auth user')
+      userId = newUser.user.id
+      await supabaseAdmin
+        .from('profiles')
+        .update({ admin_created: true })
+        .eq('id', userId)
+        .eq('store_id', storeId)
+    }
+
+    // Send verification email non-blocking — only once, at order creation
+    sendAdminCreatedVerification(userId, data.customerName, data.customerEmail, storeId).catch(() => {})
+  }
 
   const reference = `${storeId.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
 
@@ -1099,7 +1083,7 @@ export async function createAdminOrder(data: {
 
   await logStatusChange(order.id, 'pending')
 
-  sendAdminCreatedOrderNotification(order.id, data.setupLink).catch(() => {})
+  sendAdminCreatedOrderNotification(order.id).catch(() => {})
 
   logger.info({ orderId: order.id }, 'Admin order created')
 
@@ -1108,12 +1092,12 @@ export async function createAdminOrder(data: {
   return { orderId: order.id }
 }
 
-async function sendAdminCreatedOrderNotification(orderId: string, setupLink?: string) {
+async function sendAdminCreatedOrderNotification(orderId: string) {
   try {
     const fullOrder = await fetchFullOrder(orderId)
     if (!fullOrder) return
     const { sendAdminCreatedOrderEmail } = await import('../email')
-    await sendAdminCreatedOrderEmail({ order: fullOrder, setupLink })
+    await sendAdminCreatedOrderEmail({ order: fullOrder })
     logger.info({ orderId }, 'Admin-created order notification sent')
   } catch (err) {
     logger.error({ error: err, orderId }, 'Failed to send admin-created order notification')

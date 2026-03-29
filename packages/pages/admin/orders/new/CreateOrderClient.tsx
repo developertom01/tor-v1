@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, UserCheck } from 'lucide-react'
-import { searchCustomersForOrder, createAdminOrder, checkOrCreateCustomer } from '@tor/lib/actions/orders'
+import { searchCustomersForOrder, createAdminOrder, checkCustomerEmail } from '@tor/lib/actions/orders'
 import { saveFormDraft, closeFormDraft } from '@tor/lib/actions/drafts'
 import { formatPrice } from '@tor/lib/utils'
 import Image from 'next/image'
@@ -18,8 +18,6 @@ export type PickedProduct = Awaited<ReturnType<typeof searchProductsForOrder>>[n
 type OrderDraft = {
   isNewCustomer: boolean
   selectedCustomer: SearchResult | null
-  createdUserId: string | null
-  setupLink: string | null
   customerName: string
   customerEmail: string
   customerPhone: string
@@ -122,9 +120,7 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
   const [selectedQty, setSelectedQty] = useState(1)
   const [itemsError, setItemsError] = useState('')
 
-  // Step 1 — new customer creation state
-  const [createdUserId, setCreatedUserId] = useState<string | null>(d.createdUserId ?? null)
-  const [setupLink, setSetupLink] = useState<string | null>(d.setupLink ?? null)
+  // Step 1 — email check state
   const [step1Checking, setStep1Checking] = useState(false)
   const [step1Conflict, setStep1Conflict] = useState<CustomerSummary | null>(null)
 
@@ -136,8 +132,6 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
     const snapshot: OrderDraft = {
       isNewCustomer,
       selectedCustomer,
-      createdUserId,
-      setupLink,
       customerName: f.customerName,
       customerEmail: f.customerEmail,
       customerPhone: f.customerPhone,
@@ -250,15 +244,12 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
         setStep1Checking(true)
         try {
           const f = watch()
-          const result = await checkOrCreateCustomer(f.customerEmail, f.customerName)
+          const result = await checkCustomerEmail(f.customerEmail)
           if ('existingCustomer' in result) {
             setStep1Conflict(result.existingCustomer)
             return
           }
-          // New customer created — store userId + setupLink in state and draft
-          setCreatedUserId(result.newCustomer.userId)
-          setSetupLink(result.newCustomer.setupLink)
-          persistDraft({ createdUserId: result.newCustomer.userId, setupLink: result.newCustomer.setupLink })
+          // Email available — proceed to next step
         } catch (err) {
           setSubmitError(err instanceof Error ? err.message : 'Failed to verify customer')
           return
@@ -296,10 +287,9 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
 
   const onSubmit = handleSubmit(async (data) => {
     setSubmitError('')
-    const userId = isNewCustomer ? createdUserId! : selectedCustomer!.userId
     try {
       const result = await createAdminOrder({
-        userId,
+        userId: isNewCustomer ? undefined : selectedCustomer!.userId,
         customerEmail: isNewCustomer ? data.customerEmail : selectedCustomer!.email,
         customerName: isNewCustomer ? data.customerName : selectedCustomer!.fullName,
         customerPhone: data.customerPhone,
@@ -308,7 +298,6 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
         region: data.region,
         items: orderItems,
         totalAmount,
-        setupLink: isNewCustomer ? (setupLink ?? undefined) : undefined,
       })
       await closeFormDraft(sessionId)
       router.push(`/admin/orders/${result.orderId}`)

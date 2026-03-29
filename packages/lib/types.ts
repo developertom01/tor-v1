@@ -99,6 +99,6 @@ export interface CustomerSummary {
   region: string | null
 }
 
-export type CheckOrCreateCustomerResult =
+export type CheckCustomerResult =
   | { existingCustomer: CustomerSummary }
-  | { newCustomer: { userId: string; setupLink: string } }
+  | { available: true }
