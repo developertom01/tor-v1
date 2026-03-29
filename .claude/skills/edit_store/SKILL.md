@@ -32,6 +32,17 @@ You are editing an existing store in the tor monorepo. The user wants to change 
 
 If the user's request is ambiguous or could affect multiple files, always clarify scope first.
 
+### Logo and favicon changes
+
+If the user wants to update the logo or favicon:
+
+1. Tell them exactly what files to provide and where to put them:
+   > "Please place your logo at `apps/{slug}/public/logo.{ext}` and your favicon files at `apps/{slug}/src/app/favicon.ico` (and optionally `icon.svg`, `apple-icon.png` in the same directory). Let me know the relative path(s) once they're in place."
+2. Wait for the user to confirm the paths.
+3. Validate each path exists before making any changes. If a file is missing:
+   > "I couldn't find `{path}`. Please add the file and let me know when it's ready."
+4. Only after validation, update `store.config.ts` with `logo: '/logo.{ext}'` and confirm the favicon files are in place.
+
 ## Change Propagation Map
 
 When a value changes, you often need to update multiple files. Use this map:
@@ -45,6 +56,8 @@ When a value changes, you often need to update multiple files. Use this map:
 | **Categories** | `store.config.ts` (categories array), `supabase/seeds/{slug}.json` (remap every product's `category` field to match the new slugs — the seed script deletes and re-inserts all products on every run, so stale slugs will orphan products from their category), `page.tsx` (if categories are referenced in landing page copy) |
 | **Hero / landing page copy** | `store.config.ts` (hero), `page.tsx` (landing page content) |
 | **Landing page design** | `page.tsx` only |
+| **Logo** | `store.config.ts` (`logo` field), `apps/{slug}/public/logo.{ext}` (the image file itself) |
+| **Favicon** | `apps/{slug}/src/app/favicon.ico`, optionally `icon.svg` and `apple-icon.png` in the same directory |
 | **SEO metadata** | `layout.tsx` only |
 | **Tagline** | `store.config.ts` (tagline) |
 | **Testimonials** | `store.config.ts` (testimonials), `page.tsx` (if testimonials are inline rather than from config) |

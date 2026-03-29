@@ -50,6 +50,24 @@ If at any point the user says something vague like "just pick something" for a r
 | Hero gradient | Auto-generate from brand-900 → brand-700 → brand-500 |
 | Currency | GHS (Ghana Cedis) |
 | Region | `eu-west-2` (Supabase region) |
+| Logo & favicon | Optional — see branding section below |
+
+### Branding: logo and favicon
+
+After collecting the required fields, ask the user about branding assets:
+
+> "Do you have a logo and favicon for this store? If yes, place them in the repo and give me the paths. If you'd like to skip branding for now, just say so and we'll leave it out."
+
+**If the user provides paths:**
+1. Validate each path exists before proceeding (check the file is present relative to the repo root).
+2. If a path doesn't exist, tell the user exactly what's missing and ask them to fix it before continuing:
+   > "I couldn't find `{path}`. Please add the file and let me know when it's in place."
+3. Once validated:
+   - Copy or note the logo path for `public/logo.{ext}` in the app directory
+   - Copy or note the favicon for `src/app/favicon.ico` (and `src/app/icon.svg`, `src/app/apple-icon.png` if provided)
+   - Set `logo: '/logo.{ext}'` in `store.config.ts`
+
+**If the user skips:** omit `logo` from `store.config.ts` entirely. Do not add a placeholder.
 
 ### Example conversation flow
 
