@@ -97,7 +97,7 @@ export async function signUp(formData: FormData) {
       return { error: 'Account created but sign-in failed. Please sign in manually.' }
     }
 
-    await sendNewStoreNotificationEmail({ fullName, email, storeName: process.env.NEXT_PUBLIC_STORE_NAME || 'Store' })
+    await sendNewStoreNotificationEmail({ fullName, email })
     logger.info({ email, storeId }, 'Existing user registered on new store')
     redirect(redirectTo || '/')
   }
