@@ -3,7 +3,7 @@
 import { useForm } from 'react-hook-form'
 import { useState } from 'react'
 import Image from 'next/image'
-import { Upload, Trash2, Play, Loader2, ImageIcon, Video } from 'lucide-react'
+import { Upload, Trash2, Loader2, ImageIcon, Video } from 'lucide-react'
 import { ProductWithMedia } from '@tor/lib/types'
 import { uploadProductMedia, addProductMedia, deleteProductMedia } from '@tor/lib/actions/products'
 import { MAX_MEDIA_PER_PRODUCT } from '@tor/lib/utils'
@@ -76,9 +76,13 @@ export default function MediaManager({ product }: { product: ProductWithMedia })
           {media.map((m) => (
             <div key={m.id} className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden">
               {m.type === 'video' ? (
-                <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                  <Play className="w-8 h-8 text-gray-500" />
-                </div>
+                <video
+                  src={m.url}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover pointer-events-none"
+                />
               ) : (
                 <Image src={m.url} alt="" fill className="object-cover" sizes="150px" />
               )}
