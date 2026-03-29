@@ -8,7 +8,7 @@ import { logger } from '../logger'
 import { getStoreId } from '../store-id'
 import { encrypt, decrypt } from '../crypto'
 import bcrypt from 'bcryptjs'
-import { sendNewStoreNotificationEmail, sendPasswordResetEmail, sendVerificationEmail } from '../email'
+import { sendPasswordResetEmail, sendVerificationEmail } from '../email'
 
 export async function signInWithGoogle(formData: FormData) {
   const supabase = await createClient()
@@ -40,7 +40,6 @@ export async function signUp(formData: FormData) {
   const lastName = (formData.get('last_name') as string).trim()
   const email = (formData.get('email') as string).trim()
   const password = formData.get('password') as string
-  const redirectTo = formData.get('redirect_to') as string | null
   const storeId = getStoreId()
   const fullName = `${firstName} ${lastName}`
 
@@ -62,7 +61,8 @@ export async function signUp(formData: FormData) {
       return { error: 'An account with this email already exists. Please sign in.' }
     }
 
-    // New store for this user — create profile + per-store hashed password
+    // New store for this user — create profile + per-store hashed password.
+    // email_verified defaults to false; they must verify for this store too.
     const hashed = await bcrypt.hash(password, 12)
     const { error: profileError } = await supabaseAdmin.from('profiles').insert({
       id: existingUser.id,
@@ -77,29 +77,19 @@ export async function signUp(formData: FormData) {
       return { error: 'Failed to create account. Please try again.' }
     }
 
-    // Sign them in using global password
-    const { data: creds } = await supabaseAdmin
-      .from('user_credentials')
-      .select('encrypted_password')
-      .eq('user_id', existingUser.id)
-      .single()
+    // Send per-store verification email — do not sign them in yet
+    const { randomBytes: randBytes2 } = await import('crypto')
+    const token2 = randBytes2(32).toString('hex')
+    await supabaseAdmin.from('email_verification_tokens').insert({
+      token: token2,
+      user_id: existingUser.id,
+      store_id: storeId,
+    })
+    const verificationLink2 = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/verify-email?token=${token2}`
+    await sendVerificationEmail({ fullName, email, verificationLink: verificationLink2 })
 
-    if (!creds) {
-      logger.error({ email }, 'No global credentials found for existing user')
-      return { error: 'Failed to sign in. Please try again.' }
-    }
-
-    const globalPassword = decrypt(creds.encrypted_password)
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: globalPassword })
-
-    if (signInError) {
-      logger.error({ error: signInError, email }, 'Failed to sign in existing user after store registration')
-      return { error: 'Account created but sign-in failed. Please sign in manually.' }
-    }
-
-    await sendNewStoreNotificationEmail({ fullName, email })
-    logger.info({ email, storeId }, 'Existing user registered on new store')
-    redirect(redirectTo || '/')
+    logger.info({ email, storeId }, 'Existing user registered on new store — verification email sent')
+    redirect('/auth/verify-email/sent')
   }
 
   // Brand new user — use admin API to create and auto-confirm (bypasses Supabase emails)

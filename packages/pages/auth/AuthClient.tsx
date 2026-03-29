@@ -47,7 +47,6 @@ export default function AuthClient({ redirectTo, defaultMode = 'signin' }: { red
     formData.set('last_name', data.last_name)
     formData.set('email', data.email)
     formData.set('password', data.password)
-    formData.set('redirect_to', redirectTo || '/')
     const result = await signUp(formData)
     if (result?.error) setError(result.error)
   }
