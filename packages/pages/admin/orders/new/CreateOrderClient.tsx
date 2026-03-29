@@ -201,12 +201,12 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
     persistDraft({ selectedCustomer: result, isNewCustomer: false })
   }
 
-  function clearSelectedCustomer() {
+  function clearSelectedCustomer(nextIsNewCustomer: boolean) {
     setSelectedCustomer(null)
     setCustomerSearchQuery('')
     setSearchResults([])
     reset()
-    persistDraft({ selectedCustomer: null, isNewCustomer: true, customerName: '', customerEmail: '' })
+    persistDraft({ selectedCustomer: null, isNewCustomer: nextIsNewCustomer, customerName: '', customerEmail: '' })
   }
 
   function addItem() {
@@ -292,7 +292,7 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
       }
       const nextStep = (step + 1) as Step
       navigateTo(nextStep)
-      persistDraft()
+      persistDraft({ step: nextStep })
     } finally {
       setIsGoingNext(false)
     }
@@ -302,7 +302,7 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
     selectCustomer(customer)
     setStep1Conflict(null)
     navigateTo(2)
-    persistDraft({ selectedCustomer: customer, isNewCustomer: false })
+    persistDraft({ selectedCustomer: customer, isNewCustomer: false, step: 2 })
   }
 
   function goBack() {
@@ -399,7 +399,7 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
             <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-5">
               <button
                 type="button"
-                onClick={() => { setIsNewCustomer(false); clearSelectedCustomer() }}
+                onClick={() => { setIsNewCustomer(false); clearSelectedCustomer(false) }}
                 className={`flex-1 flex items-center justify-center gap-2 text-sm font-medium py-2 rounded-lg transition-colors ${
                   !isNewCustomer ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
@@ -409,7 +409,7 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
               </button>
               <button
                 type="button"
-                onClick={() => { setIsNewCustomer(true); clearSelectedCustomer() }}
+                onClick={() => { setIsNewCustomer(true); clearSelectedCustomer(true) }}
                 className={`flex-1 flex items-center justify-center gap-2 text-sm font-medium py-2 rounded-lg transition-colors ${
                   isNewCustomer ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
@@ -438,7 +438,7 @@ export default function CreateOrderClient({ sessionId, initialData: draft }: Cre
                     </div>
                     <button
                       type="button"
-                      onClick={clearSelectedCustomer}
+                      onClick={() => clearSelectedCustomer(false)}
                       className="text-xs text-brand-600 hover:text-brand-700 font-medium flex-shrink-0"
                     >
                       Change
