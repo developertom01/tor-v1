@@ -9,6 +9,10 @@ dependency "doppler" {
 
 dependency "vercel" {
   config_path = "../vercel"
+  mock_outputs = {
+    project_id = ""
+  }
+  mock_outputs_allowed_terraform_commands = ["plan"]
 }
 
 locals {
