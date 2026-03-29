@@ -1120,6 +1120,28 @@ async function sendAdminCreatedOrderNotification(orderId: string, setupLink?: st
   }
 }
 
+export async function searchProductsForOrder(query: string) {
+  const { isAdmin: checkIsAdmin } = await import('./auth')
+  if (!(await checkIsAdmin())) throw new Error('Unauthorized')
+
+  const storeId = getStoreId()
+
+  let q = supabaseAdmin
+    .from('products')
+    .select('id, name, price, product_variants(id, name, price, stock_quantity), product_media(url, is_primary)')
+    .eq('store_id', storeId)
+    .limit(10)
+
+  if (query.trim()) {
+    q = q.ilike('name', `%${query.trim()}%`)
+  } else {
+    q = q.order('created_at', { ascending: false })
+  }
+
+  const { data } = await q
+  return data ?? []
+}
+
 export async function searchCustomersForOrder(query: string): Promise<Array<{
   userId: string
   fullName: string

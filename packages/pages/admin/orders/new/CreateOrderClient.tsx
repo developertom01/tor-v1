@@ -11,13 +11,8 @@ import Image from 'next/image'
 import ProductPicker from './ProductPicker'
 import type { CustomerSummary } from '@tor/lib/types'
 
-interface Product {
-  id: string
-  name: string
-  price: number
-  product_variants: Array<{ id: string; name: string; price: number; stock_quantity: number }>
-  product_media: Array<{ url: string; is_primary: boolean }>
-}
+import type { searchProductsForOrder } from '@tor/lib/actions/orders'
+export type PickedProduct = Awaited<ReturnType<typeof searchProductsForOrder>>[number]
 
 // Shape stored in form_drafts.data — flat, matches exactly what's needed to hydrate state
 type OrderDraft = {
@@ -35,7 +30,6 @@ type OrderDraft = {
 }
 
 interface CreateOrderClientProps {
-  products: Product[]
   sessionId: string
   initialData: Partial<OrderDraft>
 }
@@ -86,7 +80,7 @@ const inputClass =
 
 const errorClass = 'text-xs text-red-500 mt-1'
 
-export default function CreateOrderClient({ products, sessionId, initialData: d }: CreateOrderClientProps) {
+export default function CreateOrderClient({ sessionId, initialData: d }: CreateOrderClientProps) {
   const router = useRouter()
 
   const {
@@ -124,6 +118,7 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
   const [orderItems, setOrderItems] = useState<OrderItem[]>(d.orderItems ?? [])
   const [selectedProductId, setSelectedProductId] = useState('')
   const [selectedVariantId, setSelectedVariantId] = useState('')
+  const [selectedProduct, setSelectedProduct] = useState<PickedProduct | null>(null)
   const [selectedQty, setSelectedQty] = useState(1)
   const [itemsError, setItemsError] = useState('')
 
@@ -156,7 +151,6 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
   }
 
   const totalAmount = orderItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
-  const selectedProduct = products.find((p) => p.id === selectedProductId)
 
   // Watched for review display
   const watchedName = watch('customerName')
@@ -201,7 +195,7 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
   }
 
   function addItem() {
-    const product = products.find((p) => p.id === selectedProductId)
+    const product = selectedProduct
     if (!product) return
 
     const variant = product.product_variants?.find((v) => v.id === selectedVariantId)
@@ -539,15 +533,16 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
               <h2 className="font-semibold text-gray-900 mb-4">Add Product</h2>
 
               <ProductPicker
-                products={products}
                 value={selectedProductId}
                 variantValue={selectedVariantId}
-                onChange={(productId, variantId) => {
+                selectedProduct={selectedProduct}
+                onChange={(productId, variantId, product) => {
                   setSelectedProductId(productId)
                   setSelectedVariantId(variantId)
+                  setSelectedProduct(product)
                   setSelectedQty(1)
                 }}
-                onClear={() => { setSelectedProductId(''); setSelectedVariantId(''); setSelectedQty(1) }}
+                onClear={() => { setSelectedProductId(''); setSelectedVariantId(''); setSelectedProduct(null); setSelectedQty(1) }}
               />
 
               {selectedProductId && (

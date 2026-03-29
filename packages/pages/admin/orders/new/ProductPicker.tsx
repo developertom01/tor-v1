@@ -1,52 +1,75 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronDown, Check, X, Package } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Search, X, Package, Loader2, Check } from 'lucide-react'
 import { formatPrice } from '@tor/lib/utils'
+import { searchProductsForOrder } from '@tor/lib/actions/orders'
 import Image from 'next/image'
 
-interface Variant {
-  id: string
-  name: string
-  price: number
-  stock_quantity: number
-}
-
-interface Product {
-  id: string
-  name: string
-  price: number
-  product_variants: Variant[]
-  product_media: Array<{ url: string; is_primary: boolean }>
-}
+type Product = Awaited<ReturnType<typeof searchProductsForOrder>>[number]
 
 interface ProductPickerProps {
-  products: Product[]
   value: string
   variantValue: string
-  onChange: (productId: string, variantId: string) => void
+  onChange: (productId: string, variantId: string, product: Product) => void
   onClear: () => void
+  selectedProduct: Product | null
 }
 
-export default function ProductPicker({ products, value, variantValue, onChange, onClear }: ProductPickerProps) {
+export default function ProductPicker({ value, variantValue, onChange, onClear, selectedProduct }: ProductPickerProps) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<Product[]>([])
+  const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const selected = products.find((p) => p.id === value)
-  const thumb = selected?.product_media?.find((m) => m.is_primary) ?? selected?.product_media?.[0]
-  const hasVariants = (selected?.product_variants?.length ?? 0) > 0
+  function handleSearch(value: string) {
+    setQuery(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true)
+      try {
+        const data = await searchProductsForOrder(value)
+        setResults(data)
+        setOpen(true)
+      } catch {
+        setResults([])
+      }
+      setLoading(false)
+    }, 300)
+  }
 
-  if (selected) {
+  function handleFocus() {
+    if (results.length > 0) setOpen(true)
+    else if (!query) {
+      // Load initial set on first focus
+      handleSearch('')
+    }
+  }
+
+  function handleSelect(product: Product) {
+    const firstVariant = product.product_variants?.[0]
+    onChange(product.id, firstVariant?.id ?? '', product)
+    setOpen(false)
+    setQuery('')
+    setResults([])
+  }
+
+  const thumb = selectedProduct?.product_media?.find((m) => m.is_primary) ?? selectedProduct?.product_media?.[0]
+  const hasVariants = (selectedProduct?.product_variants?.length ?? 0) > 0
+
+  if (selectedProduct) {
     return (
       <div className="space-y-3">
-        {/* Selected product — compact horizontal card */}
+        {/* Selected — compact card */}
         <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
           {thumb ? (
             <Image
               src={thumb.url}
-              alt={selected.name}
+              alt={selectedProduct.name}
               width={52}
               height={52}
-              className="w-13 h-13 object-cover rounded-lg flex-shrink-0"
+              className="object-cover rounded-lg flex-shrink-0"
               style={{ width: 52, height: 52 }}
             />
           ) : (
@@ -55,8 +78,8 @@ export default function ProductPicker({ products, value, variantValue, onChange,
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">{selected.name}</p>
-            <p className="text-xs text-brand-600 font-medium mt-0.5">{formatPrice(selected.price)}</p>
+            <p className="text-sm font-semibold text-gray-900 truncate">{selectedProduct.name}</p>
+            <p className="text-xs text-brand-600 font-medium mt-0.5">{formatPrice(selectedProduct.price)}</p>
           </div>
           <button
             type="button"
@@ -67,19 +90,19 @@ export default function ProductPicker({ products, value, variantValue, onChange,
           </button>
         </div>
 
-        {/* Variants — pill selector */}
+        {/* Variant pills */}
         {hasVariants && (
           <div>
             <p className="text-xs font-medium text-gray-500 mb-2">Variant</p>
             <div className="flex flex-wrap gap-2">
-              {selected.product_variants.map((v) => {
+              {selectedProduct.product_variants.map((v) => {
                 const isSelected = variantValue === v.id
                 const outOfStock = v.stock_quantity === 0
                 return (
                   <button
                     key={v.id}
                     type="button"
-                    onClick={() => onChange(selected.id, v.id)}
+                    onClick={() => onChange(selectedProduct.id, v.id, selectedProduct)}
                     disabled={outOfStock}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                       isSelected
@@ -108,32 +131,32 @@ export default function ProductPicker({ products, value, variantValue, onChange,
 
   return (
     <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl hover:border-brand-300 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none text-sm text-left transition-colors bg-white"
-      >
-        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-          <Package className="w-4 h-4 text-gray-400" />
-        </div>
-        <span className="text-gray-400 flex-1">Select a product...</span>
-        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
-      </button>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => handleSearch(e.target.value)}
+          onFocus={handleFocus}
+          placeholder="Search products..."
+          className="w-full pl-9 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none text-sm"
+        />
+        {loading && (
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
+        )}
+      </div>
 
-      {open && (
+      {open && results.length > 0 && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-72 overflow-y-auto">
-            {products.map((p) => {
+            {results.map((p) => {
               const t = p.product_media?.find((m) => m.is_primary) ?? p.product_media?.[0]
               return (
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => {
-                    onChange(p.id, p.product_variants?.[0]?.id ?? '')
-                    setOpen(false)
-                  }}
+                  onClick={() => handleSelect(p)}
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-brand-50 transition-colors border-b border-gray-100 last:border-b-0 text-left"
                 >
                   {t ? (
@@ -156,6 +179,15 @@ export default function ProductPicker({ products, value, variantValue, onChange,
                 </button>
               )
             })}
+          </div>
+        </>
+      )}
+
+      {open && !loading && results.length === 0 && query.length > 0 && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl p-4 text-center">
+            <p className="text-sm text-gray-500">No products found</p>
           </div>
         </>
       )}
