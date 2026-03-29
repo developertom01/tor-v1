@@ -19,7 +19,8 @@
     "./cart-context": "./cart-context.tsx",
     "./usePaystack": "./usePaystack.ts",
     "./useDebounce": "./useDebounce.ts",
-    "./store-id": "./store-id.ts"
+    "./store-id": "./store-id.ts",
+    "./middleware": "./middleware.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

@@ -50,6 +50,24 @@ If at any point the user says something vague like "just pick something" for a r
 | Hero gradient | Auto-generate from brand-900 → brand-700 → brand-500 |
 | Currency | GHS (Ghana Cedis) |
 | Region | `eu-west-2` (Supabase region) |
+| Logo & favicon | Optional — see branding section below |
+
+### Branding: logo and favicon
+
+After collecting the required fields, ask the user about branding assets:
+
+> "Do you have a logo and favicon for this store? If yes, place them in the repo and give me the paths. If you'd like to skip branding for now, just say so and we'll leave it out."
+
+**If the user provides paths:**
+1. Validate each path exists before proceeding (check the file is present relative to the repo root).
+2. If a path doesn't exist, tell the user exactly what's missing and ask them to fix it before continuing:
+   > "I couldn't find `{path}`. Please add the file and let me know when it's in place."
+3. Once validated:
+   - Copy or note the logo path for `public/logo.{ext}` in the app directory
+   - Copy or note the favicon for `src/app/favicon.ico` (and `src/app/icon.svg`, `src/app/apple-icon.png` if provided)
+   - Set `logo: '/logo.{ext}'` in `store.config.ts`
+
+**If the user skips:** omit `logo` from `store.config.ts` entirely. Do not add a placeholder.
 
 ### Example conversation flow
 
@@ -163,60 +181,25 @@ Follow this order. Use the todo list to track progress.
 
 Follow the **Conversation Loop** described above. Do not proceed to Phase 2 until the user has confirmed the full summary.
 
-### Phase 2: Create App Directory
+### Phase 2: Build in parallel
 
-Read the existing store files first to understand the exact format, then create the new store:
+**Spawn all 4 agents in a single message simultaneously.** Pass the full confirmed store config to each agent.
 
-4. Create `apps/{slug}/` by copying structure from an existing store
-5. Update `apps/{slug}/package.json` — change `name` field
-6. Create `apps/{slug}/src/store.config.ts` with the user's values (type: `StoreConfig` from `@tor/store`)
-7. Create `apps/{slug}/src/app/globals.css` with the brand palette in `@theme inline`, plus matching `hero-gradient` and `gold-gradient` CSS classes. Include all `@source` directives for shared packages.
-8. Create `apps/{slug}/src/app/layout.tsx` with store-specific metadata
-9. Create `apps/{slug}/src/app/page.tsx` — **be creative here** (see above)
-10. Create `apps/{slug}/supabase/config.toml` with unique ports. Use the next available port range:
-    - hairlukgud: 54321-54329
-    - hairfordays: 54331-54339
-    - Next store: 54341-54349, then 54351-54359, etc.
-    - Read existing stores' config.toml files to find the next available range.
-11. Create symlink: `apps/{slug}/supabase/migrations` -> `../../../supabase/migrations`
-12. Create `apps/{slug}/.env.example` with the store's `NEXT_PUBLIC_STORE_ID`
-13. Create `apps/{slug}/src/middleware.ts` (copy from existing store — it's identical)
-14. Verify `apps/{slug}/next.config.ts` has all `@tor/*` in `transpilePackages`
-15. Verify `apps/{slug}/tsconfig.json` has `@/*` path alias pointing to `./src/*`
+| Agent | File | Covers |
+|-------|------|--------|
+| **Agent A** | `onboard_store-app` | App directory, store.config.ts, globals.css, layout.tsx, page.tsx, supabase config, symlinks, env, branding assets |
+| **Agent B** | `onboard_store-terraform` | terraform/stores/{slug}/ — doppler, dev, prod terragrunt.hcl |
+| **Agent C** | `onboard_store-seed` | supabase/seeds/{slug}.json, init/{slug}.yaml, supabase/seed.sql |
+| **Agent D** | `onboard_store-ci` | CI workflow update, apps/{slug}/CLAUDE.md, apps/{slug}/AGENTS.md |
 
-### Phase 3: Terraform Config
+Wait for all 4 to return before proceeding.
 
-16. Create `terraform/stores/{slug}/doppler/terragrunt.hcl`
-17. Create `terraform/stores/{slug}/dev/terragrunt.hcl` (domain: `dev.{base_domain}`, branch: `dev`, env: `dev`)
-18. Create `terraform/stores/{slug}/prod/terragrunt.hcl` (domain: `{base_domain}`, branch: `main`, env: `prod`)
+### Phase 3: Verify
 
-Reference the existing stores' terragrunt files for exact structure. Key values:
-- `name` = `{slug}-{env}`
-- `store_id` = `{slug}`
-- `root_dir` = `apps/{slug}`
-- Supabase vars use `get_env()` with both upper and lowercase fallbacks
-
-### Phase 4: Provisioning Config & Seed Data
-
-19. Create `init/{slug}.yaml` provisioning config (reference existing stores)
-20. Create `supabase/seeds/{slug}.json` with store row, settings, and seed products (reference existing JSON seed files for format)
-21. Add the store row to `supabase/seed.sql` so local `db:reset` includes it
-
-### Phase 5: CI Integration
-
-22. Add the store slug to `.github/workflows/provision-store-init.yml` store input options
-23. Add the store to `.github/workflows/db-push.yml` if it needs its own migration job (currently all stores share migrations via the same Supabase project, so this may not be needed)
-
-### Phase 6: App-level Config
-
-24. Create `apps/{slug}/CLAUDE.md` with store-specific commands and architecture notes (follow existing pattern)
-25. Create `apps/{slug}/AGENTS.md` (same content as other stores — Next.js 16 warning)
-
-### Phase 7: Verify
-
-26. Run `task inject` to verify page injection works for the new store
-27. Confirm the symlink to migrations is correct
-28. List all created files for the user to review
+Once all agents complete:
+- Run `task inject` — copies middleware.ts and all shared pages into the app
+- Confirm the supabase/migrations symlink is correct
+- List all created files for the user to review
 
 ## Reference Files
 
