@@ -62,7 +62,7 @@ export async function signUp(formData: FormData) {
     }
 
     // New store for this user — create profile + per-store hashed password.
-    // email_verified defaults to false; they must verify for this store too.
+    // email_verified defaults to false; they must verify for this store.
     const hashed = await bcrypt.hash(password, 12)
     const { error: profileError } = await supabaseAdmin.from('profiles').insert({
       id: existingUser.id,
