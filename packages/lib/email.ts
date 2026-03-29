@@ -353,6 +353,61 @@ export class EmailService {
     })
   }
 
+  async sendAdminCreatedOrder({
+    order,
+    setupLink,
+  }: {
+    order: OrderForEmail
+    setupLink?: string
+  }) {
+    const ctaHtml = setupLink
+      ? `<div style="text-align: center; margin: 24px 0;">
+          <a href="${setupLink}" style="display: inline-block; background: ${this.config.brandColor}; color: white; font-weight: bold; padding: 14px 32px; border-radius: 999px; text-decoration: none; font-size: 15px;">
+            Set Up Your Account
+          </a>
+          <p style="margin-top: 12px; font-size: 13px; color: #6b7280;">
+            Use this link to set a password and track your order. The link expires in 1 hour.
+          </p>
+        </div>`
+      : `<div style="text-align: center; margin: 24px 0;">
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL}/orders/${order.id}" style="display: inline-block; background: ${this.config.brandColor}; color: white; font-weight: bold; padding: 14px 32px; border-radius: 999px; text-decoration: none; font-size: 15px;">
+            View Your Order
+          </a>
+        </div>`
+
+    await this.resend.emails.send({
+      from: this.config.fromEmail,
+      to: order.customer_email,
+      subject: `Your order has been placed — ${this.config.storeName}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+          <h1 style="font-size: 22px; font-weight: bold; color: #111827;">Order Placed on Your Behalf</h1>
+          <p style="color: #374151;">Hi ${order.customer_name},</p>
+          <p style="color: #374151;">
+            An order has been placed for you by ${this.config.storeName}. Here's a summary:
+          </p>
+
+          ${orderItemsTableHtml(order.order_items)}
+
+          <div style="border-top: 2px solid #f3f4f6; padding-top: 12px; text-align: right; font-size: 16px; font-weight: bold; color: #111827;">
+            Total: ${formatGHS(order.total_amount)}
+          </div>
+
+          <div style="background: #f9fafb; border-radius: 12px; padding: 16px; margin: 20px 0; font-size: 14px; color: #374151;">
+            <strong>Shipping to:</strong><br/>
+            ${order.customer_name}<br/>
+            ${order.shipping_address}, ${order.city}<br/>
+            ${order.region}
+          </div>
+
+          ${ctaHtml}
+
+          ${this.footer()}
+        </div>
+      `,
+    })
+  }
+
   async sendDeliveryConfirmationEmail(order: OrderForEmail) {
     const pdf = await generateReceiptPDF(order)
 
@@ -404,4 +459,5 @@ export const sendOrderCancellationEmail = emailService.sendOrderCancellationEmai
 export const sendOrderStatusEmail = emailService.sendOrderStatusEmail.bind(emailService)
 export const sendPaymentReceiptEmail = emailService.sendPaymentReceiptEmail.bind(emailService)
 export const sendDeliveryConfirmationEmail = emailService.sendDeliveryConfirmationEmail.bind(emailService)
+export const sendAdminCreatedOrderEmail = emailService.sendAdminCreatedOrder.bind(emailService)
 export { orderItemsTableHtml }

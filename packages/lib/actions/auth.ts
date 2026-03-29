@@ -52,12 +52,56 @@ export async function signUp(formData: FormData) {
     // Check if they already have a profile on this store.
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
-      .select('id')
+      .select('id, admin_created, hashed_password')
       .eq('id', existingUser.id)
       .eq('store_id', storeId)
       .single()
 
     if (existingProfile) {
+      // Admin-created stub: no password set yet — allow completing registration
+      if (existingProfile.admin_created && !existingProfile.hashed_password) {
+        const hashed = await bcrypt.hash(password, 12)
+
+        // Set password + clear admin_created flag
+        await supabaseAdmin
+          .from('profiles')
+          .update({ hashed_password: hashed, admin_created: false })
+          .eq('id', existingUser.id)
+          .eq('store_id', storeId)
+
+        // Insert global credentials if missing
+        const { data: existingCreds } = await supabaseAdmin
+          .from('user_credentials')
+          .select('user_id')
+          .eq('user_id', existingUser.id)
+          .maybeSingle()
+
+        if (!existingCreds) {
+          const { randomBytes: rb } = await import('crypto')
+          const globalRaw = rb(32).toString('hex')
+          await supabaseAdmin.from('user_credentials').insert({
+            user_id: existingUser.id,
+            encrypted_password: encrypt(globalRaw),
+          })
+          // Update auth password so sign-in works
+          await supabaseAdmin.auth.admin.updateUserById(existingUser.id, { password: globalRaw })
+        }
+
+        // Send verification email
+        const { randomBytes: randBytes3 } = await import('crypto')
+        const token3 = randBytes3(32).toString('hex')
+        await supabaseAdmin.from('email_verification_tokens').insert({
+          token: token3,
+          user_id: existingUser.id,
+          store_id: storeId,
+        })
+        const verificationLink3 = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/verify-email?token=${token3}`
+        await sendVerificationEmail({ fullName, email, verificationLink: verificationLink3 })
+
+        logger.info({ email, storeId }, 'Admin stub user completed registration')
+        redirect('/auth/verify-email/sent')
+      }
+
       return { error: 'An account with this email already exists. Please sign in.' }
     }
 
@@ -169,7 +213,26 @@ export async function signInWithEmail(formData: FormData) {
   }
 
   if (!profile.email_verified) {
-    return { error: 'Please verify your email before signing in. Check your inbox.' }
+    // Check if their verification token is expired or missing
+    const { data: token } = await supabaseAdmin
+      .from('email_verification_tokens')
+      .select('expires_at')
+      .eq('user_id', profile.id)
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const tokenExpired = !token || new Date(token.expires_at) < new Date()
+
+    return {
+      error: tokenExpired
+        ? 'Your verification link has expired. Request a new one below.'
+        : 'Please verify your email before signing in. Check your inbox.',
+      unverified: true as const,
+      tokenExpired,
+      email,
+    }
   }
 
   if (!profile.hashed_password) {
@@ -418,5 +481,53 @@ export async function removeAdmin(userId: string) {
 
   logger.info({ userId, removedBy: caller.email }, 'Admin removed')
   revalidatePath('/admin/settings')
+  return { success: true }
+}
+
+export async function resendVerificationEmail(email: string): Promise<{ success: true } | { error: string }> {
+  const storeId = getStoreId()
+
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('id, full_name, email, email_verified')
+    .eq('email', email.trim().toLowerCase())
+    .eq('store_id', storeId)
+    .single()
+
+  // Always return success — don't reveal whether account exists
+  if (!profile || profile.email_verified) {
+    return { success: true }
+  }
+
+  // Delete existing tokens for this user + store
+  await supabaseAdmin
+    .from('email_verification_tokens')
+    .delete()
+    .eq('user_id', profile.id)
+    .eq('store_id', storeId)
+
+  // Create new token
+  const { randomBytes } = await import('crypto')
+  const token = randomBytes(32).toString('hex')
+
+  const { error: insertError } = await supabaseAdmin
+    .from('email_verification_tokens')
+    .insert({ token, user_id: profile.id, store_id: storeId })
+
+  if (insertError) {
+    logger.error({ error: insertError, email }, 'Failed to insert resent verification token')
+    return { error: 'Something went wrong. Please try again.' }
+  }
+
+  const verificationLink = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/verify-email?token=${token}`
+
+  try {
+    await sendVerificationEmail({ fullName: profile.full_name, email: profile.email, verificationLink })
+  } catch (err) {
+    logger.error({ err, email }, 'Failed to resend verification email')
+    return { error: 'Failed to send email. Please try again.' }
+  }
+
+  logger.info({ email, storeId }, 'Verification email resent')
   return { success: true }
 }

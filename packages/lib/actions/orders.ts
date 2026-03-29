@@ -905,3 +905,188 @@ export async function handleCheckoutSuccess(reference: string) {
   const order = await getOrderByReference(reference)
   return order
 }
+
+export async function createAdminOrder(data: {
+  customerEmail: string
+  customerName: string
+  customerPhone: string
+  shippingAddress: string
+  city: string
+  region: string
+  items: Array<{
+    productId: string
+    productName: string
+    productDescription: string | null
+    productImage: string | null
+    variantId: string | null
+    variantName: string | null
+    quantity: number
+    unitPrice: number
+  }>
+  totalAmount: number
+  isNewCustomer: boolean
+}): Promise<{ orderId: string }> {
+  const { isAdmin: checkIsAdmin } = await import('./auth')
+  if (!(await checkIsAdmin())) throw new Error('Unauthorized')
+
+  const storeId = getStoreId()
+
+  let userId: string
+  let setupLink: string | undefined
+
+  if (data.isNewCustomer) {
+    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email: data.customerEmail,
+      email_confirm: true,
+      user_metadata: { full_name: data.customerName, store_id: storeId },
+    })
+
+    if (createError) throw createError
+
+    await supabaseAdmin
+      .from('profiles')
+      .update({ admin_created: true })
+      .eq('id', newUser.user.id)
+      .eq('store_id', storeId)
+
+    const resetToken = crypto.randomUUID()
+    await supabaseAdmin
+      .from('password_reset_tokens')
+      .insert({ token: resetToken, user_id: newUser.user.id, store_id: storeId })
+
+    setupLink = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${resetToken}`
+    userId = newUser.user.id
+  } else {
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('email', data.customerEmail)
+      .eq('store_id', storeId)
+      .single()
+
+    if (profileError || !profile) {
+      throw profileError || new Error('Customer not found')
+    }
+
+    userId = profile.id
+    setupLink = undefined
+  }
+
+  const reference = `${storeId.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+
+  const { data: order, error: orderError } = await supabaseAdmin
+    .from('orders')
+    .insert({
+      user_id: userId,
+      customer_email: data.customerEmail,
+      customer_name: data.customerName,
+      customer_phone: data.customerPhone,
+      shipping_address: data.shippingAddress,
+      city: data.city,
+      region: data.region,
+      total_amount: data.totalAmount,
+      status: 'pending',
+      paystack_reference: reference,
+      store_id: storeId,
+      admin_created: true,
+    })
+    .select()
+    .single()
+
+  if (orderError) {
+    logger.error({ error: orderError, reference }, 'Failed to create admin order')
+    throw orderError
+  }
+
+  const orderItems = data.items.map(item => ({
+    order_id: order.id,
+    product_id: item.productId,
+    product_name: item.productName,
+    product_description: item.productDescription,
+    product_image: item.productImage,
+    variant_id: item.variantId,
+    variant_name: item.variantName,
+    quantity: item.quantity,
+    unit_price: item.unitPrice,
+  }))
+
+  const { error: itemsError } = await supabaseAdmin.from('order_items').insert(orderItems)
+  if (itemsError) {
+    logger.error({ error: itemsError, orderId: order.id }, 'Failed to insert admin order items')
+    throw itemsError
+  }
+
+  await logStatusChange(order.id, 'pending')
+
+  sendAdminCreatedOrderNotification(order.id, setupLink).catch(() => {})
+
+  logger.info({ orderId: order.id }, 'Admin order created')
+
+  revalidatePath('/admin/orders')
+
+  return { orderId: order.id }
+}
+
+async function sendAdminCreatedOrderNotification(orderId: string, setupLink?: string) {
+  try {
+    const fullOrder = await fetchFullOrder(orderId)
+    if (!fullOrder) return
+    const { sendAdminCreatedOrderEmail } = await import('../email')
+    await sendAdminCreatedOrderEmail({ order: fullOrder, setupLink })
+    logger.info({ orderId }, 'Admin-created order notification sent')
+  } catch (err) {
+    logger.error({ error: err, orderId }, 'Failed to send admin-created order notification')
+  }
+}
+
+export async function searchCustomersForOrder(query: string): Promise<Array<{
+  userId: string
+  fullName: string
+  email: string
+  phone: string | null
+  shippingAddress: string | null
+  city: string | null
+  region: string | null
+}>> {
+  const { isAdmin: checkIsAdmin } = await import('./auth')
+  if (!(await checkIsAdmin())) throw new Error('Unauthorized')
+
+  if (query.trim().length < 2) return []
+
+  const { data: profiles, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id, full_name, email')
+    .eq('store_id', getStoreId())
+    .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+    .limit(20)
+
+  if (error) {
+    logger.error({ error, query }, 'Failed to search customers for order')
+    throw error
+  }
+
+  const results = await Promise.all(
+    (profiles || []).map(async (profile) => {
+      const { data: lastOrder } = await supabaseAdmin
+        .from('orders')
+        .select('customer_phone, shipping_address, city, region')
+        .eq('user_id', profile.id)
+        .eq('store_id', getStoreId())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      return {
+        userId: profile.id,
+        fullName: profile.full_name,
+        email: profile.email,
+        phone: lastOrder?.customer_phone ?? null,
+        shippingAddress: lastOrder?.shipping_address ?? null,
+        city: lastOrder?.city ?? null,
+        region: lastOrder?.region ?? null,
+      }
+    })
+  )
+
+  return results
+}
