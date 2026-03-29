@@ -3,12 +3,14 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package } from 'lucide-react'
+import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, AlertTriangle } from 'lucide-react'
 import { searchCustomersForOrder, createAdminOrder } from '@tor/lib/actions/orders'
+import { saveFormDraft, closeFormDraft } from '@tor/lib/actions/drafts'
 import { formatPrice } from '@tor/lib/utils'
 import Image from 'next/image'
 import Select from '@tor/ui/Select'
 import ProductPicker from './ProductPicker'
+import type { CustomerSummary } from '@tor/lib/types'
 
 interface Product {
   id: string
@@ -20,6 +22,8 @@ interface Product {
 
 interface CreateOrderClientProps {
   products: Product[]
+  sessionId: string
+  initialData: Record<string, unknown>
 }
 
 type SearchResult = {
@@ -68,7 +72,7 @@ const inputClass =
 
 const errorClass = 'text-xs text-red-500 mt-1'
 
-export default function CreateOrderClient({ products }: CreateOrderClientProps) {
+export default function CreateOrderClient({ products, sessionId }: CreateOrderClientProps) {
   const router = useRouter()
 
   const {
@@ -104,6 +108,9 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
 
   // Submission error
   const [submitError, setSubmitError] = useState('')
+
+  // Existing customer conflict — set when server finds a match on "new customer" email
+  const [foundCustomer, setFoundCustomer] = useState<CustomerSummary | null>(null)
 
   const totalAmount = orderItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const selectedProduct = products.find((p) => p.id === selectedProductId)
@@ -193,6 +200,7 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
   }
 
   async function goNext() {
+    const formValues = watch()
     if (step === 1) {
       if (isNewCustomer) {
         const valid = await trigger(STEP_FIELDS[1])
@@ -209,7 +217,15 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
       const valid = await trigger(STEP_FIELDS[3])
       if (!valid) return
     }
-    setStep((s) => (s + 1) as 1 | 2 | 3 | 4)
+    const nextStep = (step + 1) as 1 | 2 | 3 | 4
+    setStep(nextStep)
+    saveFormDraft(sessionId, {
+      step: nextStep,
+      isNewCustomer,
+      selectedCustomer,
+      orderItems,
+      formValues,
+    }).catch(() => {})
   }
 
   function goBack() {
@@ -218,6 +234,7 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
 
   const onSubmit = handleSubmit(async (data) => {
     setSubmitError('')
+    setFoundCustomer(null)
     try {
       const result = await createAdminOrder({
         customerEmail: isNewCustomer ? data.customerEmail : selectedCustomer!.email,
@@ -230,11 +247,41 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
         totalAmount,
         isNewCustomer,
       })
+      if ('existingCustomer' in result) {
+        setFoundCustomer(result.existingCustomer)
+        return
+      }
+      await closeFormDraft(sessionId)
       router.push(`/admin/orders/${result.orderId}`)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to create order')
     }
   })
+
+  async function proceedWithFoundCustomer() {
+    if (!foundCustomer) return
+    setSubmitError('')
+    try {
+      const data = { customerPhone: watch('customerPhone'), shippingAddress: watch('shippingAddress'), city: watch('city'), region: watch('region') }
+      const result = await createAdminOrder({
+        customerEmail: foundCustomer.email,
+        customerName: foundCustomer.fullName,
+        customerPhone: data.customerPhone,
+        shippingAddress: data.shippingAddress,
+        city: data.city,
+        region: data.region,
+        items: orderItems,
+        totalAmount,
+        isNewCustomer: false,
+      })
+      if ('orderId' in result) {
+        await closeFormDraft(sessionId)
+        router.push(`/admin/orders/${result.orderId}`)
+      }
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to create order')
+    }
+  }
 
   const reviewName = isNewCustomer ? watchedName : selectedCustomer?.fullName ?? ''
   const reviewEmail = isNewCustomer ? watchedEmail : selectedCustomer?.email ?? ''
@@ -574,6 +621,47 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
         {/* Step 4 — Review */}
         {step === 4 && (
           <div className="space-y-4">
+            {/* Existing customer conflict */}
+            {foundCustomer && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+                <div className="flex gap-3 mb-4">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-amber-900 text-sm">Customer already exists</p>
+                    <p className="text-sm text-amber-700 mt-0.5">
+                      An account with this email is already registered. Do you want to create the order for this customer instead?
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-white border border-amber-100 rounded-lg p-4 mb-4 space-y-1">
+                  <p className="text-sm font-semibold text-gray-900">{foundCustomer.fullName}</p>
+                  <p className="text-sm text-gray-500">{foundCustomer.email}</p>
+                  {foundCustomer.phone && <p className="text-sm text-gray-500">{foundCustomer.phone}</p>}
+                  {foundCustomer.city && (
+                    <p className="text-sm text-gray-500">
+                      {foundCustomer.city}{foundCustomer.region ? `, ${foundCustomer.region}` : ''}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={proceedWithFoundCustomer}
+                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+                  >
+                    Yes, use this customer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFoundCustomer(null)}
+                    className="flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
+                  >
+                    Go back
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white rounded-xl border border-gray-100 p-6">
               <h2 className="font-semibold text-gray-900 mb-3">Customer</h2>
               <div className="flex items-start gap-3">

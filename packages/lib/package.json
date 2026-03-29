@@ -8,6 +8,7 @@
     "./actions/products": "./actions/products.ts",
     "./actions/orders": "./actions/orders.ts",
     "./actions/settings": "./actions/settings.ts",
+    "./actions/drafts": "./actions/drafts.ts",
     "./supabase/server": "./supabase/server.ts",
     "./supabase/client": "./supabase/client.ts",
     "./supabase/admin": "./supabase/admin.ts",

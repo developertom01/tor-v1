@@ -88,3 +88,17 @@ export interface Profile {
   role: 'customer' | 'admin'
   created_at: string
 }
+
+export interface CustomerSummary {
+  userId: string
+  fullName: string
+  email: string
+  phone: string | null
+  shippingAddress: string | null
+  city: string | null
+  region: string | null
+}
+
+export type CreateAdminOrderResult =
+  | { orderId: string }
+  | { existingCustomer: CustomerSummary }

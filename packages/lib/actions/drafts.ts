@@ -1,0 +1,52 @@
+'use server'
+
+import { supabaseAdmin } from '../supabase/admin'
+import { getStoreId } from '../store-id'
+
+export type FormDraftStatus = 'active' | 'closed'
+
+export async function createFormDraft(formType: string, data: object): Promise<string> {
+  const storeId = getStoreId()
+  const { data: draft, error } = await supabaseAdmin
+    .from('form_drafts')
+    .insert({ store_id: storeId, form_type: formType, data })
+    .select('id')
+    .single()
+
+  if (error) throw error
+  return draft.id
+}
+
+export async function saveFormDraft(id: string, data: object): Promise<void> {
+  const storeId = getStoreId()
+  const { error } = await supabaseAdmin
+    .from('form_drafts')
+    .update({ data })
+    .eq('id', id)
+    .eq('store_id', storeId)
+    .eq('status', 'active')
+
+  if (error) throw error
+}
+
+export async function loadFormDraft(id: string): Promise<{ data: object; status: FormDraftStatus } | null> {
+  const storeId = getStoreId()
+  const { data: draft, error } = await supabaseAdmin
+    .from('form_drafts')
+    .select('data, status')
+    .eq('id', id)
+    .eq('store_id', storeId)
+    .single()
+
+  if (error || !draft) return null
+  return { data: draft.data as object, status: draft.status as FormDraftStatus }
+}
+
+export async function closeFormDraft(id: string): Promise<void> {
+  const storeId = getStoreId()
+  await supabaseAdmin
+    .from('form_drafts')
+    .update({ status: 'closed' })
+    .eq('id', id)
+    .eq('store_id', storeId)
+}

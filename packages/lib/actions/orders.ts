@@ -3,7 +3,7 @@
 import { createClient } from '../supabase/server'
 import { supabaseAdmin } from '../supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { CartItem } from '../types'
+import { CartItem, CustomerSummary, CreateAdminOrderResult } from '../types'
 import { logger } from '../logger'
 import { getStoreId } from '../store-id'
 
@@ -925,7 +925,7 @@ export async function createAdminOrder(data: {
   }>
   totalAmount: number
   isNewCustomer: boolean
-}): Promise<{ orderId: string }> {
+}): Promise<CreateAdminOrderResult> {
   const { isAdmin: checkIsAdmin } = await import('./auth')
   if (!(await checkIsAdmin())) throw new Error('Unauthorized')
 
@@ -935,6 +935,27 @@ export async function createAdminOrder(data: {
   let setupLink: string | undefined
 
   if (data.isNewCustomer) {
+    // Check if a customer with this email already exists in this store
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, full_name, email, phone, shipping_address, city, region')
+      .eq('email', data.customerEmail)
+      .eq('store_id', storeId)
+      .single()
+
+    if (existingProfile) {
+      const existingCustomer: CustomerSummary = {
+        userId: existingProfile.id,
+        fullName: existingProfile.full_name ?? data.customerName,
+        email: existingProfile.email,
+        phone: existingProfile.phone ?? null,
+        shippingAddress: existingProfile.shipping_address ?? null,
+        city: existingProfile.city ?? null,
+        region: existingProfile.region ?? null,
+      }
+      return { existingCustomer }
+    }
+
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: data.customerEmail,
       email_confirm: true,

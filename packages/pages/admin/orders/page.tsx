@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getOrders, getPendingOrderCount } from '@tor/lib/actions/orders'
 import OrderFilters from './OrderFilters'
 import OrderList from './OrderList'
+import StartOrderButton from './StartOrderButton'
 
 export const metadata: Metadata = {
   title: 'Manage Orders',
@@ -38,9 +39,7 @@ export default async function AdminOrdersPage({
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
-        <Link href="/admin/orders/new" className="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-full text-sm transition-colors">
-          + Create Order
-        </Link>
+        <StartOrderButton />
       </div>
 
       {/* Status Filter */}
