@@ -1,5 +1,7 @@
 import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
+import { Loader2 } from 'lucide-react'
 import { isAdmin } from '@tor/lib/actions/auth'
 import { loadFormDraft } from '@tor/lib/actions/drafts'
 import CreateOrderClient from './CreateOrderClient'
@@ -29,10 +31,12 @@ export default async function CreateOrderPage({
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Create Order</h1>
-      <CreateOrderClient
-        sessionId={session}
-        initialData={draft.data as Record<string, unknown>}
-      />
+      <Suspense fallback={<div className="flex items-center gap-2 text-sm text-gray-400"><Loader2 className="w-4 h-4 animate-spin" />Loading...</div>}>
+        <CreateOrderClient
+          sessionId={session}
+          initialData={draft.data as Record<string, unknown>}
+        />
+      </Suspense>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, UserCheck } from 'lucide-react'
 import { searchCustomersForOrder, createAdminOrder, checkCustomerEmail } from '@tor/lib/actions/orders'
@@ -26,6 +26,8 @@ type OrderDraft = {
   region: string
   orderItems: OrderItem[]
 }
+
+export type Step = 1 | 2 | 3 | 4
 
 interface CreateOrderClientProps {
   sessionId: string
@@ -80,6 +82,7 @@ const errorClass = 'text-xs text-red-500 mt-1'
 
 export default function CreateOrderClient({ sessionId, initialData: d }: CreateOrderClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const {
     register,
@@ -101,8 +104,14 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
     },
   })
 
-  // Always start at step 1 — data is pre-filled, user navigates forward
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
+  const rawStep = Number(searchParams.get('step'))
+  const step: Step = (rawStep >= 1 && rawStep <= 4 ? rawStep : 1) as Step
+
+  function navigateTo(s: Step) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('step', String(s))
+    router.replace(`?${params.toString()}`)
+  }
 
   const [isNewCustomer, setIsNewCustomer] = useState(d.isNewCustomer ?? true)
 
@@ -268,21 +277,20 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
       const valid = await trigger(STEP_FIELDS[3])
       if (!valid) return
     }
-    const nextStep = (step + 1) as 1 | 2 | 3 | 4
-    setStep(nextStep)
+    const nextStep = (step + 1) as Step
+    navigateTo(nextStep)
     persistDraft()
   }
 
   function useExistingFromConflict(customer: CustomerSummary) {
     selectCustomer(customer)
     setStep1Conflict(null)
-    const nextStep = 2 as const
-    setStep(nextStep)
+    navigateTo(2)
     persistDraft({ selectedCustomer: customer, isNewCustomer: false })
   }
 
   function goBack() {
-    setStep((s) => (s - 1) as 1 | 2 | 3 | 4)
+    navigateTo((step - 1) as Step)
   }
 
   const onSubmit = handleSubmit(async (data) => {
