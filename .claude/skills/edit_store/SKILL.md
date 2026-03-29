@@ -81,7 +81,51 @@ When a value changes, you often need to update multiple files. Use this map:
 - **Minimal changes.** Only touch files affected by the change. If the user wants a new tagline, update `store.config.ts` and nothing else.
 - **Preserve what works.** Don't "improve" or refactor code that isn't part of the change request. If the landing page works fine and they just want a color change, don't rewrite the landing page.
 - **Keep colors in sync.** If brand colors change, both `store.config.ts` and `globals.css` must be updated together. The hex values in `@theme inline` must match `store.config.ts`.
-- **Landing page rewrites are creative.** If the user asks for a new landing page or major copy changes, design something that feels completely different from the existing stores' pages. Every store's landing page should have its own personality — different hero layout, section order, visual rhythm, CTA style, icon choices, and typography. Read `apps/hairlukgud/src/app/page.tsx` (bright, playful, split hero) and `apps/hairfordays/src/app/page.tsx` (dark, editorial, full-height stacked type) to see how different two stores can be, then make yours equally distinct. Vary hero layouts (full-height editorial, split, centered minimal, asymmetric), section headers (gold line + uppercase, centered, left-aligned large type), CTA styles (gold gradient, outlined, underlined), and icons (`Crown`, `Gem`, `Flame`, `Feather`, etc. — not the same `Truck`/`Shield`/`Star` every time). The one required section is Featured Products with the `ProductCard` grid. But if they just want a word changed, change the word.
+
+### Landing page rewrites and design revamps
+
+If the user asks for a new landing page, a design revamp, or any major visual overhaul, this is a full creative rebuild. Apply the same visual quality bar as onboarding:
+
+#### Required visual quality bar
+
+Every revamped landing page MUST have:
+
+- **Real background images from Unsplash** — not flat colors. Find, download, and upload to Supabase Storage before writing any component code.
+- **Parallax scrolling** on the hero and at least one other section — use framer-motion `useScroll` + `useTransform` in a `'use client'` component
+- **Brand color overlay** on all background images — `bg-brand-900/75` (or tuned opacity) so the store's palette always reads through
+- **Gradient vignettes** to blend image edges — `bg-gradient-to-t from-brand-900 via-transparent to-transparent` etc.
+- **`gold-text` CSS class for gradient text** — NEVER `bg-clip-text text-transparent gold-gradient` on block elements (renders as a solid gold rectangle)
+- **Staggered entrance animations** using `Animate` from `@tor/ui/Animate` or framer-motion `whileInView` with staggered delays
+- **`backdrop-blur-sm`** on cards that sit over background images
+- **Rotating crossfade hero** if multiple images — auto-rotate every 5s, 1s CSS transition
+
+#### Image workflow for revamps
+
+1. Search Unsplash for 3 images matching the store's products and vibe
+2. Download to `/tmp/{slug}-hero-{n}.jpg`
+3. Upload to Supabase Storage (local + remote):
+   - Local: `curl -s -X POST "http://127.0.0.1:54321/storage/v1/object/products/assets/{slug}-hero-{n}.jpg" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU" -H "Content-Type: image/jpeg" --data-binary "@/tmp/{slug}-hero-{n}.jpg"`
+   - Remote: get URL + service role key via `doppler run --project provisioner --config dev -- env | grep SUPABASE`, then POST to `{SUPABASE_URL}/storage/v1/object/products/assets/{slug}-hero-{n}.jpg`
+4. Reference via env var in components — never commit images to `public/`:
+   ```ts
+   const STORAGE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products`
+   ```
+5. Use `next/image` with `fill` + `object-cover` for background images
+
+#### Component architecture
+
+- Split into server `page.tsx` + `'use client'` components in `src/app/_components/`
+- Only make a component `'use client'` if it truly needs `useScroll`, `useTransform`, or `useState`
+- All other sections → server components using `Animate` from `@tor/ui/Animate`
+- `FeaturedProductsSection` props must use `ProductWithMedia[]` from `@tor/lib/types` — not a loose generic interface (causes TypeScript errors that hang the dev compiler)
+
+#### Design variation
+
+Make the revamped page feel completely different from the existing stores:
+- Vary hero layout, section order, visual rhythm, CTA style, icon choices, typography
+- Read `apps/aseesthreads/src/app/page.tsx` + `_components/` as the reference for the image/parallax/overlay pattern
+- The one required section is Featured Products with the `ProductCard` grid
+- But if they just want a word changed, change the word — don't rebuild everything
 
 ## Reference Files
 
@@ -91,6 +135,9 @@ Read these to understand exact formats before editing:
 - **Example store config**: `apps/hairlukgud/src/store.config.ts`
 - **Example globals.css**: `apps/hairlukgud/src/app/globals.css`
 - **Example layout.tsx**: `apps/hairlukgud/src/app/layout.tsx`
-- **Example page.tsx**: `apps/hairlukgud/src/app/page.tsx`
+- **Example page.tsx**: `apps/aseesthreads/src/app/page.tsx` (best reference — server component composing client sections with image/parallax/overlay pattern)
+- **Example hero**: `apps/aseesthreads/src/app/_components/HeroSection.tsx` (parallax + image carousel)
+- **Example image section**: `apps/aseesthreads/src/app/_components/ValuesSection.tsx` (background image + overlay + backdrop-blur cards)
+- **Example CTA**: `apps/aseesthreads/src/app/_components/CtaSection.tsx` (parallax scale + image background)
 - **Example terragrunt**: `terraform/stores/hairfordays/prod/terragrunt.hcl`
 - **Example init yaml**: `init/hairlukgud.yaml`

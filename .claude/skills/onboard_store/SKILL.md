@@ -106,38 +106,73 @@ Agent: [NOW begins Phase 2]
 
 ### Landing page (`src/app/page.tsx`)
 
-This is where you shine. Based on the store's name, categories, and description, craft a **compelling, conversion-focused landing page** that:
-
-- Tells the store's story and builds trust
-- Has an eye-catching hero section with strong CTAs
-- Showcases product categories in an engaging way
-- Includes social proof / testimonials section (can use placeholder names with Ghanaian names)
-- Has a final CTA section that creates urgency
-- Feels premium, modern, and aspirational
-- Uses animations via `Animate` from `@tor/ui/Animate` (fade-up, fade-left, scale-up, blur-in)
-- Has personality — the copy should feel like the store's brand voice, not generic e-commerce
+This is where you shine. Based on the store's name, categories, and description, craft a **compelling, conversion-focused landing page** that feels premium, modern, and aspirational.
 
 Think like a creative director. The landing page is the store's first impression. It should make visitors want to buy.
 
-**Every store's landing page must feel different.** Do NOT copy the layout or structure from existing stores. Each store has its own personality, and the page should reflect that. Vary:
+**Every store's landing page must feel different.** Do NOT copy the layout or structure from existing stores. Each store has its own personality, and the page should reflect that.
 
-- **Hero layout**: Full-height editorial with stacked typography, split hero with imagery placeholder, centered minimal hero, asymmetric layout with floating elements — pick something that matches the store's vibe.
-- **Section order and composition**: Not every page needs the same sections in the same order. A luxury store might lead with a "Why Us" story section right after the hero. A playful store might put categories first. Mix it up.
-- **Visual rhythm**: Alternate between dark (`bg-brand-900`) and light (`bg-white`, `bg-brand-50`) sections. Use different patterns — horizontal strips with dividers, stat grids, split layouts, card grids, editorial text blocks.
-- **Typography and spacing**: A luxury brand wants large type, generous whitespace, and restraint. A fun brand can be tighter and more energetic.
-- **CTA style**: Gold gradient buttons, outlined buttons, underlined text links, icon-led CTAs — vary them per store.
-- **Section headers**: Gold line + uppercase tracking labels (`— COLLECTIONS`), centered with subtitles, left-aligned with large type — don't repeat the same pattern.
-- **Icons**: Use different `lucide-react` icons per store. Don't default to Truck/Shield/Star for every store. `Crown`, `Gem`, `Heart`, `Zap`, `Sparkles`, `Flame`, `Award`, `Feather` etc. are all available.
+#### Required visual quality bar
 
-For inspiration on how different two pages can be, read `apps/hairlukgud/src/app/page.tsx` (bright, playful, split hero with floating cards) and `apps/hairfordays/src/app/page.tsx` (dark, editorial, full-height hero with stacked type and gold accents). Your new store should be equally distinct from both.
+Every landing page MUST have:
 
-**Design constraints:**
-- All colors must use theme tokens: `brand-50` through `brand-900`, `gold-400/500/600`. NEVER use literal color names like `text-pink-600` or `text-teal-500` or hardcoded hex values in JSX.
-- Use CSS classes `hero-gradient`, `gold-gradient`, `glass-card` for branded backgrounds. You can also use `bg-clip-text text-transparent` with `gold-gradient` for gradient text effects.
-- Icons from `lucide-react` only.
-- Must be a server component (no `'use client'`). Featured products are fetched via `getProducts()` server action.
-- **Always include a Featured Products section** with the `ProductCard` grid — this is the one required section.
-- Include JSON-LD structured data at the bottom.
+- **Real background images from Unsplash** — not placeholder colors. Find, download, and upload them to Supabase Storage before writing any component code. See the image workflow below.
+- **Parallax scrolling** on the hero and at least one other section — use framer-motion `useScroll` + `useTransform` in a `'use client'` component
+- **Brand color overlay** on all background images — `bg-brand-900/75` (or similar opacity) so the store's color always reads through
+- **Gradient vignettes** to blend image edges into sections — `bg-gradient-to-t from-brand-900 via-transparent to-transparent` etc.
+- **`gold-text` class for gradient text** — NEVER use `bg-clip-text text-transparent gold-gradient` on a `block` element (it renders as a solid gold rectangle). Use the `.gold-text` CSS class defined in `globals.css` instead.
+- **Staggered entrance animations** on all sections using `Animate` from `@tor/ui/Animate` or framer-motion `whileInView` with staggered delays
+- **`backdrop-blur-sm`** on cards that sit over background images — gives a frosted glass feel
+- **Rotating/crossfading images** in the hero if multiple images are available (auto-rotate every 5s with 1s CSS transition)
+
+#### Image workflow — do this BEFORE writing components
+
+1. **Search Unsplash** for 3 high-quality images that match the store's products and vibe (search terms like the product type + "fashion editorial" or "Ghana lifestyle")
+2. **Download them** to a temp location: `curl -L "{url}" -o /tmp/{slug}-hero-{n}.jpg`
+3. **Upload to Supabase Storage** (both local and remote):
+   - Local: `curl -s -X POST "http://127.0.0.1:54321/storage/v1/object/products/assets/{slug}-hero-{n}.jpg" -H "Authorization: Bearer {LOCAL_JWT}" -H "Content-Type: image/jpeg" --data-binary "@/tmp/{slug}-hero-{n}.jpg"`
+   - Remote: get URL + service role key from Doppler provisioner project (`doppler run --project provisioner --config dev -- env | grep SUPABASE`), then POST to `{SUPABASE_URL}/storage/v1/object/products/assets/{slug}-hero-{n}.jpg`
+   - Local JWT (works for local storage): `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU`
+4. **Reference images via env var** in components — NEVER commit images to the repo or put them in `public/`:
+   ```ts
+   const STORAGE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products`
+   const images = [`${STORAGE}/assets/{slug}-hero-1.jpg`, ...]
+   ```
+5. **Use `next/image`** with `fill` + `object-cover` for background images — never `<img>` tags
+
+Do NOT skip this step and use Unsplash URLs directly in the seed/components — images must live in Supabase Storage so they work in all environments and don't depend on Unsplash availability.
+
+#### Section architecture
+
+Split the page into a server component (`page.tsx`) that fetches data, and `'use client'` components in `src/app/_components/` for animated sections. Rules:
+
+- **Only make a component `'use client'`** if it genuinely needs `useScroll`, `useTransform`, or `useState` (e.g. image carousel, parallax hero). Otherwise use the server-renderable `Animate` wrapper from `@tor/ui/Animate`.
+- **Hero** — always `'use client'` (needs `useScroll` for parallax + `useState` for image rotation)
+- **CTA section** — `'use client'` if it has parallax scale effect
+- **All other sections** (Categories, Values, Testimonials, Featured Products) — server components using `Animate`
+
+#### Design variation guidelines
+
+Vary these per store — never repeat the same layout:
+
+- **Hero layout**: Full-height editorial stacked type, split with imagery, centered minimal, asymmetric floating elements
+- **Section order**: Mix it up — not every store needs Hero → Categories → Products → Values → Testimonials → CTA
+- **Visual rhythm**: Alternate dark (`bg-brand-900`) and light (`bg-white`, `bg-brand-50`) sections. Use image-backed sections for at least 3 of them.
+- **Typography**: Luxury = large type + generous whitespace. Playful = tighter, more energetic
+- **CTA style**: Gold gradient buttons, outlined, underlined text links, icon-led
+- **Section headers**: Gold line + uppercase tracking, centered with subtitles, left-aligned large type — vary per store
+- **Icons**: Use store-appropriate `lucide-react` icons. Never default to Truck/Shield/Star. `Crown`, `Gem`, `Heart`, `Zap`, `Sparkles`, `Flame`, `Award`, `Feather` are all available
+
+#### Design constraints (non-negotiable)
+
+- All colors must use theme tokens: `brand-50` through `brand-900`, `gold-400/500/600`. NEVER use literal color names (`text-pink-600`, `text-teal-500`) or hardcoded hex in JSX.
+- Use `.hero-gradient`, `.gold-gradient`, `.glass-card` CSS classes for branded backgrounds
+- Use `.gold-text` for gradient text — NOT `bg-clip-text text-transparent gold-gradient` on block elements
+- Icons from `lucide-react` only
+- `page.tsx` must be a server component. Featured products fetched via `getProducts()`.
+- **Always include a Featured Products section** — use the `ProductCard` grid
+- `FeaturedProductsSection` props must use `ProductWithMedia[]` from `@tor/lib/types` — not a loose `{ id: string; [key: string]: unknown }[]` interface (causes TypeScript errors that hang the dev compiler)
+- Include JSON-LD structured data at the bottom of `page.tsx`
 
 ### Layout metadata (`src/app/layout.tsx`)
 
@@ -151,7 +186,9 @@ The JSON file should contain:
 - `display_name` and `domain` for the store row
 - `products` array with 8-14 realistic products, each having: `name`, `slug`, `description`, `price`, `compare_at_price` (optional), `category`, `in_stock`, `stock_quantity`, `featured`, `image_url`
 
-Generate creative product names and descriptions that match the store's brand voice. Use Unsplash image URLs.
+For `image_url`: use Unsplash URLs for seed data (these are product images, not hero images — they live in the DB not storage). Use the format `https://images.unsplash.com/photo-{id}?w=800&q=80`. Find real, relevant photo IDs.
+
+Mark 4-5 products as `featured: true`.
 
 Also add the store row to `supabase/seed.sql` so local `db:reset` includes it.
 
@@ -160,7 +197,10 @@ Reference `supabase/seeds/hairlukgud.json` or `supabase/seeds/hairfordays.json` 
 ## Code Rules (enforce in all generated code)
 
 - **Avoid `useEffect` for event-driven logic.** Handle mouse events, clicks, keyboard, focus/blur directly in event handler props. `useEffect` is only for true side-effects: data fetching on mount, syncing with an external system, or cleanup.
-- **Never use native `<select>`.** Always use the custom `Select` component from `@tor/ui`. If the component lacks a needed feature (e.g. search, images in options), extend the shared component — don't use a native element or one-off solution.
+- **Never use native `<select>`.** Always use the custom `Select` component from `@tor/ui`. If the component lacks a needed feature, extend the shared component.
+- **`FeaturedProductsSection` must use `ProductWithMedia[]`** from `@tor/lib/types` — not a generic interface. Loose types cause TypeScript errors that make the dev server hang on every recompile.
+- **Gold gradient text must use `.gold-text` CSS class** — not `bg-clip-text text-transparent gold-gradient` on `block` elements. That renders as a solid gold rectangle in the browser.
+- **Images go in Supabase Storage, not `public/`** — reference via `NEXT_PUBLIC_SUPABASE_URL` env var so they work locally and in production without code changes.
 
 ## What You MUST NOT Change
 
@@ -186,23 +226,34 @@ Follow this order. Use the todo list to track progress.
 
 Follow the **Conversation Loop** described above. Do not proceed to Phase 2 until the user has confirmed the full summary.
 
-### Phase 2: Build in parallel
+### Phase 2: Find and upload hero images FIRST
 
-**Spawn all 4 agents in a single message simultaneously.** Pass the full confirmed store config to each agent.
+Before spawning build agents, do the image workflow:
+
+1. Search Unsplash for 3 images matching the store's products/vibe
+2. Download to `/tmp/{slug}-hero-{1,2,3}.jpg`
+3. Upload to local Supabase Storage (`products/assets/` path)
+4. Upload to remote Supabase Storage (credentials from Doppler provisioner)
+5. Confirm all 6 uploads succeeded before proceeding
+
+### Phase 3: Build in parallel
+
+**Spawn all 4 agents in a single message simultaneously.** Pass the full confirmed store config AND the confirmed Supabase Storage image paths to each agent.
 
 | Agent | File | Covers |
 |-------|------|--------|
 | **Agent A** | `onboard_store-app` | App directory, store.config.ts, globals.css, layout.tsx, page.tsx, supabase config, symlinks, env, branding assets |
-| **Agent B** | `onboard_store-terraform` | terraform/stores/{slug}/ — doppler, dev, prod terragrunt.hcl |
+| **Agent B** | `onboard_store-terraform` | terraform/stores/{slug}/ — doppler, dev, prod, **vercel, resend** terragrunt.hcl |
 | **Agent C** | `onboard_store-seed` | supabase/seeds/{slug}.json, init/{slug}.yaml, supabase/seed.sql |
 | **Agent D** | `onboard_store-ci` | CI workflow update, apps/{slug}/CLAUDE.md, apps/{slug}/AGENTS.md |
 
 Wait for all 4 to return before proceeding.
 
-### Phase 3: Verify
+### Phase 4: Verify
 
 Once all agents complete:
-- Run `task inject` — copies middleware.ts and all shared pages into the app
+- Run `task inject` — copies proxy.ts and all shared pages into the app
+- Run a build (`npx next build` inside the app dir) to catch TypeScript errors before the user tries to dev
 - Confirm the supabase/migrations symlink is correct
 - List all created files for the user to review
 
@@ -214,11 +265,14 @@ When you need to understand the exact format or structure, read these files:
 - **Example store config**: `apps/hairlukgud/src/store.config.ts` or `apps/hairfordays/src/store.config.ts`
 - **Example globals.css**: `apps/hairlukgud/src/app/globals.css`
 - **Example layout.tsx**: `apps/hairlukgud/src/app/layout.tsx`
-- **Example page.tsx**: `apps/hairlukgud/src/app/page.tsx`
+- **Example page.tsx**: `apps/aseesthreads/src/app/page.tsx` (best reference — server component composing client sections)
+- **Example hero component**: `apps/aseesthreads/src/app/_components/HeroSection.tsx` (parallax + image carousel)
+- **Example values component**: `apps/aseesthreads/src/app/_components/ValuesSection.tsx` (image background + overlay)
+- **Example CTA component**: `apps/aseesthreads/src/app/_components/CtaSection.tsx` (parallax scale + image)
 - **Example config.toml**: `apps/hairlukgud/supabase/config.toml` and `apps/hairfordays/supabase/config.toml`
 - **Example terragrunt**: `terraform/stores/hairfordays/prod/terragrunt.hcl`
 - **Example init yaml**: `init/hairlukgud.yaml`
-- **Seed data**: `supabase/seeds/hairlukgud.json` or `supabase/seeds/hairfordays.json`
+- **Seed data**: `supabase/seeds/hairlukgud.json` or `supabase/seeds/aseesthreads.json`
 - **Seed script**: `scripts/seed-store.mjs`
 - **Provisioning workflow**: `.github/workflows/provision-store-init.yml`
 - **Full onboarding guide**: `docs/onboard-new-store.md`
@@ -232,3 +286,4 @@ When you need to understand the exact format or structure, read these files:
 - **Next.js 16**: This is NOT standard Next.js. Check `node_modules/next/dist/docs/` before using any API you're unsure about.
 - **`NEXT_PUBLIC_*` env vars are inlined at build time** by Next.js — changing them requires a redeploy.
 - **Gold colors are shared** across all stores (same warm gold accent). Only brand colors differ.
+- **`proxy.ts` not `middleware.ts`**: Next.js 16 renamed middleware to proxy. Each app has `src/proxy.ts` that re-exports the function from `@tor/lib/proxy` with a static `config` matcher.
