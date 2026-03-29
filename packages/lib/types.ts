@@ -102,4 +102,3 @@ export interface CustomerSummary {
 export type CheckOrCreateCustomerResult =
   | { existingCustomer: CustomerSummary }
   | { newCustomer: { userId: string; setupLink: string } }
-  | { crossStoreConflict: true }

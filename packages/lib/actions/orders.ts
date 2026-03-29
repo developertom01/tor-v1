@@ -943,27 +943,53 @@ export async function checkOrCreateCustomer(
     user_metadata: { full_name: name, store_id: storeId },
   })
 
-  // Email exists in Auth from another store — cannot create here
+  if (createError && createError.code !== 'email_exists') throw createError
+
+  let userId: string
+
   if (createError?.code === 'email_exists') {
-    return { crossStoreConflict: true }
+    // User already exists in Auth (registered via another store).
+    // They are new to THIS store — find their Auth ID and create a profile here.
+    // Supabase listUsers doesn't support email filtering — use the Admin REST API directly
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const serviceKey = process.env.SUPABASE_SECRET_KEY!
+    const res = await fetch(
+      `${supabaseUrl}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
+      { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
+    )
+    const body = await res.json() as { users?: Array<{ id: string }> }
+    const authUser = body.users?.[0]
+    if (!authUser) throw new Error('Could not resolve existing auth user')
+    userId = authUser.id
+
+    // Create profile in this store for the existing auth user
+    await supabaseAdmin.from('profiles').insert({
+      id: userId,
+      store_id: storeId,
+      email,
+      full_name: name,
+      role: 'customer',
+      admin_created: true,
+      email_verified: true,
+    })
+  } else {
+    if (!newUser?.user) throw new Error('Failed to create auth user')
+    userId = newUser.user.id
+    await supabaseAdmin
+      .from('profiles')
+      .update({ admin_created: true })
+      .eq('id', userId)
+      .eq('store_id', storeId)
   }
-
-  if (createError) throw createError
-
-  await supabaseAdmin
-    .from('profiles')
-    .update({ admin_created: true })
-    .eq('id', newUser.user.id)
-    .eq('store_id', storeId)
 
   const resetToken = crypto.randomUUID()
   await supabaseAdmin
     .from('password_reset_tokens')
-    .insert({ token: resetToken, user_id: newUser.user.id, store_id: storeId })
+    .insert({ token: resetToken, user_id: userId, store_id: storeId })
 
   return {
     newCustomer: {
-      userId: newUser.user.id,
+      userId,
       setupLink: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${resetToken}`,
     },
   }

@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, AlertTriangle, UserCheck } from 'lucide-react'
+import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, UserCheck } from 'lucide-react'
 import { searchCustomersForOrder, createAdminOrder, checkOrCreateCustomer } from '@tor/lib/actions/orders'
 import { saveFormDraft, closeFormDraft } from '@tor/lib/actions/drafts'
 import { formatPrice } from '@tor/lib/utils'
@@ -132,7 +132,6 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
   const [setupLink, setSetupLink] = useState<string | null>(d.setupLink ?? null)
   const [step1Checking, setStep1Checking] = useState(false)
   const [step1Conflict, setStep1Conflict] = useState<CustomerSummary | null>(null)
-  const [step1CrossStoreError, setStep1CrossStoreError] = useState(false)
 
   const [submitError, setSubmitError] = useState('')
 
@@ -254,15 +253,10 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
         if (!valid) return
 
         setStep1Conflict(null)
-        setStep1CrossStoreError(false)
         setStep1Checking(true)
         try {
           const f = watch()
           const result = await checkOrCreateCustomer(f.customerEmail, f.customerName)
-          if ('crossStoreConflict' in result) {
-            setStep1CrossStoreError(true)
-            return
-          }
           if ('existingCustomer' in result) {
             setStep1Conflict(result.existingCustomer)
             return
@@ -496,15 +490,6 @@ export default function CreateOrderClient({ products, sessionId, initialData: d 
             )}
 
             {/* Cross-store conflict — email taken by another store's user */}
-            {isNewCustomer && step1CrossStoreError && (
-              <div className="flex gap-3 mt-3 p-4 bg-red-50 border border-red-200 rounded-xl">
-                <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-700">
-                  This email is already in use by a customer from another store. Try a different email or switch to <strong>Existing Customer</strong> if they've signed up here.
-                </p>
-              </div>
-            )}
-
             {/* Existing customer found in this store */}
             {isNewCustomer && step1Conflict && (
               <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
