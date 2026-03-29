@@ -13,6 +13,6 @@ inputs = {
   # All store domains for this env — auth redirect URLs are registered for all of them
   domains = [
     "dev.hairluksgudgh.com",
-    "dev.hairfordays.com",
+    "dev.hairfordays.store",
   ]
 }
