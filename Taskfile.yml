@@ -88,15 +88,35 @@ tasks:
           cd apps/hairfordays && npx supabase db reset
         {{end}}
 
+  # Terragrunt — Vercel project (once per store, no env)
+  tg:vercel:
+    desc: "Create/update Vercel project for a store (APP=store, ENV=dev|prod)"
+    dir: terraform/stores/{{.APP}}/vercel
+    preconditions:
+      - sh: '[ -n "{{.APP}}" ] && [ -n "{{.ENV}}" ]'
+        msg: "APP and ENV required (e.g. task tg:vercel APP=hairlukgud ENV=dev)"
+    cmds:
+      - doppler run --project provisioner --config {{.ENV}} -- terragrunt apply
+
+  # Terragrunt — Resend domain (once per store, no env)
+  tg:resend:
+    desc: "Register Resend domain for a store (APP=store, ENV=dev|prod)"
+    dir: terraform/stores/{{.APP}}/resend
+    preconditions:
+      - sh: '[ -n "{{.APP}}" ] && [ -n "{{.ENV}}" ]'
+        msg: "APP and ENV required (e.g. task tg:resend APP=hairlukgud ENV=dev)"
+    cmds:
+      - doppler run --project provisioner --config {{.ENV}} -- terragrunt apply
+
   # Terragrunt — Doppler project (APP=hairlukgud|hairfordays)
   tg:doppler:
-    desc: "Create/update Doppler project for a store (APP=store)"
+    desc: "Create/update Doppler project for a store (APP=store, ENV=dev|prod)"
     dir: terraform/stores/{{.APP}}/doppler
     preconditions:
-      - sh: '[ -n "{{.APP}}" ]'
-        msg: "APP required (e.g. task tg:doppler APP=hairlukgud)"
+      - sh: '[ -n "{{.APP}}" ] && [ -n "{{.ENV}}" ]'
+        msg: "APP and ENV required (e.g. task tg:doppler APP=hairlukgud ENV=dev)"
     cmds:
-      - doppler run --project provisioner --config local -- terragrunt apply
+      - doppler run --project provisioner --config {{.ENV}} -- terragrunt apply
 
   # Terragrunt — Store environment (ENV=dev|prod, APP=hairlukgud|hairfordays)
   tg:init:

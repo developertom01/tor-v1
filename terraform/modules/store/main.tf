@@ -17,18 +17,6 @@ locals {
   }
 }
 
-# --- Resend (only for prod — dev shares prod's domain) ---
-
-module "resend" {
-  source = "../resend"
-  count  = var.env == "prod" ? 1 : 0
-
-  name           = var.name
-  domain         = var.base_domain
-  from_email     = var.from_email
-  resend_api_key = var.resend_api_key
-}
-
 # --- Vercel ---
 
 module "vercel" {
@@ -41,10 +29,7 @@ module "vercel" {
 
   env_vars = merge(
     local.supabase_env_vars,
-    var.env == "prod" ? module.resend[0].env_vars : {
-      RESEND_API_KEY = "placeholder-set-in-doppler"
-      FROM_EMAIL     = var.from_email
-    },
+    { FROM_EMAIL = var.from_email, RESEND_API_KEY = var.resend_api_key },
     {
       NEXT_PUBLIC_STORE_ID               = var.store_id
       NEXT_PUBLIC_SITE_URL               = "https://${var.domain}"
@@ -67,7 +52,7 @@ module "doppler" {
 
   secrets = merge(
     local.supabase_env_vars,
-    var.env == "prod" ? module.resend[0].env_vars : { FROM_EMAIL = var.from_email },
+    { FROM_EMAIL = var.from_email, RESEND_API_KEY = var.resend_api_key },
     {
       NEXT_PUBLIC_STORE_ID               = var.store_id
       NEXT_PUBLIC_SITE_URL               = "https://${var.domain}"

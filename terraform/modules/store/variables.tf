@@ -35,6 +35,7 @@ variable "from_email" {
   type        = string
 }
 
+
 variable "env" {
   description = "Environment name (dev, prod)"
   type        = string

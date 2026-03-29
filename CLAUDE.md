@@ -28,10 +28,12 @@ npm run db:migrate                # Create new migration file
 npm run db:link                   # Link to remote Supabase project
 
 # Infrastructure (Terragrunt — requires Doppler + Terraform Cloud)
-task tg:plan APP=hairlukgud ENV=dev   # Plan infra changes
-task tg:apply APP=hairlukgud ENV=prod # Apply infra changes
-task tg:doppler APP=hairlukgud ENV=dev # Manage Doppler secrets
-task tg:all APP=hairlukgud ENV=dev    # Run full provision pipeline
+task tg:plan APP=hairlukgud ENV=dev    # Plan store env changes
+task tg:apply APP=hairlukgud ENV=prod  # Apply store env changes
+task tg:doppler APP=hairlukgud ENV=dev # Create/update store Doppler project
+task tg:vercel APP=hairlukgud ENV=dev  # Create Vercel project (once per store)
+task tg:resend APP=hairlukgud ENV=dev  # Register Resend domain (once per store)
+task tg:all APP=hairlukgud ENV=dev     # Run full store provision pipeline
 ```
 
 ## Architecture
@@ -47,9 +49,9 @@ Multi-tenant e-commerce monorepo for hair businesses in Ghana. Two independent s
 - **`packages/pages`** (`@tor/pages`) — Shared page templates injected into apps at dev/build time
 - **`packages/store`** (`@tor/store`) — Store config types and context (StoreConfig, useStore hook)
 - **`supabase/`** — Shared migrations and seed.sql (symlinked into each app's `supabase/` dir)
-- **`terraform/`** — Terragrunt/Terraform IaC (Vercel, Supabase, Google OAuth, Doppler secrets)
+- **`terraform/`** — Terragrunt/Terraform IaC (Vercel, Supabase, Google OAuth, Doppler secrets, Resend)
 - **`init/`** — YAML config files per store for provisioning
-- **`scripts/`** — inject-pages.mjs, clean-pages.mjs
+- **`scripts/`** — inject-pages.mjs, clean-pages.mjs, seed-admin-credentials.mjs, seed-store.mjs
 
 ### Page injection system
 
@@ -74,8 +76,12 @@ When adding new shared pages, add them to `packages/pages/`. When an app needs a
 
 1. `middleware.ts` refreshes Supabase auth session on every request via cookies.
 2. Google OAuth via `signInWithGoogle()` → Google → `/auth/callback` route.
-3. Database trigger auto-creates a `profiles` row on signup.
-4. Admin access: `profiles.role = 'admin'` — checked by `isAdmin()` in admin layout.
+3. **Email signup**: `supabaseAdmin.auth.admin.createUser()` with `email_confirm: true` — bypasses Supabase emails entirely. A random global password is generated, encrypted (AES-256-GCM), and stored in `user_credentials`. A bcrypt hash of the user's chosen password is stored in `profiles.hashed_password`.
+4. **Email sign-in**: decrypts global password from `user_credentials`, signs in via Supabase auth, then validates the user's password against `profiles.hashed_password`.
+5. **Email verification**: token stored in `email_verification_tokens`, sent via Resend. Sign-in blocks if `profiles.email_verified = false`.
+6. **Password reset**: own token in `password_reset_tokens`, email sent via Resend. No Supabase `generateLink` used.
+7. Database trigger auto-creates a `profiles` row on signup.
+8. Admin access: `profiles.role = 'admin'` — checked by `isAdmin()` in admin layout.
 
 ### Supabase clients
 
@@ -88,7 +94,10 @@ Three client types in `packages/lib/supabase/`:
 
 Shared migrations in `supabase/migrations/` (symlinked into each app). Each app runs its own local Supabase instance on different ports.
 
-Key tables: `profiles`, `products`, `product_variants`, `product_media`, `orders`, `order_items`, `product_requests`, `request_tokens`, `order_payment_tokens`, `order_status_history`. All have RLS policies. UUIDs via `gen_random_uuid()`.
+Key tables: `profiles`, `products`, `product_variants`, `product_media`, `orders`, `order_items`, `product_requests`, `request_tokens`, `order_payment_tokens`, `order_status_history`, `stores`, `user_credentials`, `email_verification_tokens`, `password_reset_tokens`. All have RLS policies. UUIDs via `gen_random_uuid()`.
+
+`profiles` has extra columns: `hashed_password` (bcrypt of store password), `email_verified` (boolean, default false — set true after verification or for Google/admin users).
+`user_credentials` stores the AES-256-GCM encrypted global Supabase auth password per user (used by the sign-in flow to authenticate with Supabase).
 
 ### Store isolation
 
@@ -104,7 +113,14 @@ Uses new Supabase key naming: `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (not `ANON_
 
 ### Emails
 
-Resend for transactional emails. All order-related emails must include item details with thumbnails using the shared `orderItemsTableHtml()` helper in `packages/lib/email.ts`. PDF receipts generated via pdfkit (`packages/lib/receipt.ts`).
+All emails go through Resend — Supabase email is bypassed entirely. Functions in `packages/lib/email.ts`:
+- `sendWelcomeEmail` — on new signup
+- `sendNewStoreNotificationEmail` — when an existing user signs up for another store
+- `sendVerificationEmail` — email verification link (token from `email_verification_tokens`)
+- `sendPasswordResetEmail` — password reset link (token from `password_reset_tokens`)
+- Order confirmation, receipt, status update emails — must include item details with thumbnails via `orderItemsTableHtml()`
+
+PDF receipts generated via pdfkit (`packages/lib/receipt.ts`). `FROM_EMAIL` and `RESEND_API_KEY` are set per-store in Doppler/Vercel.
 
 ## Style
 
@@ -135,7 +151,9 @@ Store-specific values (name, tagline, domain, categories, contact info, theme, h
 - The `supabase/migrations/` dir in each app is a symlink to the root `supabase/migrations/`
 - Next.js 16 has breaking changes from prior versions — check `node_modules/next/dist/docs/` before writing code
 - `next.config.ts` must list all `@tor/*` packages in `transpilePackages` and server-only native deps (e.g. `pdfkit`) in `serverExternalPackages`
-- CI: `db-push.yml` auto-pushes migrations on merge to main/dev; `provision-store-init.yml` manages infra via Terragrunt
+- CI: `db-push.yml` auto-pushes migrations on merge to main/dev; `provision-store-init.yml` manages infra via Terragrunt with jobs: `shared-supabase` → `common-doppler` → `common-env` → `vercel-project` + `doppler-project` + `resend-domain` (parallel) → `provision-store` → `post-provision` (migrations + admin seed)
+- Vercel Pro: one project per store, dev and prod are branch deployments (`main` = prod, `dev` = dev). No separate Vercel projects per env.
+- `scripts/seed-admin-credentials.mjs` — seeds `user_credentials` + `profiles.hashed_password` for admin after provisioning. Requires: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `AUTH_ENCRYPTION_KEY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `NEXT_PUBLIC_STORE_ID`
 
 @apps/hairlukgud/CLAUDE.md
 @apps/hairfordays/CLAUDE.md
