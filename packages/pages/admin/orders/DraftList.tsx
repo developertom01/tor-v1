@@ -16,7 +16,7 @@ function timeAgo(dateStr: string) {
 }
 
 function stepLabel(data: Record<string, unknown>) {
-  const step = data.step as number | undefined
+  const step = data.currentStep as number | undefined
   if (!step || step <= 1) return 'Step 1 — Customer'
   if (step === 2) return 'Step 2 — Products'
   if (step === 3) return 'Step 3 — Shipping'
@@ -24,12 +24,11 @@ function stepLabel(data: Record<string, unknown>) {
 }
 
 function customerPreview(data: Record<string, unknown>) {
-  const formValues = data.formValues as Record<string, string> | undefined
-  const selectedCustomer = data.selectedCustomer as { fullName?: string; email?: string } | undefined
-  const isNew = data.isNewCustomer as boolean | undefined
-
-  if (isNew && formValues?.customerName) return formValues.customerName
-  if (!isNew && selectedCustomer?.fullName) return selectedCustomer.fullName
+  const steps = data.steps as Record<string, Record<string, unknown>> | undefined
+  const s1 = steps?.['1']
+  if (!s1) return null
+  if (s1.type === 'new') return (s1.customerName as string) || null
+  if (s1.type === 'existing') return (s1.fullName as string) || null
   return null
 }
 

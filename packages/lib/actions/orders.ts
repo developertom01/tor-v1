@@ -908,6 +908,83 @@ export async function handleCheckoutSuccess(reference: string) {
   return order
 }
 
+// ─── Order draft step types ────────────────────────────────────────────────
+
+export type OrderDraftStep1 =
+  | { type: 'existing'; userId: string; fullName: string; email: string; phone: string | null; shippingAddress: string | null; city: string | null; region: string | null }
+  | { type: 'new'; customerName: string; customerEmail: string }
+
+export type OrderDraftStep2 = {
+  orderItems: Array<{
+    productId: string
+    productName: string
+    productDescription: string | null
+    productImage: string | null
+    variantId: string | null
+    variantName: string | null
+    quantity: number
+    unitPrice: number
+  }>
+}
+
+export type OrderDraftStep3 = {
+  customerPhone: string
+  shippingAddress: string
+  city: string
+  region: string
+}
+
+export type OrderDraftData = {
+  currentStep: 1 | 2 | 3 | 4
+  steps: {
+    1?: OrderDraftStep1
+    2?: OrderDraftStep2
+    3?: OrderDraftStep3
+  }
+}
+
+/**
+ * Saves the current step's data, advances currentStep, and returns the next
+ * step's previously-saved data (if any) — one round trip for navigation.
+ */
+export async function saveOrderDraftStep(
+  sessionId: string,
+  fromStep: 1 | 2 | 3,
+  data: OrderDraftStep1 | OrderDraftStep2 | OrderDraftStep3
+): Promise<OrderDraftStep2 | OrderDraftStep3 | null> {
+  const { isAdmin: checkIsAdmin } = await import('./auth')
+  if (!(await checkIsAdmin())) throw new Error('Unauthorized')
+
+  const storeId = getStoreId()
+
+  const { data: row } = await supabaseAdmin
+    .from('form_drafts')
+    .select('data')
+    .eq('id', sessionId)
+    .eq('store_id', storeId)
+    .maybeSingle()
+
+  const current = (row?.data ?? { currentStep: 1, steps: {} }) as OrderDraftData
+  const nextStep = (fromStep + 1) as 1 | 2 | 3 | 4
+
+  const updated: OrderDraftData = {
+    currentStep: nextStep,
+    steps: { ...current.steps, [fromStep]: data },
+  }
+
+  await supabaseAdmin
+    .from('form_drafts')
+    .update({ data: updated })
+    .eq('id', sessionId)
+    .eq('store_id', storeId)
+
+  if (nextStep === 2) return (updated.steps[2] ?? null)
+  if (nextStep === 3) return (updated.steps[3] ?? null)
+  return null
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+
 export async function checkCustomerEmail(email: string): Promise<CheckCustomerResult> {
   const { isAdmin: checkIsAdmin } = await import('./auth')
   if (!(await checkIsAdmin())) throw new Error('Unauthorized')

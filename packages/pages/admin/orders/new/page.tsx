@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { isAdmin } from '@tor/lib/actions/auth'
 import { loadFormDraft } from '@tor/lib/actions/drafts'
+import { type OrderDraftData } from '@tor/lib/actions/orders'
 import CreateOrderClient from './CreateOrderClient'
 import type { Step } from './CreateOrderClient'
 
@@ -19,19 +20,17 @@ export default async function CreateOrderPage({
 
   const { session, step: stepParam } = await searchParams
 
-  // Session is required — no direct navigation to this page
   if (!session) redirect('/admin/orders')
 
   const draft = await loadFormDraft(session)
 
-  // Session missing, closed, or expired → send back to start
   if (!draft || draft.status !== 'active') redirect('/admin/orders')
 
-  const draftData = draft.data as Record<string, unknown>
+  const draftData = draft.data as OrderDraftData
 
-  // URL step takes priority, then draft's last saved step, then start at 1
+  // URL step takes priority, then draft's saved currentStep, then 1
   const urlStep = Number(stepParam)
-  const draftStep = Number(draftData.step)
+  const draftStep = Number(draftData.currentStep)
   const initialStep: Step =
     urlStep >= 1 && urlStep <= 4 ? (urlStep as Step) :
     draftStep >= 1 && draftStep <= 4 ? (draftStep as Step) :

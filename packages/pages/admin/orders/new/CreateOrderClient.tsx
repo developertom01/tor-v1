@@ -4,8 +4,14 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, UserCheck } from 'lucide-react'
-import { searchCustomersForOrder, createAdminOrder, checkCustomerEmail } from '@tor/lib/actions/orders'
-import { saveFormDraft, closeFormDraft, deleteFormDraft } from '@tor/lib/actions/drafts'
+import {
+  searchCustomersForOrder,
+  createAdminOrder,
+  checkCustomerEmail,
+  saveOrderDraftStep,
+} from '@tor/lib/actions/orders'
+import type { OrderDraftData, OrderDraftStep1, OrderDraftStep2, OrderDraftStep3 } from '@tor/lib/actions/orders'
+import { closeFormDraft, deleteFormDraft } from '@tor/lib/actions/drafts'
 import { formatPrice } from '@tor/lib/utils'
 import Image from 'next/image'
 import ProductPicker from './ProductPicker'
@@ -14,26 +20,12 @@ import type { CustomerSummary } from '@tor/lib/types'
 import type { searchProductsForOrder } from '@tor/lib/actions/orders'
 export type PickedProduct = Awaited<ReturnType<typeof searchProductsForOrder>>[number]
 
-// Shape stored in form_drafts.data — flat, matches exactly what's needed to hydrate state
-type OrderDraft = {
-  step: Step
-  isNewCustomer: boolean
-  selectedCustomer: SearchResult | null
-  customerName: string
-  customerEmail: string
-  customerPhone: string
-  shippingAddress: string
-  city: string
-  region: string
-  orderItems: OrderItem[]
-}
-
 export type Step = 1 | 2 | 3 | 4
 
 interface CreateOrderClientProps {
   sessionId: string
   initialStep: Step
-  initialData: Partial<OrderDraft>
+  initialData: OrderDraftData
 }
 
 type SearchResult = {
@@ -57,19 +49,15 @@ type OrderItem = {
   unitPrice: number
 }
 
-// All form fields in one flat shape
 interface OrderFormFields {
-  // Step 1 — new customer
   customerName: string
   customerEmail: string
-  // Step 3 — shipping
   customerPhone: string
   shippingAddress: string
   city: string
   region: string
 }
 
-// Fields to validate per step
 const STEP_FIELDS: Record<number, (keyof OrderFormFields)[]> = {
   1: ['customerName', 'customerEmail'],
   3: ['customerPhone', 'shippingAddress', 'city', 'region'],
@@ -82,8 +70,18 @@ const inputClass =
 
 const errorClass = 'text-xs text-red-500 mt-1'
 
-export default function CreateOrderClient({ sessionId, initialStep, initialData: draft }: CreateOrderClientProps) {
+export default function CreateOrderClient({ sessionId, initialStep, initialData }: CreateOrderClientProps) {
   const router = useRouter()
+
+  const s1 = initialData.steps?.[1]
+  const s2 = initialData.steps?.[2]
+  const s3 = initialData.steps?.[3]
+
+  const isNewCustomerInitial = !s1 || s1.type === 'new'
+  const selectedCustomerInitial: SearchResult | null =
+    s1?.type === 'existing'
+      ? { userId: s1.userId, fullName: s1.fullName, email: s1.email, phone: s1.phone, shippingAddress: s1.shippingAddress, city: s1.city, region: s1.region }
+      : null
 
   const {
     register,
@@ -96,12 +94,13 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
   } = useForm<OrderFormFields>({
     mode: 'onTouched',
     defaultValues: {
-      customerName: draft.customerName ?? '',
-      customerEmail: draft.customerEmail ?? '',
-      customerPhone: draft.customerPhone ?? '',
-      shippingAddress: draft.shippingAddress ?? '',
-      city: draft.city ?? '',
-      region: draft.region ?? '',
+      customerName: s1?.type === 'new' ? s1.customerName : '',
+      customerEmail: s1?.type === 'new' ? s1.customerEmail : '',
+      // Step 3 takes priority; fall back to existing customer's saved address
+      customerPhone: s3?.customerPhone ?? (s1?.type === 'existing' ? s1.phone ?? '' : ''),
+      shippingAddress: s3?.shippingAddress ?? (s1?.type === 'existing' ? s1.shippingAddress ?? '' : ''),
+      city: s3?.city ?? (s1?.type === 'existing' ? s1.city ?? '' : ''),
+      region: s3?.region ?? (s1?.type === 'existing' ? s1.region ?? '' : ''),
     },
   })
 
@@ -112,16 +111,15 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
     router.replace(`?session=${sessionId}&step=${s}`)
   }
 
-  const [isNewCustomer, setIsNewCustomer] = useState(draft.isNewCustomer ?? true)
-
+  const [isNewCustomer, setIsNewCustomer] = useState(isNewCustomerInitial)
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
-  const [selectedCustomer, setSelectedCustomer] = useState<SearchResult | null>(draft.selectedCustomer ?? null)
+  const [selectedCustomer, setSelectedCustomer] = useState<SearchResult | null>(selectedCustomerInitial)
   const [showDropdown, setShowDropdown] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [orderItems, setOrderItems] = useState<OrderItem[]>(draft.orderItems ?? [])
+  const [orderItems, setOrderItems] = useState<OrderItem[]>(s2?.orderItems ?? [])
   const [selectedProductId, setSelectedProductId] = useState('')
   const [selectedVariantId, setSelectedVariantId] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<PickedProduct | null>(null)
@@ -130,34 +128,13 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
   const [isDiscarding, setIsDiscarding] = useState(false)
   const [isGoingNext, setIsGoingNext] = useState(false)
 
-  // Step 1 — email check state
   const [step1Checking, setStep1Checking] = useState(false)
   const [step1Conflict, setStep1Conflict] = useState<CustomerSummary | null>(null)
 
   const [submitError, setSubmitError] = useState('')
 
-  // Persist a flat snapshot of the draft — matches OrderDraft exactly
-  function persistDraft(overrides: Partial<OrderDraft> = {}) {
-    const f = watch()
-    const snapshot: OrderDraft = {
-      step,
-      isNewCustomer,
-      selectedCustomer,
-      customerName: f.customerName,
-      customerEmail: f.customerEmail,
-      customerPhone: f.customerPhone,
-      shippingAddress: f.shippingAddress,
-      city: f.city,
-      region: f.region,
-      orderItems,
-      ...overrides,
-    }
-    saveFormDraft(sessionId, snapshot).catch(() => {})
-  }
-
   const totalAmount = orderItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
 
-  // Watched for review display
   const watchedName = watch('customerName')
   const watchedEmail = watch('customerEmail')
 
@@ -188,15 +165,13 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
     setValue('shippingAddress', result.shippingAddress ?? '', { shouldValidate: false })
     setValue('city', result.city ?? '', { shouldValidate: false })
     setValue('region', result.region ?? '', { shouldValidate: false })
-    persistDraft({ selectedCustomer: result, isNewCustomer: false })
   }
 
-  function clearSelectedCustomer(nextIsNewCustomer: boolean) {
+  function clearSelectedCustomer() {
     setSelectedCustomer(null)
     setCustomerSearchQuery('')
     setSearchResults([])
     reset()
-    persistDraft({ selectedCustomer: null, isNewCustomer: nextIsNewCustomer, customerName: '', customerEmail: '' })
   }
 
   function addItem() {
@@ -237,13 +212,10 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
     setSelectedVariantId('')
     setSelectedProduct(null)
     setSelectedQty(1)
-    persistDraft({ orderItems: nextItems })
   }
 
   function removeItem(index: number) {
-    const nextItems = orderItems.filter((_, i) => i !== index)
-    setOrderItems(nextItems)
-    persistDraft({ orderItems: nextItems })
+    setOrderItems(orderItems.filter((_, i) => i !== index))
   }
 
   async function goNext() {
@@ -256,44 +228,89 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
 
           setStep1Conflict(null)
           setStep1Checking(true)
+          let conflictCheck
           try {
-            const f = watch()
-            const result = await checkCustomerEmail(f.customerEmail)
-            if ('existingCustomer' in result) {
-              setStep1Conflict(result.existingCustomer)
-              return
-            }
+            conflictCheck = await checkCustomerEmail(watch('customerEmail'))
           } catch (err) {
             setSubmitError(err instanceof Error ? err.message : 'Failed to verify customer')
             return
           } finally {
             setStep1Checking(false)
           }
-        } else if (!selectedCustomer) {
-          return
+
+          if ('existingCustomer' in conflictCheck) {
+            setStep1Conflict(conflictCheck.existingCustomer)
+            return
+          }
+
+          const f = watch()
+          const step1Data: OrderDraftStep1 = { type: 'new', customerName: f.customerName, customerEmail: f.customerEmail }
+          const nextData = await saveOrderDraftStep(sessionId, 1, step1Data) as OrderDraftStep2 | null
+          if (nextData) setOrderItems(nextData.orderItems)
+        } else {
+          if (!selectedCustomer) return
+          const step1Data: OrderDraftStep1 = {
+            type: 'existing',
+            userId: selectedCustomer.userId,
+            fullName: selectedCustomer.fullName,
+            email: selectedCustomer.email,
+            phone: selectedCustomer.phone,
+            shippingAddress: selectedCustomer.shippingAddress,
+            city: selectedCustomer.city,
+            region: selectedCustomer.region,
+          }
+          const nextData = await saveOrderDraftStep(sessionId, 1, step1Data) as OrderDraftStep2 | null
+          if (nextData) setOrderItems(nextData.orderItems)
         }
+        navigateTo(2)
       } else if (step === 2) {
         if (orderItems.length === 0) {
           setItemsError('Add at least one product.')
           return
         }
+        const step2Data: OrderDraftStep2 = { orderItems }
+        const nextData = await saveOrderDraftStep(sessionId, 2, step2Data) as OrderDraftStep3 | null
+        if (nextData) {
+          setValue('customerPhone', nextData.customerPhone)
+          setValue('shippingAddress', nextData.shippingAddress)
+          setValue('city', nextData.city)
+          setValue('region', nextData.region)
+        }
+        navigateTo(3)
       } else if (step === 3) {
         const valid = await trigger(STEP_FIELDS[3])
         if (!valid) return
+        const f = watch()
+        const step3Data: OrderDraftStep3 = {
+          customerPhone: f.customerPhone,
+          shippingAddress: f.shippingAddress,
+          city: f.city,
+          region: f.region,
+        }
+        await saveOrderDraftStep(sessionId, 3, step3Data)
+        navigateTo(4)
       }
-      const nextStep = (step + 1) as Step
-      navigateTo(nextStep)
-      persistDraft({ step: nextStep })
     } finally {
       setIsGoingNext(false)
     }
   }
 
-  function useExistingFromConflict(customer: CustomerSummary) {
+  async function useExistingFromConflict(customer: CustomerSummary) {
     selectCustomer(customer)
     setStep1Conflict(null)
+    const step1Data: OrderDraftStep1 = {
+      type: 'existing',
+      userId: customer.userId,
+      fullName: customer.fullName,
+      email: customer.email,
+      phone: customer.phone,
+      shippingAddress: customer.shippingAddress,
+      city: customer.city,
+      region: customer.region,
+    }
+    const nextData = await saveOrderDraftStep(sessionId, 1, step1Data) as OrderDraftStep2 | null
+    if (nextData) setOrderItems(nextData.orderItems)
     navigateTo(2)
-    persistDraft({ selectedCustomer: customer, isNewCustomer: false, step: 2 })
   }
 
   function goBack() {
@@ -333,7 +350,6 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
 
   const reviewName = isNewCustomer ? watchedName : selectedCustomer?.fullName ?? ''
   const reviewEmail = isNewCustomer ? watchedEmail : selectedCustomer?.email ?? ''
-
 
   return (
     <form noValidate>
@@ -382,7 +398,7 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
             <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-5">
               <button
                 type="button"
-                onClick={() => { setIsNewCustomer(false); clearSelectedCustomer(false) }}
+                onClick={() => { setIsNewCustomer(false); clearSelectedCustomer() }}
                 className={`flex-1 flex items-center justify-center gap-2 text-sm font-medium py-2 rounded-lg transition-colors ${
                   !isNewCustomer ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
@@ -392,7 +408,7 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
               </button>
               <button
                 type="button"
-                onClick={() => { setIsNewCustomer(true); clearSelectedCustomer(true) }}
+                onClick={() => { setIsNewCustomer(true); clearSelectedCustomer() }}
                 className={`flex-1 flex items-center justify-center gap-2 text-sm font-medium py-2 rounded-lg transition-colors ${
                   isNewCustomer ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
@@ -421,7 +437,7 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
                     </div>
                     <button
                       type="button"
-                      onClick={() => clearSelectedCustomer(false)}
+                      onClick={() => clearSelectedCustomer()}
                       className="text-xs text-brand-600 hover:text-brand-700 font-medium flex-shrink-0"
                     >
                       Change
@@ -498,7 +514,6 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
               </div>
             )}
 
-            {/* Cross-store conflict — email taken by another store's user */}
             {/* Existing customer found in this store */}
             {isNewCustomer && step1Conflict && (
               <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -800,7 +815,7 @@ export default function CreateOrderClient({ sessionId, initialStep, initialData:
               className="flex items-center gap-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-70 cursor-pointer px-5 py-2.5 rounded-xl transition-colors"
             >
               {isGoingNext ? (
-                <><Loader2 className="w-4 h-4 animate-spin" />Checking...</>
+                <><Loader2 className="w-4 h-4 animate-spin" />Saving...</>
               ) : (
                 <>Next<ChevronRight className="w-4 h-4" /></>
               )}
