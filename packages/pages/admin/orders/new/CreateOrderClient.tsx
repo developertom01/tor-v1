@@ -19,10 +19,23 @@ interface Product {
   product_media: Array<{ url: string; is_primary: boolean }>
 }
 
+// Shape stored in form_drafts.data — flat, matches exactly what's needed to hydrate state
+type OrderDraft = {
+  isNewCustomer: boolean
+  selectedCustomer: SearchResult | null
+  customerName: string
+  customerEmail: string
+  customerPhone: string
+  shippingAddress: string
+  city: string
+  region: string
+  orderItems: OrderItem[]
+}
+
 interface CreateOrderClientProps {
   products: Product[]
   sessionId: string
-  initialData: Record<string, unknown>
+  initialData: Partial<OrderDraft>
 }
 
 type SearchResult = {
@@ -71,17 +84,8 @@ const inputClass =
 
 const errorClass = 'text-xs text-red-500 mt-1'
 
-export default function CreateOrderClient({ products, sessionId, initialData }: CreateOrderClientProps) {
+export default function CreateOrderClient({ products, sessionId, initialData: d }: CreateOrderClientProps) {
   const router = useRouter()
-
-  // Seed all state from saved draft on mount
-  const d = initialData as {
-    step?: number
-    isNewCustomer?: boolean
-    selectedCustomer?: SearchResult | null
-    orderItems?: OrderItem[]
-    formValues?: Partial<OrderFormFields>
-  }
 
   const {
     register,
@@ -91,15 +95,23 @@ export default function CreateOrderClient({ products, sessionId, initialData }: 
     watch,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<OrderFormFields>({ mode: 'onTouched', defaultValues: d.formValues ?? {} })
+  } = useForm<OrderFormFields>({
+    mode: 'onTouched',
+    defaultValues: {
+      customerName: d.customerName ?? '',
+      customerEmail: d.customerEmail ?? '',
+      customerPhone: d.customerPhone ?? '',
+      shippingAddress: d.shippingAddress ?? '',
+      city: d.city ?? '',
+      region: d.region ?? '',
+    },
+  })
 
-  // Step
-  const [step, setStep] = useState<1 | 2 | 3 | 4>((d.step as 1 | 2 | 3 | 4) ?? 1)
+  // Always start at step 1 — data is pre-filled, user navigates forward
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
 
-  // Customer mode
   const [isNewCustomer, setIsNewCustomer] = useState(d.isNewCustomer ?? true)
 
-  // Customer search
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
@@ -107,28 +119,31 @@ export default function CreateOrderClient({ products, sessionId, initialData }: 
   const [showDropdown, setShowDropdown] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Products
   const [orderItems, setOrderItems] = useState<OrderItem[]>(d.orderItems ?? [])
   const [selectedProductId, setSelectedProductId] = useState('')
   const [selectedVariantId, setSelectedVariantId] = useState('')
   const [selectedQty, setSelectedQty] = useState(1)
   const [itemsError, setItemsError] = useState('')
 
-  // Submission error
   const [submitError, setSubmitError] = useState('')
-
-  // Existing customer conflict — set when server finds a match on "new customer" email
   const [foundCustomer, setFoundCustomer] = useState<CustomerSummary | null>(null)
 
-  function persistDraft(overrides: Record<string, unknown> = {}) {
-    saveFormDraft(sessionId, {
-      step,
+  // Persist a flat snapshot of the draft — matches OrderDraft exactly
+  function persistDraft(overrides: Partial<OrderDraft> = {}) {
+    const f = watch()
+    const snapshot: OrderDraft = {
       isNewCustomer,
       selectedCustomer,
+      customerName: f.customerName,
+      customerEmail: f.customerEmail,
+      customerPhone: f.customerPhone,
+      shippingAddress: f.shippingAddress,
+      city: f.city,
+      region: f.region,
       orderItems,
-      formValues: watch(),
       ...overrides,
-    }).catch(() => {})
+    }
+    saveFormDraft(sessionId, snapshot).catch(() => {})
   }
 
   const totalAmount = orderItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
@@ -173,7 +188,7 @@ export default function CreateOrderClient({ products, sessionId, initialData }: 
     setCustomerSearchQuery('')
     setSearchResults([])
     reset()
-    persistDraft({ selectedCustomer: null, isNewCustomer: true, formValues: {} })
+    persistDraft({ selectedCustomer: null, isNewCustomer: true, customerName: '', customerEmail: '' })
   }
 
   function addItem() {
@@ -241,7 +256,7 @@ export default function CreateOrderClient({ products, sessionId, initialData }: 
     }
     const nextStep = (step + 1) as 1 | 2 | 3 | 4
     setStep(nextStep)
-    persistDraft({ step: nextStep })
+    persistDraft()
   }
 
   function goBack() {
