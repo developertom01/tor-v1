@@ -1,7 +1,12 @@
 'use server'
 
+import { unstable_cache, revalidateTag } from 'next/cache'
 import { supabaseAdmin } from '../supabase/admin'
 import { getStoreId } from '../store-id'
+
+function draftCacheTag(id: string) {
+  return `form-draft:${id}`
+}
 
 export type FormDraftStatus = 'active' | 'closed'
 
@@ -34,19 +39,31 @@ export async function saveFormDraft(id: string, data: object): Promise<void> {
     .eq('status', 'active')
 
   if (error) throw error
+
+  // Invalidate the cache for this draft so the next load fetches fresh data
+  revalidateTag(draftCacheTag(id))
 }
 
 export async function loadFormDraft(id: string): Promise<{ data: object; status: FormDraftStatus } | null> {
   const storeId = getStoreId()
-  const { data: draft, error } = await supabaseAdmin
-    .from('form_drafts')
-    .select('data, status')
-    .eq('id', id)
-    .eq('store_id', storeId)
-    .single()
 
-  if (error || !draft) return null
-  return { data: draft.data as object, status: draft.status as FormDraftStatus }
+  const fetchDraft = unstable_cache(
+    async () => {
+      const { data: draft, error } = await supabaseAdmin
+        .from('form_drafts')
+        .select('data, status')
+        .eq('id', id)
+        .eq('store_id', storeId)
+        .single()
+
+      if (error || !draft) return null
+      return { data: draft.data as object, status: draft.status as FormDraftStatus }
+    },
+    [id],
+    { tags: [draftCacheTag(id)], revalidate: 3600 }
+  )
+
+  return fetchDraft()
 }
 
 export async function closeFormDraft(id: string): Promise<void> {
