@@ -144,6 +144,14 @@ All code goes in the shared packages (`packages/pages`, `packages/lib`, `package
 
 Store-specific values (name, tagline, domain, categories, contact info, theme, hero content) live in `@tor/store` config accessed via `useStore()`. Shared components and pages must read from store config — never hardcode store names, domains, categories, or copy. If a value differs between stores, it belongs in the store config.
 
+### Avoid useEffect — handle events in handlers
+
+**Never use `useEffect` for event-driven logic.** Mouse events, clicks, keyboard events, and focus/blur should be handled directly in event handler props (`onClick`, `onKeyDown`, `onFocus`, `onBlur`, etc.). `useEffect` is only acceptable for true side-effects with no event trigger: data fetching on mount, syncing with an external system, or cleanup. If you find yourself writing `useEffect` to react to a user interaction, move the logic into the event handler instead.
+
+### Never use native `<select>` — always use the custom Select component
+
+**Never use the native HTML `<select>` element.** Always use the custom `Select` component from `@tor/ui`. If a use case requires a feature the component doesn't have (e.g. searchable options, images in options), add that feature to the shared component rather than reaching for a native element or one-off implementation.
+
 ## Important patterns
 
 - Each app's `globals.css` must include `@source` directives for all shared packages, or Tailwind won't detect their classes

@@ -73,6 +73,8 @@ When a value changes, you often need to update multiple files. Use this map:
 - **Never modify other stores'** files.
 - **Never modify shared migrations** (`supabase/migrations/`).
 - **Never modify shared Terraform modules** or shared infra (`terraform/modules/`, `terraform/shared/`).
+- **Avoid `useEffect` for event-driven logic.** Handle mouse events, clicks, keyboard, focus/blur directly in event handler props. `useEffect` is only for true side-effects: data fetching on mount, syncing with an external system, or cleanup.
+- **Never use native `<select>`.** Always use the custom `Select` component from `@tor/ui`. If the component lacks a needed feature (e.g. search, images in options), extend the shared component — don't use a native element or one-off solution.
 
 ### Edit-specific rules
 

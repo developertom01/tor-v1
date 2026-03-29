@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package } from 'lucide-react'
 import { searchCustomersForOrder, createAdminOrder } from '@tor/lib/actions/orders'
 import { formatPrice } from '@tor/lib/utils'
 import Image from 'next/image'
+import Select from '@tor/ui/Select'
+import ProductPicker from './ProductPicker'
 
 interface Product {
   id: string
@@ -110,16 +112,16 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
   const watchedName = watch('customerName')
   const watchedEmail = watch('customerEmail')
 
-  // Debounced customer search
-  useEffect(() => {
-    if (isNewCustomer || selectedCustomer || customerSearchQuery.length < 2) return
+  async function handleCustomerSearch(value: string) {
+    setCustomerSearchQuery(value)
+    if (value.length < 2) { setSearchResults([]); setShowDropdown(false); return }
+    if (isNewCustomer || selectedCustomer) return
 
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
-
     searchDebounceRef.current = setTimeout(async () => {
       setSearchLoading(true)
       try {
-        const results = await searchCustomersForOrder(customerSearchQuery)
+        const results = await searchCustomersForOrder(value)
         setSearchResults(results)
         setShowDropdown(true)
       } catch {
@@ -127,11 +129,7 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
       }
       setSearchLoading(false)
     }, 300)
-
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
-    }
-  }, [customerSearchQuery, isNewCustomer, selectedCustomer])
+  }
 
   function selectCustomer(result: SearchResult) {
     setSelectedCustomer(result)
@@ -342,11 +340,7 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
                       type="text"
                       placeholder="Search by name or email..."
                       value={customerSearchQuery}
-                      onChange={(e) => {
-                        const v = e.target.value
-                        setCustomerSearchQuery(v)
-                        if (v.length < 2) { setSearchResults([]); setShowDropdown(false) }
-                      }}
+                      onChange={(e) => handleCustomerSearch(e.target.value)}
                       onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
                       className="w-full pl-9 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none text-sm"
                     />
@@ -412,112 +406,119 @@ export default function CreateOrderClient({ products }: CreateOrderClientProps) 
 
         {/* Step 2 — Products */}
         {step === 2 && (
-          <div className="bg-white rounded-xl border border-gray-100 p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Add Products</h2>
+          <div className="space-y-4">
+            {/* Product picker card */}
+            <div className="bg-white rounded-xl border border-gray-100 p-6">
+              <h2 className="font-semibold text-gray-900 mb-4">Add Product</h2>
 
-            <div className="space-y-3 mb-5 p-4 bg-gray-50 rounded-xl border border-gray-100">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
-                <select
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Product</label>
+                <ProductPicker
+                  products={products}
                   value={selectedProductId}
-                  onChange={(e) => {
-                    const pid = e.target.value
-                    setSelectedProductId(pid)
-                    const prod = products.find((p) => p.id === pid)
-                    setSelectedVariantId(prod?.product_variants?.[0]?.id ?? '')
+                  onChange={(productId, firstVariantId) => {
+                    setSelectedProductId(productId)
+                    setSelectedVariantId(firstVariantId)
                     setSelectedQty(1)
                   }}
-                  className={inputClass}
-                >
-                  <option value="">Select a product...</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} — {formatPrice(p.price)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedProduct && selectedProduct.product_variants?.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Variant</label>
-                  <select
-                    value={selectedVariantId}
-                    onChange={(e) => setSelectedVariantId(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">No variant</option>
-                    {selectedProduct.product_variants.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name} — {formatPrice(v.price)}
-                        {v.stock_quantity === 0 ? ' (out of stock)' : ` (${v.stock_quantity} in stock)`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={selectedQty}
-                  onChange={(e) => setSelectedQty(Math.max(1, parseInt(e.target.value) || 1))}
-                  className={`${inputClass} w-28`}
+                  onClear={() => { setSelectedProductId(''); setSelectedVariantId(''); setSelectedQty(1) }}
                 />
               </div>
 
-              <button
-                type="button"
-                onClick={addItem}
-                disabled={!selectedProductId}
-                className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add Item
-              </button>
+              {/* Variant + qty row */}
+              <div className="flex gap-3 items-end">
+                {selectedProduct && selectedProduct.product_variants?.length > 0 && (
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Variant</label>
+                    <Select
+                      value={selectedVariantId}
+                      onChange={setSelectedVariantId}
+                      placeholder="No variant"
+                      options={[
+                        { value: '', label: 'No variant' },
+                        ...selectedProduct.product_variants.map((v) => ({
+                          value: v.id,
+                          label: `${v.name} — ${formatPrice(v.price)}${v.stock_quantity === 0 ? ' (out of stock)' : ''}`,
+                        })),
+                      ]}
+                    />
+                  </div>
+                )}
+
+                <div className={selectedProduct && selectedProduct.product_variants?.length > 0 ? 'w-24' : 'w-32'}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Qty</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={selectedQty}
+                    onChange={(e) => setSelectedQty(Math.max(1, parseInt(e.target.value) || 1))}
+                    className={inputClass}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addItem}
+                  disabled={!selectedProductId}
+                  className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-100 disabled:text-gray-400 text-white font-semibold px-4 py-3 rounded-xl text-sm transition-colors flex-shrink-0 h-[46px]"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add
+                </button>
+              </div>
+
+              {itemsError && <p className={`${errorClass} mt-3`}>{itemsError}</p>}
             </div>
 
-            {orderItems.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <Package className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">No items added yet</p>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-2 mb-4">
+            {/* Order items list */}
+            {orderItems.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h3 className="font-semibold text-gray-900 text-sm">
+                    Order Items <span className="text-brand-600 ml-1">{orderItems.length}</span>
+                  </h3>
+                </div>
+                <div className="divide-y divide-gray-100">
                   {orderItems.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <div key={idx} className="flex items-center gap-4 px-6 py-4">
                       {item.productImage ? (
-                        <Image src={item.productImage} alt={item.productName} width={40} height={40} className="w-10 h-10 object-cover rounded-lg flex-shrink-0" />
+                        <Image src={item.productImage} alt={item.productName} width={52} height={52} className="w-13 h-13 object-cover rounded-xl flex-shrink-0" />
                       ) : (
-                        <div className="w-10 h-10 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center">
-                          <Package className="w-4 h-4 text-gray-400" />
+                        <div className="w-13 h-13 bg-gray-100 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ width: 52, height: 52 }}>
+                          <Package className="w-5 h-5 text-gray-300" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.productName}</p>
-                        {item.variantName && <p className="text-xs text-gray-500">{item.variantName}</p>}
-                        <p className="text-xs text-gray-500">{item.quantity} × {formatPrice(item.unitPrice)}</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{item.productName}</p>
+                        {item.variantName && (
+                          <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full mt-0.5">{item.variantName}</span>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-400">{item.quantity} × {formatPrice(item.unitPrice)}</span>
+                        </div>
                       </div>
-                      <div className="text-sm font-semibold text-gray-900 flex-shrink-0">
-                        {formatPrice(item.unitPrice * item.quantity)}
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-bold text-gray-900">{formatPrice(item.unitPrice * item.quantity)}</p>
                       </div>
-                      <button type="button" onClick={() => removeItem(idx)} className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0">
+                      <button type="button" onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 ml-1">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-600">Subtotal</span>
-                  <span className="font-bold text-gray-900">{formatPrice(totalAmount)}</span>
+                  <span className="text-base font-bold text-gray-900">{formatPrice(totalAmount)}</span>
                 </div>
-              </>
+              </div>
             )}
 
-            {itemsError && <p className={`${errorClass} mt-3`}>{itemsError}</p>}
+            {orderItems.length === 0 && (
+              <div className="text-center py-10 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">
+                <Package className="w-9 h-9 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">No items added yet</p>
+              </div>
+            )}
           </div>
         )}
 

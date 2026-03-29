@@ -1,7 +1,6 @@
 ---
 name: add_feature
 description: Plan and implement a new feature in the tor monorepo — gathers user story and benefit, maps architecture impact, writes a workflow plan file, executes parallel work via sub-agents, then validates with a build or infra plan.
-allowed-tools: Read, Glob, Grep, Bash, Write, Edit, Agent, TodoWrite
 ---
 
 # Add Feature
@@ -210,7 +209,7 @@ When the user says to proceed, read `features/<feature-slug>.md` and execute the
 3. Wait for all agents in a parallel group to return before moving to the next sequential step.
 4. After each step completes (whether you or a sub-agent did it), update the plan file: mark the step `✅ Done` and note any deviations from the plan.
 
-### Monorepo rules to enforce in every step
+### Monorepo rules to enforce in every step (include these when briefing sub-agents)
 
 Every step — whether sequential or parallel — must follow these rules. Remind sub-agents of them:
 
