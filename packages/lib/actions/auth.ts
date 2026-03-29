@@ -223,7 +223,7 @@ export async function signInWithEmail(formData: FormData) {
   redirect(redirectTo || '/')
 }
 
-export async function requestPasswordReset(email: string) {
+export async function requestPasswordReset(email: string): Promise<{ success: boolean } | { error: string }> {
   const storeId = getStoreId()
 
   const { data: profile } = await supabaseAdmin
