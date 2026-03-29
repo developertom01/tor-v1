@@ -24,11 +24,13 @@ export async function GET(request: NextRequest) {
         .single()
 
       if (!profile) {
+        // Google OAuth user signing into a new store — create profile without hashed_password
         await supabaseAdmin.from('profiles').insert({
           id: user.id,
           email: user.email!,
           full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
           store_id: storeId,
+          hashed_password: null,
         })
       }
     }
