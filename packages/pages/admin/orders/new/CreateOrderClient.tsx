@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { Search, Plus, Trash2, User, UserPlus, Loader2, ChevronRight, ChevronLeft, Package, UserCheck } from 'lucide-react'
 import { searchCustomersForOrder, createAdminOrder, checkCustomerEmail } from '@tor/lib/actions/orders'
-import { saveFormDraft, closeFormDraft } from '@tor/lib/actions/drafts'
+import { saveFormDraft, closeFormDraft, deleteFormDraft } from '@tor/lib/actions/drafts'
 import { formatPrice } from '@tor/lib/utils'
 import Image from 'next/image'
 import ProductPicker from './ProductPicker'
@@ -81,7 +81,7 @@ const inputClass =
 
 const errorClass = 'text-xs text-red-500 mt-1'
 
-export default function CreateOrderClient({ sessionId, initialData: d }: CreateOrderClientProps) {
+export default function CreateOrderClient({ sessionId, initialData: draft }: CreateOrderClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -96,12 +96,12 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
   } = useForm<OrderFormFields>({
     mode: 'onTouched',
     defaultValues: {
-      customerName: d.customerName ?? '',
-      customerEmail: d.customerEmail ?? '',
-      customerPhone: d.customerPhone ?? '',
-      shippingAddress: d.shippingAddress ?? '',
-      city: d.city ?? '',
-      region: d.region ?? '',
+      customerName: draft.customerName ?? '',
+      customerEmail: draft.customerEmail ?? '',
+      customerPhone: draft.customerPhone ?? '',
+      shippingAddress: draft.shippingAddress ?? '',
+      city: draft.city ?? '',
+      region: draft.region ?? '',
     },
   })
 
@@ -116,26 +116,27 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
 
   // If there's no step in the URL but the draft knows where we were, restore it
   useEffect(() => {
-    if (!searchParams.get('step') && d.step) {
-      navigateTo(d.step)
+    if (!searchParams.get('step') && draft.step) {
+      navigateTo(draft.step)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [isNewCustomer, setIsNewCustomer] = useState(d.isNewCustomer ?? true)
+  const [isNewCustomer, setIsNewCustomer] = useState(draft.isNewCustomer ?? true)
 
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
-  const [selectedCustomer, setSelectedCustomer] = useState<SearchResult | null>(d.selectedCustomer ?? null)
+  const [selectedCustomer, setSelectedCustomer] = useState<SearchResult | null>(draft.selectedCustomer ?? null)
   const [showDropdown, setShowDropdown] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [orderItems, setOrderItems] = useState<OrderItem[]>(d.orderItems ?? [])
+  const [orderItems, setOrderItems] = useState<OrderItem[]>(draft.orderItems ?? [])
   const [selectedProductId, setSelectedProductId] = useState('')
   const [selectedVariantId, setSelectedVariantId] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<PickedProduct | null>(null)
   const [selectedQty, setSelectedQty] = useState(1)
   const [itemsError, setItemsError] = useState('')
+  const [isDiscarding, setIsDiscarding] = useState(false)
 
   // Step 1 — email check state
   const [step1Checking, setStep1Checking] = useState(false)
@@ -300,6 +301,16 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
 
   function goBack() {
     navigateTo((step - 1) as Step)
+  }
+
+  async function discardDraft() {
+    setIsDiscarding(true)
+    try {
+      await deleteFormDraft(sessionId)
+      router.push('/admin/orders')
+    } catch {
+      setIsDiscarding(false)
+    }
   }
 
   const onSubmit = handleSubmit(async (data) => {
@@ -760,19 +771,28 @@ export default function CreateOrderClient({ sessionId, initialData: d }: CreateO
 
         {/* Navigation */}
         <div className="flex items-center justify-between mt-6">
-          {step > 1 ? (
+          <div className="flex items-center gap-2">
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={isSubmitting || isDiscarding}
+                className="flex items-center gap-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 px-4 py-2.5 rounded-xl transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Back
+              </button>
+            )}
             <button
               type="button"
-              onClick={goBack}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 px-4 py-2.5 rounded-xl transition-colors"
+              onClick={discardDraft}
+              disabled={isSubmitting || isDiscarding}
+              className="flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 px-4 py-2.5 rounded-xl transition-colors"
             >
-              <ChevronLeft className="w-4 h-4" />
-              Back
+              {isDiscarding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Discard
             </button>
-          ) : (
-            <div />
-          )}
+          </div>
 
           {step < 4 ? (
             <button

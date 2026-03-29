@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, ClipboardEdit, ArrowRight } from 'lucide-react'
-import { listActiveFormDrafts, type FormDraftRow } from '@tor/lib/actions/drafts'
+import { Loader2, ClipboardEdit, ArrowRight, Trash2 } from 'lucide-react'
+import { listActiveFormDrafts, deleteFormDraft, type FormDraftRow } from '@tor/lib/actions/drafts'
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -46,6 +46,7 @@ export default function DraftList({
   const [isPending, startTransition] = useTransition()
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [resuming, setResuming] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
 
   const allDrafts = [...initialDrafts, ...extraDrafts]
   const hasMore = allDrafts.length < total
@@ -63,6 +64,18 @@ export default function DraftList({
   function resume(id: string) {
     setResuming(id)
     router.push(`/admin/orders/new?session=${id}`)
+  }
+
+  async function handleDelete(id: string) {
+    setDeleting(id)
+    try {
+      await deleteFormDraft(id)
+      setExtraDrafts((prev) => prev.filter((d) => d.id !== id))
+      setTotal((t) => t - 1)
+      router.refresh()
+    } finally {
+      setDeleting(null)
+    }
   }
 
   if (allDrafts.length === 0) {
@@ -106,20 +119,34 @@ export default function DraftList({
                 <p className="text-xs text-gray-400 mt-0.5">Last saved {timeAgo(draft.updated_at)}</p>
               </div>
 
-              <button
-                onClick={() => resume(draft.id)}
-                disabled={isResuming}
-                className="flex items-center gap-2 text-sm font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 disabled:opacity-50 px-4 py-2 rounded-xl transition-colors flex-shrink-0"
-              >
-                {isResuming ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    Finish
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => handleDelete(draft.id)}
+                  disabled={!!deleting || !!resuming}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-40 transition-colors"
+                  title="Delete draft"
+                >
+                  {deleting === draft.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </button>
+                <button
+                  onClick={() => resume(draft.id)}
+                  disabled={isResuming}
+                  className="flex items-center gap-2 text-sm font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 disabled:opacity-50 px-4 py-2 rounded-xl transition-colors"
+                >
+                  {isResuming ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      Finish
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )
         })}

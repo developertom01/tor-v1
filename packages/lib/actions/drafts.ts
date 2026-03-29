@@ -75,6 +75,17 @@ export async function closeFormDraft(id: string): Promise<void> {
     .eq('store_id', storeId)
 }
 
+export async function deleteFormDraft(id: string): Promise<void> {
+  const { isAdmin } = await import('./auth')
+  if (!(await isAdmin())) throw new Error('Unauthorized')
+  const storeId = getStoreId()
+  await supabaseAdmin
+    .from('form_drafts')
+    .delete()
+    .eq('id', id)
+    .eq('store_id', storeId)
+}
+
 export type FormDraftRow = {
   id: string
   form_type: string
