@@ -517,6 +517,7 @@ jobs:
 
           if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
             USER_ID=$(echo "$BODY" | jq -r '.id')
+            echo "ADMIN_USER_ID=$USER_ID" >> "$GITHUB_ENV"
             echo "Admin user created: $ADMIN_EMAIL (id: $USER_ID)"
           elif echo "$BODY" | grep -q "already been registered"; then
             echo "Admin user already exists: $ADMIN_EMAIL"
@@ -564,3 +565,15 @@ jobs:
               -d '{"role": "admin"}'
             echo "Admin role set for $ADMIN_EMAIL in store $STORE_ID"
           fi
+
+          echo "Admin user provisioned"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install script dependencies
+        run: npm install --no-save bcryptjs
+
+      - name: Seed admin credentials
+        run: node scripts/seed-admin-credentials.mjs

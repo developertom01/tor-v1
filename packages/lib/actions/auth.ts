@@ -241,14 +241,25 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
   const { randomBytes } = await import('crypto')
   const token = randomBytes(32).toString('hex')
 
-  await supabaseAdmin.from('password_reset_tokens').insert({
+  const { error: insertError } = await supabaseAdmin.from('password_reset_tokens').insert({
     token,
     user_id: profile.id,
     store_id: storeId,
   })
 
+  if (insertError) {
+    logger.error({ email, insertError }, 'Failed to insert password reset token')
+    return { error: 'Something went wrong. Please try again.' }
+  }
+
   const resetLink = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${token}`
-  await sendPasswordResetEmail({ fullName: profile.full_name, email, resetLink })
+
+  try {
+    await sendPasswordResetEmail({ fullName: profile.full_name, email, resetLink })
+  } catch (err) {
+    logger.error({ email, err }, 'Failed to send password reset email')
+    return { error: 'Failed to send reset email. Please try again.' }
+  }
 
   logger.info({ email }, 'Password reset email sent via Resend')
   return { success: true }

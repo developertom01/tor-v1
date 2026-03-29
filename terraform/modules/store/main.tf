@@ -67,7 +67,7 @@ module "doppler" {
 
   secrets = merge(
     local.supabase_env_vars,
-    var.env == "prod" ? module.resend[0].env_vars : {},
+    var.env == "prod" ? module.resend[0].env_vars : { FROM_EMAIL = var.from_email },
     {
       NEXT_PUBLIC_STORE_ID               = var.store_id
       NEXT_PUBLIC_SITE_URL               = "https://${var.domain}"
