@@ -26,9 +26,11 @@
     "./feature-flags": "./feature-flags.ts"
   },
   "dependencies": {
+    "@flags-sdk/vercel": "^1.2.1",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.99.3",
     "bcryptjs": "^2.4.3",
+    "flags": "^4.0.5",
     "pdfkit": "^0.18.0",
     "pino": "^10.3.1",
     "react": "19.2.4",
