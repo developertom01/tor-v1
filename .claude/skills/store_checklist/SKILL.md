@@ -11,9 +11,18 @@ You are auditing a store in the tor monorepo to determine whether it is producti
 
 Check `$ARGUMENTS` for a store slug. If not provided, list the existing stores (check `apps/` directories) and ask which one to audit.
 
-## Step 2: Run the full checklist
+## Step 2: Run the full checklist in parallel
 
-Work through every item below. For each one, check whether it exists and whether its content looks correct (not just that the file exists — read it and validate). Use ✅ for done, ❌ for missing or broken, ⚠️ for present but needs attention.
+**Spawn all 4 agents in a single message simultaneously.** Do not wait for one before starting the next. Pass the store slug (and domain from `store.config.ts`) to each agent prompt.
+
+| Agent | Subagent file | Covers |
+|-------|--------------|--------|
+| **Agent 1** | `checklist-files` | Store config, theme, landing page, seed data (items 1–16) |
+| **Agent 2** | `checklist-vercel` | Vercel projects + env vars (items 25–28) |
+| **Agent 3** | `checklist-supabase` | Supabase dev — store row, products, settings (items 29–31) |
+| **Agent 4** | `checklist-infra` | Terraform, CI, Doppler (items 20–24, 32) |
+
+Each agent returns a structured list of item numbers with ✅, ❌, or ⚠️. Wait for all 4 to return, then merge into the final report.
 
 ---
 
@@ -78,21 +87,20 @@ Work through every item below. For each one, check whether it exists and whether
 
 ### Production & Dev Resources (use MCP tools if available)
 
-Check both `dev` and `prod` environments for each item below. Use the Vercel and Supabase MCP tools if connected — otherwise note that these require manual verification.
+Use the Vercel and Supabase MCP tools if connected — otherwise flag all resource checks as ⚠️ **Unverified — requires MCP connection or manual check**.
 
-| # | Item | How to check | Fixable by |
-|---|------|-------------|------------|
-| 25 | **Vercel** — `prod` project exists for `{slug}` | Use Vercel MCP: list projects, look for `{slug}-prod` or matching domain | 👤 Human (provision via CI) |
-| 26 | **Vercel** — `dev` project exists for `{slug}` | Use Vercel MCP: look for `{slug}-dev` or `dev.{domain}` | 👤 Human (provision via CI) |
-| 27 | **Vercel** — `NEXT_PUBLIC_STORE_ID` env var set on both projects | Use Vercel MCP: check env vars | 🤖 AI (via Vercel MCP) |
-| 28 | **Vercel** — `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` set | Use Vercel MCP: check env vars | 🤖 AI (via Vercel MCP) |
-| 29 | **Supabase** — store row exists in `stores` table (prod) | Use Supabase MCP: `select * from stores where id = '{slug}'` | 👤 Human (run seed via CI) |
-| 30 | **Supabase** — store row exists in `stores` table (dev) | Use Supabase MCP on dev project | 👤 Human (run `task db:reset`) |
-| 31 | **Supabase** — products seeded for store (prod) | Use Supabase MCP: `select count(*) from products where store_id = '{slug}'` — expect ≥8 | 👤 Human (run seed via CI) |
-| 32 | **Supabase** — `store_settings` row exists for store | Use Supabase MCP: `select * from store_settings where store_id = '{slug}'` | 👤 Human (run seed via CI) |
-| 33 | **Doppler** — secrets project exists for `{slug}` | Check `terraform/stores/{slug}/doppler/terragrunt.hcl` references correct project | 👤 Human (provision via CI) |
+**Supabase checks are dev-only** — prod is seeded by CI after provisioning, not something to validate here.
 
-> If MCP tools are not connected, flag all resource checks as ⚠️ **Unverified — requires MCP connection or manual check**.
+| # | Item | Env | How to check | Fixable by |
+|---|------|-----|-------------|------------|
+| 25 | **Vercel** — `prod` project exists for `{slug}` | prod | Vercel MCP: list projects, look for `{slug}-prod` or matching domain | 👤 Human (provision via CI) |
+| 26 | **Vercel** — `dev` project exists for `{slug}` | dev | Vercel MCP: look for `{slug}-dev` or `dev.{domain}` | 👤 Human (provision via CI) |
+| 27 | **Vercel** — `NEXT_PUBLIC_STORE_ID` env var set on both projects | both | Vercel MCP: check env vars on each project | 🤖 AI (via Vercel MCP) |
+| 28 | **Vercel** — `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` set | both | Vercel MCP: check env vars | 🤖 AI (via Vercel MCP) |
+| 29 | **Supabase** — store row exists in `stores` table | dev | Supabase MCP: `select * from stores where id = '{slug}'` | 👤 Human (run `node scripts/seed-store.mjs {slug}`) |
+| 30 | **Supabase** — products seeded (≥8) | dev | Supabase MCP: `select count(*) from products where store_id = '{slug}'` | 👤 Human (run `node scripts/seed-store.mjs {slug}`) |
+| 31 | **Supabase** — `store_settings` row exists | dev | Supabase MCP: `select * from store_settings where store_id = '{slug}'` | 👤 Human (run `node scripts/seed-store.mjs {slug}`) |
+| 32 | **Doppler** — secrets project exists for `{slug}` | both | Check `terraform/stores/{slug}/doppler/terragrunt.hcl` references correct project | 👤 Human (provision via CI) |
 
 ---
 

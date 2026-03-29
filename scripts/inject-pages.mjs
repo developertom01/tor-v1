@@ -13,6 +13,12 @@ import path from 'path'
 const appDir = process.cwd()
 const targetDir = path.join(appDir, 'src/app')
 const pagesDir = path.resolve(appDir, '../../packages/pages')
+const libDir = path.resolve(appDir, '../../packages/lib')
+
+// Shared src/-level files (not inside src/app/) injected directly into src/
+const sharedSrcFiles = [
+  { src: path.join(libDir, 'middleware.ts'), dest: path.join(appDir, 'src/middleware.ts') },
+]
 const watch = process.argv.includes('--watch')
 
 if (!fs.existsSync(pagesDir)) {
@@ -68,11 +74,20 @@ function isInjected(rel) {
   return files.includes(rel)
 }
 
+// Inject shared src/-level files (e.g. middleware.ts)
+function injectSrcFiles() {
+  for (const { src, dest } of sharedSrcFiles) {
+    if (!fs.existsSync(src)) continue
+    fs.copyFileSync(src, dest)
+  }
+}
+
 const count = inject()
+injectSrcFiles()
 console.log(`Injected ${count} shared pages`)
 
 if (watch) {
-  console.log('Watching packages/pages/ for changes...')
+  console.log('Watching packages/pages/ and packages/lib/ for changes...')
   fs.watch(pagesDir, { recursive: true }, (_event, filename) => {
     if (!filename || filename === 'package.json') return
     const src = path.join(pagesDir, filename)
@@ -80,6 +95,13 @@ if (watch) {
     if (fs.existsSync(src) && isInjected(filename)) {
       fs.copyFileSync(src, dest)
       console.log(`Updated ${filename}`)
+    }
+  })
+  fs.watch(libDir, { recursive: false }, (_event, filename) => {
+    const match = sharedSrcFiles.find(f => path.basename(f.src) === filename)
+    if (match && fs.existsSync(match.src)) {
+      fs.copyFileSync(match.src, match.dest)
+      console.log(`Updated src/${filename}`)
     }
   })
 }
