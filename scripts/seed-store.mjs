@@ -75,6 +75,11 @@ try {
   process.exit(1)
 }
 
+// Load default settings
+const defaultSettings = JSON.parse(
+  readFileSync(resolve(__dirname, '..', 'supabase', 'seeds', 'default-settings.json'), 'utf-8')
+)
+
 // 1. Ensure store exists
 console.log(`Ensuring store: ${storeId}`)
 await upsertIgnore('stores', {
@@ -83,11 +88,10 @@ await upsertIgnore('stores', {
   domain: seedData.domain,
 }, 'id')
 
-// 2. Ensure store settings
+// 2. Ensure store settings row with defaults (ignore if already exists)
 await upsertIgnore('store_settings', {
   store_id: storeId,
-  bypass_payment: false,
-  online_payments_enabled: true,
+  settings: defaultSettings,
 }, 'store_id')
 
 // 3. Delete all existing products for this store (cascades to product_media via FK)
