@@ -129,16 +129,18 @@ Every landing page MUST have:
 
 1. **Search Unsplash** for 3 high-quality images that match the store's products and vibe (search terms like the product type + "fashion editorial" or "Ghana lifestyle")
 2. **Download them** to a temp location: `curl -L "{url}" -o /tmp/{slug}-hero-{n}.jpg`
-3. **Upload to Supabase Storage** (both local and remote):
-   - Local: `curl -s -X POST "http://127.0.0.1:54321/storage/v1/object/products/assets/{slug}-hero-{n}.jpg" -H "Authorization: Bearer {LOCAL_JWT}" -H "Content-Type: image/jpeg" --data-binary "@/tmp/{slug}-hero-{n}.jpg"`
-   - Remote: get URL + service role key from Doppler provisioner project (`doppler run --project provisioner --config dev -- env | grep SUPABASE`), then POST to `{SUPABASE_URL}/storage/v1/object/products/assets/{slug}-hero-{n}.jpg`
-   - Local JWT (works for local storage): `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU`
-4. **Reference images via env var** in components — NEVER commit images to the repo or put them in `public/`:
+3. **Upload to local Supabase Storage**:
+   - `curl -s -X POST "http://127.0.0.1:54321/storage/v1/object/products/assets/{slug}-hero-{n}.jpg" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU" -H "Content-Type: image/jpeg" --data-binary "@/tmp/{slug}-hero-{n}.jpg"`
+4. **Upload to dev remote Supabase Storage**: get URL + key via `doppler run --project {slug} --config dev -- env | grep SUPABASE`, then POST to `{SUPABASE_URL}/storage/v1/object/products/assets/{slug}-hero-{n}.jpg`
+   - If the store's dev Doppler config doesn't exist yet (command fails or returns no output), fall back to the provisioner project: `doppler run --project provisioner --config dev -- env | grep SUPABASE`
+   - If that also fails or the upload returns non-200, skip and leave a note: "⚠️ Dev hero images not uploaded — dev Supabase not reachable. Re-upload after provisioning with: `doppler run --project {slug} --config dev -- env | grep SUPABASE`"
+5. **Keep the downloaded `/tmp/{slug}-hero-{n}.jpg` files** — they are needed again in Phase 4 for the prod upload.
+6. **Reference images via env var** in components — NEVER commit images to the repo or put them in `public/`:
    ```ts
    const STORAGE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products`
    const images = [`${STORAGE}/assets/{slug}-hero-1.jpg`, ...]
    ```
-5. **Use `next/image`** with `fill` + `object-cover` for background images — never `<img>` tags
+7. **Use `next/image`** with `fill` + `object-cover` for background images — never `<img>` tags
 
 Do NOT skip this step and use Unsplash URLs directly in the seed/components — images must live in Supabase Storage so they work in all environments and don't depend on Unsplash availability.
 
@@ -233,8 +235,9 @@ Before spawning build agents, do the image workflow:
 1. Search Unsplash for 3 images matching the store's products/vibe
 2. Download to `/tmp/{slug}-hero-{1,2,3}.jpg`
 3. Upload to local Supabase Storage (`products/assets/` path)
-4. Upload to remote Supabase Storage (credentials from Doppler provisioner)
+4. Upload to dev remote Supabase Storage (credentials from `doppler run --project {slug} --config dev`, or provisioner if store not yet provisioned)
 5. Confirm all 6 uploads succeeded before proceeding
+6. **Do NOT delete the `/tmp` files** — they are needed in Phase 4 for the prod upload
 
 ### Phase 3: Build in parallel
 
@@ -249,12 +252,16 @@ Before spawning build agents, do the image workflow:
 
 Wait for all 4 to return before proceeding.
 
-### Phase 4: Verify
+### Phase 4: Verify + upload prod images
 
 Once all agents complete:
 - Run `task inject` — copies proxy.ts and all shared pages into the app
 - Run a build (`npx next build` inside the app dir) to catch TypeScript errors before the user tries to dev
 - Confirm the supabase/migrations symlink is correct
+- **Upload hero images to prod Supabase Storage**: get URL + key via `doppler run --project {slug} --config prod -- env | grep SUPABASE`, then POST each `/tmp/{slug}-hero-{n}.jpg` to `{SUPABASE_URL}/storage/v1/object/products/assets/{slug}-hero-{n}.jpg`.
+  - If the Doppler prod config doesn't exist yet (command fails or returns no output), skip and leave this note for the user: "⚠️ Prod hero images not uploaded — prod Supabase not provisioned yet. Run `task tg:all APP={slug} ENV=prod` then re-upload with: `doppler run --project {slug} --config prod -- env | grep SUPABASE`"
+  - If the upload returns a non-200 (bucket missing, infra not ready), skip and leave the same note.
+  - If all 3 return 200, confirm success.
 - List all created files for the user to review
 
 ## Reference Files
