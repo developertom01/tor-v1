@@ -4,7 +4,7 @@ include "root" {
 
 locals {
   base_domain = "aseesthreads.store"
-  from_email  = "Asse's Threads <no-reply@${local.base_domain}>"
+  from_email  = "Asee's Threads <no-reply@${local.base_domain}>"
 }
 
 terraform {

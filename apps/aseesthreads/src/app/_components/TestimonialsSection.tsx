@@ -17,7 +17,7 @@ const testimonials = [
   {
     name: 'Yaa K.',
     location: 'Tema',
-    text: "Asse's Threads is my go-to for fashion in Ghana now. The seamless bodysuit is so flattering and the fabric is incredibly soft. Will order again.",
+    text: "Asee's Threads is my go-to for fashion in Ghana now. The seamless bodysuit is so flattering and the fabric is incredibly soft. Will order again.",
     rating: 5,
   },
 ]

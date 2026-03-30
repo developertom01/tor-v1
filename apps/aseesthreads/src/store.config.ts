@@ -21,7 +21,7 @@ const config: StoreConfig = {
   testimonials: [
     { name: 'Efua M.', text: "The wide-leg joggers are everything. So comfortable and the fit is perfect. I wear them everywhere in Kumasi.", rating: 5 },
     { name: 'Abena T.', text: "Got the spandex 2-piece set and I absolutely love it. The quality is top-tier and it fits like a glove.", rating: 5 },
-    { name: 'Yaa K.', text: "Fast delivery and the bodysuit is so flattering. Asse's Threads is my go-to for fashion in Ghana now.", rating: 5 },
+    { name: 'Yaa K.', text: "Fast delivery and the bodysuit is so flattering. Asee's Threads is my go-to for fashion in Ghana now.", rating: 5 },
   ],
   contact: {
     phone: '+233 59 188 5951',

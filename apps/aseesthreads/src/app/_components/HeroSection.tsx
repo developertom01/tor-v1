@@ -98,7 +98,7 @@ export default function HeroSection() {
         >
           <span className="block w-12 h-px bg-brand-600" />
           <p className="text-brand-300 text-sm md:text-base tracking-[0.15em] uppercase font-medium">
-            Asse&apos;s Threads
+            Asee&apos;s Threads
           </p>
         </motion.div>
 
