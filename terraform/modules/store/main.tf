@@ -38,6 +38,7 @@ module "vercel" {
       PAYSTACK_SECRET_KEY                = var.paystack_secret_key
       LOG_LEVEL                          = var.env == "dev" ? "debug" : "info"
       AUTH_ENCRYPTION_KEY                = var.auth_encryption_key
+      DOPPLER_TOKEN                      = var.doppler_token
     }
   )
 }
