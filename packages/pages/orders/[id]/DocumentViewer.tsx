@@ -13,10 +13,13 @@ function Overlay({ url, title, onClose }: { url: string; title: string; onClose:
   const image = isImage(url)
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex flex-col">
-      <div className="absolute inset-0 bg-black/80" onClick={onClose} />
-      <div className="relative z-10 flex flex-col h-full">
-        {/* Header bar */}
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-10">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/90" onClick={onClose} />
+
+      {/* Modal card */}
+      <div className="relative z-10 flex flex-col w-full max-w-3xl max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl">
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 bg-gray-900 text-white flex-shrink-0">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-gray-400" />
@@ -42,7 +45,9 @@ function Overlay({ url, title, onClose }: { url: string; title: string; onClose:
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden relative flex items-center justify-center bg-gray-950 p-4">
+        <div className="relative flex items-center justify-center bg-gray-950 overflow-auto"
+          style={{ minHeight: '300px', maxHeight: 'calc(90vh - 48px)' }}
+        >
           {!loaded && (
             <div className="absolute inset-0 flex items-center justify-center">
               <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
@@ -53,16 +58,16 @@ function Overlay({ url, title, onClose }: { url: string; title: string; onClose:
             <img
               src={url}
               alt={title}
-              className="max-w-full max-h-full object-contain rounded-lg"
-              style={{ opacity: loaded ? 1 : 0 }}
+              className="max-w-full object-contain p-4"
+              style={{ opacity: loaded ? 1 : 0, maxHeight: 'calc(90vh - 48px)' }}
               onLoad={() => setLoaded(true)}
             />
           ) : (
             <iframe
               src={url}
               title={title}
-              className="w-full h-full rounded-lg bg-white"
-              style={{ opacity: loaded ? 1 : 0 }}
+              className="w-full bg-white"
+              style={{ opacity: loaded ? 1 : 0, height: 'calc(90vh - 48px)' }}
               onLoad={() => setLoaded(true)}
             />
           )}
