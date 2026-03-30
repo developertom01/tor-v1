@@ -1,7 +1,7 @@
 import type { StoreConfig } from '@tor/store'
 
 const config: StoreConfig = {
-  name: "Asse's Threads",
+  name: "Asee's Threads",
   tagline: 'Stylish athleisure and casual fashion from Kumasi, Ghana. Wide-leg joggers, fitted basics, seamless bodysuits and spandex sets.',
   domain: 'aseesthreads.store',
   theme: {
@@ -13,7 +13,7 @@ const config: StoreConfig = {
     heroGradient: 'linear-gradient(135deg, #3d2815 0%, #6e4828 50%, #a67245 100%)',
   },
   categories: [
-    { name: 'Joggers', slug: 'joggers', description: 'Unisex wide-leg joggers for every mood', emoji: '👟' },
+    { name: 'Joggers', slug: 'joggers', description: 'Unisex wide-leg joggers for every mood', emoji: '👖' },
     { name: 'Basic Tops', slug: 'basic-tops', description: 'Fitted crop tops and everyday basics', emoji: '👕' },
     { name: 'Seamless Bodysuits', slug: 'seamless-bodysuits', description: 'Form-fitting seamless bodysuits', emoji: '🖤' },
     { name: 'Spandex 2 Piece', slug: 'spandex-2-piece', description: 'Matching spandex co-ord sets', emoji: '✨' },

@@ -17,11 +17,11 @@ dependency "vercel" {
 
 locals {
   name         = "aseesthreads"
-  display_name = "Asse's Threads"
+  display_name = "Asee's Threads"
   base_domain  = "aseesthreads.store"
   domain       = local.base_domain
   root_dir     = "apps/aseesthreads"
-  from_email   = "Asse's Threads <no-reply@${local.base_domain}>"
+  from_email   = "Asee's Threads <no-reply@${local.base_domain}>"
 }
 
 terraform {

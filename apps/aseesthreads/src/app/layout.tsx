@@ -16,8 +16,8 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: {
-    default: "Asse's Threads | Athleisure & Casual Fashion in Ghana",
-    template: "%s | Asse's Threads",
+    default: "Asee's Threads | Athleisure & Casual Fashion in Ghana",
+    template: "%s | Asee's Threads",
   },
   description:
     "Shop stylish athleisure and casual fashion from Kumasi, Ghana. Wide-leg joggers, fitted basics, seamless bodysuits and spandex co-ord sets for the fashion-forward. Clean, minimal, confident.",
@@ -27,22 +27,22 @@ export const metadata: Metadata = {
     'seamless bodysuits Ghana',
     'spandex sets Ghana',
     'casual fashion Ghana',
-    "Asse's Threads",
+    "Asee's Threads",
     'wide-leg joggers Ghana',
     'fashion Kumasi',
     'fitted basics Ghana',
     'co-ord sets Ghana',
   ],
   openGraph: {
-    title: "Asse's Threads | Athleisure & Casual Fashion",
+    title: "Asee's Threads | Athleisure & Casual Fashion",
     description: 'Clean, minimal, confident athleisure and casual fashion from Kumasi, Ghana.',
     type: 'website',
     locale: 'en_GH',
-    siteName: "Asse's Threads",
+    siteName: "Asee's Threads",
   },
   twitter: {
     card: 'summary_large_image',
-    title: "Asse's Threads | Athleisure & Casual Fashion",
+    title: "Asee's Threads | Athleisure & Casual Fashion",
     description: 'Stylish athleisure and casual fashion from Kumasi, Ghana.',
   },
   robots: {
@@ -70,7 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'ClothingStore',
-              name: "Asse's Threads",
+              name: "Asee's Threads",
               description:
                 'Stylish athleisure and casual fashion brand from Kumasi, Ghana — wide-leg joggers, fitted basics, seamless bodysuits and spandex sets.',
               url: process.env.NEXT_PUBLIC_SITE_URL,
