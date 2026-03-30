@@ -71,6 +71,24 @@ tasks:
     cmds:
       - npx supabase db reset
 
+  seed:settings:
+    desc: "Seed store row + settings for all stores (safe for dev + prod). ENV=dev|prod"
+    preconditions:
+      - sh: '[ -n "{{.ENV}}" ]'
+        msg: "ENV required (dev or prod)"
+    cmds:
+      - for: [hairlukgud, hairfordays, aseesthreads]
+        cmd: doppler run --project {{.ITEM}} --config {{.ENV}} -- node scripts/seed-settings.mjs {{.ITEM}}
+
+  seed:products:
+    desc: "Seed products for all stores (DEV ONLY — nukes existing products). ENV=dev"
+    preconditions:
+      - sh: '[ "{{.ENV}}" = "dev" ]'
+        msg: "seed:products is DEV ONLY. Use ENV=dev."
+    cmds:
+      - for: [hairlukgud, hairfordays, aseesthreads]
+        cmd: doppler run --project {{.ITEM}} --config {{.ENV}} -- node scripts/seed-store.mjs {{.ITEM}}
+
   # Terragrunt — Vercel project (once per store, no env)
   tg:vercel:
     desc: "Create/update Vercel project for a store (APP=store, ENV=dev|prod)"

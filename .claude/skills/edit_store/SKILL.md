@@ -103,9 +103,12 @@ Every revamped landing page MUST have:
 
 1. Search Unsplash for 3 images matching the store's products and vibe
 2. Download to `/tmp/{slug}-hero-{n}.jpg`
-3. Upload to Supabase Storage (local + remote):
-   - Local: `curl -s -X POST "http://127.0.0.1:54321/storage/v1/object/products/assets/{slug}-hero-{n}.jpg" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU" -H "Content-Type: image/jpeg" --data-binary "@/tmp/{slug}-hero-{n}.jpg"`
-   - Remote: get URL + service role key via `doppler run --project provisioner --config dev -- env | grep SUPABASE`, then POST to `{SUPABASE_URL}/storage/v1/object/products/assets/{slug}-hero-{n}.jpg`
+3. Upload to Supabase Storage — **all three environments**:
+   - **Local**: `curl -s -X POST "http://127.0.0.1:54321/storage/v1/object/products/assets/{slug}-hero-{n}.jpg" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU" -H "Content-Type: image/jpeg" --data-binary "@/tmp/{slug}-hero-{n}.jpg"`
+   - **Dev remote**: get URL + key via `doppler run --project {slug} --config dev -- env | grep SUPABASE`, then POST to `{SUPABASE_URL}/storage/v1/object/products/assets/{slug}-hero-{n}.jpg`
+   - **Prod remote**: get URL + key via `doppler run --project {slug} --config prod -- env | grep SUPABASE`, then POST to `{SUPABASE_URL}/storage/v1/object/products/assets/{slug}-hero-{n}.jpg`
+
+   All three must return HTTP 200 before proceeding. Do not skip prod — images missing in prod means broken images on the live site.
 4. Reference via env var in components — never commit images to `public/`:
    ```ts
    const STORAGE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products`
