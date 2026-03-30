@@ -8,6 +8,7 @@ import { logger } from '../logger'
 import { getStoreId } from '../store-id'
 import { sendAdminCreatedVerificationEmail } from '../email'
 import { randomBytes } from 'crypto'
+import { generateReceiptPDF } from '../receipt'
 
 export async function createOrder(formData: FormData, cartItems: CartItem[], totalAmount: number) {
   const supabase = await createClient()
@@ -432,8 +433,10 @@ export async function updateOrderStatus(id: string, status: string) {
   revalidatePath(`/admin/orders/${id}`)
 }
 
-export async function markOrderPaidManually(id: string) {
+export async function markOrderPaidManually(id: string, paymentProofUrl?: string) {
   logger.info({ orderId: id }, 'Marking order as paid manually')
+
+  const fullOrderForPDF = await fetchFullOrder(id)
 
   // Fetch order with items for stock deduction
   const { data: order } = await supabaseAdmin
@@ -443,9 +446,20 @@ export async function markOrderPaidManually(id: string) {
     .eq('store_id', getStoreId())
     .single()
 
+  let receiptUrl: string | null = null
+  if (fullOrderForPDF) {
+    try {
+      const pdfBuffer = await generateReceiptPDF(fullOrderForPDF)
+      const uploaded = await uploadReceiptPDF(id, pdfBuffer)
+      if (uploaded) receiptUrl = uploaded
+    } catch (err) {
+      logger.warn({ error: err, orderId: id }, 'Failed to generate/upload receipt PDF')
+    }
+  }
+
   const { error } = await supabaseAdmin
     .from('orders')
-    .update({ status: 'paid', paid_manually: true })
+    .update({ status: 'paid', paid_manually: true, payment_proof_url: paymentProofUrl ?? null, receipt_url: receiptUrl })
     .eq('id', id)
     .eq('store_id', getStoreId())
 
@@ -1257,4 +1271,18 @@ export async function searchCustomersForOrder(query: string): Promise<Array<{
   )
 
   return results
+}
+
+export async function uploadReceiptPDF(orderId: string, buffer: Buffer): Promise<string> {
+  const path = `orders/${orderId}/receipt.pdf`
+  const { error } = await supabaseAdmin.storage
+    .from('products')
+    .upload(path, buffer, { upsert: true, contentType: 'application/pdf' })
+
+  if (error) {
+    logger.warn({ error, orderId }, 'Failed to upload receipt PDF')
+    return ''
+  }
+
+  return supabaseAdmin.storage.from('products').getPublicUrl(path).data.publicUrl
 }

@@ -29,6 +29,7 @@ interface OrderForEmail {
   paystack_reference: string | null
   created_at: string
   order_items: OrderItem[]
+  receipt_url?: string | null
 }
 
 function formatGHS(amount: number): string {
@@ -366,6 +367,13 @@ export class EmailService {
           </div>
           ${orderItemsTableHtml(order.order_items)}
           <p style="font-size: 13px; color: #6b7280;">Your receipt is attached as a PDF.</p>
+          ${order.receipt_url ? `
+            <div style="text-align: center; margin: 20px 0;">
+              <a href="${order.receipt_url}" download style="display: inline-block; background: ${this.config.brandColor}; color: white; font-weight: 600; padding: 12px 28px; border-radius: 999px; text-decoration: none; font-size: 14px;">
+                Download Receipt
+              </a>
+            </div>
+          ` : ''}
           ${this.footer()}
         </div>
       `,

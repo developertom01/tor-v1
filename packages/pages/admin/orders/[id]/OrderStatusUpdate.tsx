@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation'
 import {
   Clock, CreditCard, Cog, Truck, PackageCheck, XCircle,
   ArrowRight, AlertTriangle, Loader2, HandCoins, Send, Copy, Check,
+  Upload, FileText, X,
 } from 'lucide-react'
 import { updateOrderStatus, markOrderPaidManually, cancelOrder, requestOrderPayment } from '@tor/lib/actions/orders'
 import { useToast } from '@tor/ui/Toast'
+import { createClient } from '@tor/lib/supabase/client'
 
 const FLOW = [
   { status: 'pending', label: 'Pending', icon: Clock, color: 'text-yellow-600 bg-yellow-50' },
@@ -44,6 +46,11 @@ export default function OrderStatusUpdate({
   const [cancelReason, setCancelReason] = useState('')
   const [cancelling, setCancelling] = useState(false)
   const [requestingPayment, setRequestingPayment] = useState(false)
+  const [showProofUpload, setShowProofUpload] = useState(false)
+  const [proofFile, setProofFile] = useState<File | null>(null)
+  const [proofPreviewUrl, setProofPreviewUrl] = useState<string>('')
+  const [proofUploading, setProofUploading] = useState(false)
+  const [proofUrl, setProofUrl] = useState<string>('')
   const [paymentLink, setPaymentLink] = useState(
     paymentToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/pay/order/${paymentToken}` : ''
   )
@@ -65,7 +72,12 @@ export default function OrderStatusUpdate({
     setSaving(true)
     try {
       if (currentStatus === 'pending') {
-        await markOrderPaidManually(orderId)
+        if (!showProofUpload) {
+          setShowProofUpload(true)
+          setSaving(false)
+          return
+        }
+        await markOrderPaidManually(orderId, proofUrl || undefined)
       } else {
         await updateOrderStatus(orderId, nextStatus)
       }
@@ -75,6 +87,49 @@ export default function OrderStatusUpdate({
       toast('Failed to update status', 'error')
     }
     setSaving(false)
+  }
+
+  async function handleProofFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    if (file.size > maxSize) {
+      toast('File too large — max 10MB', 'error')
+      return
+    }
+
+    setProofFile(file)
+    setProofUrl('')
+
+    // Preview URL for images
+    if (file.type.startsWith('image/')) {
+      setProofPreviewUrl(URL.createObjectURL(file))
+    } else {
+      setProofPreviewUrl('')
+    }
+
+    // Upload immediately on select
+    setProofUploading(true)
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop() ?? 'bin'
+      const path = `orders/${orderId}/manual-payment-proof.${ext}`
+      const { error } = await supabase.storage
+        .from('products')
+        .upload(path, file, { upsert: true, contentType: file.type })
+
+      if (error) throw error
+
+      const { data } = supabase.storage.from('products').getPublicUrl(path)
+      setProofUrl(data.publicUrl)
+      toast('Proof uploaded', 'success')
+    } catch {
+      toast('Upload failed — try again', 'error')
+      setProofFile(null)
+      setProofPreviewUrl('')
+    }
+    setProofUploading(false)
   }
 
   async function handleRequestPayment() {
@@ -174,6 +229,54 @@ export default function OrderStatusUpdate({
           </div>
           <ArrowRight className="w-4 h-4 flex-shrink-0" />
         </button>
+      )}
+
+      {/* Payment proof upload — shown when marking as paid */}
+      {showProofUpload && currentStatus === 'pending' && (
+        <div className="border border-brand-200 rounded-xl p-4 mb-3 bg-brand-50">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-gray-800">Upload Payment Proof</p>
+            <button
+              onClick={() => { setShowProofUpload(false); setProofFile(null); setProofPreviewUrl(''); setProofUrl('') }}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-brand-300 rounded-lg p-4 cursor-pointer hover:bg-brand-100 transition-colors">
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={handleProofFileChange}
+              disabled={proofUploading}
+            />
+            {proofUploading ? (
+              <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
+            ) : proofPreviewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={proofPreviewUrl} alt="proof preview" className="w-full max-h-32 object-contain rounded" />
+            ) : proofFile ? (
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <FileText className="w-5 h-5 text-brand-600" />
+                <span className="truncate max-w-[160px]">{proofFile.name}</span>
+              </div>
+            ) : (
+              <>
+                <Upload className="w-6 h-6 text-brand-400" />
+                <span className="text-xs text-gray-500 text-center">Click to upload screenshot or PDF<br />(max 10MB)</span>
+              </>
+            )}
+          </label>
+
+          {proofUrl && (
+            <p className="text-xs text-green-700 font-medium mt-2 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+              Proof uploaded — click &quot;Mark as Paid&quot; above to confirm
+            </p>
+          )}
+        </div>
       )}
 
       {/* Request Payment — only for pending orders */}
