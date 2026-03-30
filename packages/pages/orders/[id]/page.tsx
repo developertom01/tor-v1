@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { getSession } from '@tor/lib/actions/auth'
 import { getMyOrder } from '@tor/lib/actions/orders'
 import { formatPrice } from '@tor/lib/utils'
+import DocumentViewer from './DocumentViewer'
 
 export const metadata: Metadata = {
   title: 'Order Details',
@@ -230,6 +231,13 @@ export default async function OrderDetailPage({
           </div>
         </div>
       </div>
+
+      {['paid', 'processing', 'shipped', 'delivered'].includes(order.status) && (
+        <DocumentViewer
+          paymentProofUrl={order.payment_proof_url}
+          receiptUrl={order.receipt_url}
+        />
+      )}
     </div>
   )
 }

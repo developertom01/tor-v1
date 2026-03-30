@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { updateOrderStatus, markOrderPaidManually, cancelOrder, requestOrderPayment } from '@tor/lib/actions/orders'
 import { useToast } from '@tor/ui/Toast'
+import PaymentProofDialog from './PaymentProofDialog'
 
 const FLOW = [
   { status: 'pending', label: 'Pending', icon: Clock, color: 'text-yellow-600 bg-yellow-50' },
@@ -40,6 +41,7 @@ export default function OrderStatusUpdate({
   onlinePaymentAllowed?: boolean
 }) {
   const [saving, setSaving] = useState(false)
+  const [showProofDialog, setShowProofDialog] = useState(false)
   const [showCancel, setShowCancel] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelling, setCancelling] = useState(false)
@@ -62,15 +64,29 @@ export default function OrderStatusUpdate({
     const nextStatus = FLOW[currentIndex + 1]?.status
     if (!nextStatus) return
 
+    if (currentStatus === 'pending') {
+      setShowProofDialog(true)
+      return
+    }
+
     setSaving(true)
     try {
-      if (currentStatus === 'pending') {
-        await markOrderPaidManually(orderId)
-      } else {
-        await updateOrderStatus(orderId, nextStatus)
-      }
+      await updateOrderStatus(orderId, nextStatus)
       router.refresh()
       toast(`Order moved to ${FLOW[currentIndex + 1].label}`, 'success')
+    } catch {
+      toast('Failed to update status', 'error')
+    }
+    setSaving(false)
+  }
+
+  async function handleConfirmPayment(proofUrl: string) {
+    setSaving(true)
+    try {
+      await markOrderPaidManually(orderId, proofUrl || undefined)
+      setShowProofDialog(false)
+      router.refresh()
+      toast('Order moved to Paid', 'success')
     } catch {
       toast('Failed to update status', 'error')
     }
@@ -297,6 +313,14 @@ export default function OrderStatusUpdate({
           )}
         </>
       )}
+
+      <PaymentProofDialog
+        open={showProofDialog}
+        onClose={() => setShowProofDialog(false)}
+        onConfirm={handleConfirmPayment}
+        orderId={orderId}
+        saving={saving}
+      />
     </div>
   )
 }
