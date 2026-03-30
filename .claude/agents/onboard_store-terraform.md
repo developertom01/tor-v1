@@ -42,5 +42,14 @@ Key values to carry from store config:
   }
   ```
 
+## Also update shared Supabase domain lists
+
+Add the new store's domains to the shared Supabase auth config — this registers OAuth redirect URLs:
+
+- `terraform/shared/supabase/dev/terragrunt.hcl` — add `"dev.{base_domain}"` to the `domains` list
+- `terraform/shared/supabase/prod/terragrunt.hcl` — add `"{base_domain}"` to the `domains` list
+
+Without this, Google OAuth (and any auth redirect) will be blocked for the new store.
+
 ## Output
 When done, return: "Terraform config created: {list of files created}"
