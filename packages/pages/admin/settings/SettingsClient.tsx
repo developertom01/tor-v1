@@ -104,24 +104,31 @@ export default function SettingsClient({ bypassPayment, onlinePaymentsEnabled, o
               Allow customers to pay online at checkout via Paystack.
             </p>
           </div>
-          <button
-            onClick={handleOnlineToggle}
-            disabled={savingOnline || !onlinePaymentAllowed}
-            title={!onlinePaymentAllowed ? 'Online payments are disabled by your platform configuration' : undefined}
-            className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors ${
-              onlineEnabled ? 'bg-brand-600' : 'bg-gray-200'
-            } ${savingOnline || !onlinePaymentAllowed ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-          >
-            {savingOnline ? (
-              <Loader2 className="w-4 h-4 animate-spin mx-auto text-white" />
-            ) : (
-              <span
-                className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-                  onlineEnabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
+          <div className="relative group">
+            <button
+              onClick={handleOnlineToggle}
+              disabled={savingOnline || !onlinePaymentAllowed}
+              className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors ${
+                onlineEnabled ? 'bg-brand-600' : 'bg-gray-200'
+              } ${savingOnline || !onlinePaymentAllowed ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              {savingOnline ? (
+                <Loader2 className="w-4 h-4 animate-spin mx-auto text-white" />
+              ) : (
+                <span
+                  className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                    onlineEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              )}
+            </button>
+            {!onlinePaymentAllowed && (
+              <div className="absolute right-0 bottom-9 z-10 hidden group-hover:block w-56 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg">
+                Online Payments is temporarily not available.
+                <div className="absolute right-3 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900" />
+              </div>
             )}
-          </button>
+          </div>
         </div>
         {!onlineEnabled && (
           <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">

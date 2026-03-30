@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { ImageIcon } from 'lucide-react'
 import { getOrder } from '@tor/lib/actions/orders'
 import { formatPrice } from '@tor/lib/utils'
+import { getFeatureFlags } from '@tor/lib/feature-flags'
 import OrderStatusUpdate from './OrderStatusUpdate'
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export default async function OrderDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const order = await getOrder(id)
+  const [order, flags] = await Promise.all([getOrder(id), getFeatureFlags()])
   if (!order) notFound()
 
   return (
@@ -90,7 +91,7 @@ export default async function OrderDetailPage({
 
         {/* Status Sidebar */}
         <div>
-          <OrderStatusUpdate orderId={order.id} currentStatus={order.status} paidManually={order.paid_manually} paymentToken={order.payment_token} />
+          <OrderStatusUpdate orderId={order.id} currentStatus={order.status} paidManually={order.paid_manually} paymentToken={order.payment_token} onlinePaymentAllowed={flags.online_payment} />
 
           {order.status === 'cancelled' && order.cancelled_reason && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-6 mt-4">
