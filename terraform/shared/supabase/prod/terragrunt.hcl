@@ -14,5 +14,6 @@ inputs = {
   domains = [
     "hairluksgudgh.com",
     "hairfordays.store",
+    "aseesthreads.store",
   ]
 }
