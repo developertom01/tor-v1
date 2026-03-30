@@ -1,12 +1,12 @@
 # ============================================
-# Asse's Threads — Store Provisioning Config
+# Asee's Threads — Store Provisioning Config
 # ============================================
 # Env vars are injected at runtime via ${VAR_NAME} syntax.
 # Export them before running: export VERCEL_TOKEN=xxx
 
 project:
   name: aseesthreads
-  display_name: "Asse's Threads"
+  display_name: "Asee's Threads"
   domain: aseesthreads.store
   directory: ./aseesthreads
 
@@ -52,7 +52,7 @@ supabase:
 # -- Resend (email) --------------------------------------------------
 resend:
   token: "${RESEND_API_KEY}"
-  from_email: "Asse's Threads <orders@${PROJECT_DOMAIN}>"
+  from_email: "Asee's Threads <orders@${PROJECT_DOMAIN}>"
 
 # -- Paystack (payments) ---------------------------------------------
 paystack:

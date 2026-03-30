@@ -19,7 +19,7 @@ npm run db:status        # Show local Supabase URLs & keys
 
 ## Architecture
 
-**Asse's Threads** — e-commerce app for a stylish athleisure and casual fashion brand from Kumasi, Ghana. Sells wide-leg joggers, fitted basics, seamless bodysuits and spandex sets. Next.js 16 App Router, Supabase (Postgres + Auth + Storage), Paystack payments. Currency is GHS (Ghana Cedis).
+**Asee's Threads** — e-commerce app for a stylish athleisure and casual fashion brand from Kumasi, Ghana. Sells wide-leg joggers, fitted basics, seamless bodysuits and spandex sets. Next.js 16 App Router, Supabase (Postgres + Auth + Storage), Paystack payments. Currency is GHS (Ghana Cedis).
 
 ### Server-first pattern — no API/frontend split
 
