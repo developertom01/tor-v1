@@ -535,6 +535,9 @@ jobs:
           supabase link --project-ref "$PROJECT_REF"
           supabase db push --password "$DB_PASS"
 
+          # Seed store row + settings (safe for all envs)
+          node ../../scripts/seed-settings.mjs "${{ inputs.store }}"
+
           # Seed products (dev only — prod starts empty for real data)
           if [ "${{ inputs.env }}" = "dev" ]; then
             node ../../scripts/seed-store.mjs "${{ inputs.store }}"
