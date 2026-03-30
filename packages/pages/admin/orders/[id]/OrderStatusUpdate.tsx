@@ -31,11 +31,13 @@ export default function OrderStatusUpdate({
   currentStatus,
   paidManually,
   paymentToken,
+  onlinePaymentAllowed,
 }: {
   orderId: string
   currentStatus: string
   paidManually?: boolean
   paymentToken?: string | null
+  onlinePaymentAllowed?: boolean
 }) {
   const [saving, setSaving] = useState(false)
   const [showCancel, setShowCancel] = useState(false)
@@ -203,20 +205,28 @@ export default function OrderStatusUpdate({
             </button>
           </div>
         ) : (
-          <button
-            onClick={handleRequestPayment}
-            disabled={requestingPayment}
-            className="w-full flex items-center justify-between gap-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold py-3 px-4 rounded-xl transition-colors mb-3"
-          >
-            <div className="text-left">
-              <span className="flex items-center gap-2">
-                {requestingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                Request Payment
-              </span>
-              <span className="text-xs text-white/70 font-normal">Send payment link via email</span>
-            </div>
-            <ArrowRight className="w-4 h-4 flex-shrink-0" />
-          </button>
+          <div className="relative group mb-3">
+            <button
+              onClick={handleRequestPayment}
+              disabled={requestingPayment || onlinePaymentAllowed === false}
+              className="w-full flex items-center justify-between gap-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-xl transition-colors"
+            >
+              <div className="text-left">
+                <span className="flex items-center gap-2">
+                  {requestingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Request Payment
+                </span>
+                <span className="text-xs text-white/70 font-normal">Send payment link via email</span>
+              </div>
+              <ArrowRight className="w-4 h-4 flex-shrink-0" />
+            </button>
+            {onlinePaymentAllowed === false && (
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-10 hidden group-hover:block w-56 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg text-center">
+                Online Payments is temporarily not available.
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900" />
+              </div>
+            )}
+          </div>
         )
       )}
 
