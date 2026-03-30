@@ -1,11 +1,15 @@
 import Link from 'next/link'
-import { ArrowRight, Star, Truck, Shield, Sparkles } from 'lucide-react'
+import { ArrowRight, Star } from 'lucide-react'
 import { getProducts } from '@tor/lib/actions/products'
+import type { ProductWithMedia } from '@tor/lib/types'
 import ProductCard from '@tor/ui/ProductCard'
 import Animate from '@tor/ui/Animate'
+import HeroSection from './_components/HeroSection'
+import WhyUsSection from './_components/WhyUsSection'
+import CtaSection from './_components/CtaSection'
 
 export default async function HomePage() {
-  let featuredProducts = []
+  let featuredProducts: ProductWithMedia[] = []
   try {
     const result = await getProducts({ featured: true, limit: 8 })
     featuredProducts = result.products
@@ -15,97 +19,7 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Hero Section */}
-      <section className="relative hero-gradient text-white overflow-hidden">
-        <div className="absolute inset-0 hero-glow-pulse">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-10 right-20 w-96 h-96 bg-gold-400 rounded-full blur-3xl" />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-36">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <Animate animation="fade-up" delay={100}>
-                <div className="inline-flex items-center gap-2 bg-white/15 rounded-full px-4 py-1.5 text-sm font-medium mb-6 backdrop-blur-sm">
-                  <Sparkles className="w-4 h-4 text-gold-400" />
-                  Premium Quality Hair
-                </div>
-              </Animate>
-              <Animate animation="fade-up" delay={250}>
-                <h1 className="text-4xl md:text-6xl font-bold leading-tight">
-                  Slay Every Look.{' '}
-                  <span className="text-gold-400">Own Your Style.</span>
-                </h1>
-              </Animate>
-              <Animate animation="fade-up" delay={400}>
-                <p className="mt-6 text-lg md:text-xl text-pink-100 max-w-lg">
-                  Discover our collection of premium wigs, extensions, and hair accessories.
-                  Affordable luxury delivered straight to your door in Ghana.
-                </p>
-              </Animate>
-              <Animate animation="fade-up" delay={550}>
-                <div className="mt-8 flex flex-wrap gap-4">
-                  <Link
-                    href="/products"
-                    className="inline-flex items-center gap-2 bg-white text-brand-700 font-bold px-8 py-4 rounded-full hover:bg-pink-50 transition-all hover:shadow-lg hover:scale-105"
-                  >
-                    Shop Now
-                    <ArrowRight className="w-5 h-5" />
-                  </Link>
-                  <Link
-                    href="/products?category=wigs"
-                    className="inline-flex items-center gap-2 border-2 border-white/40 text-white font-semibold px-8 py-4 rounded-full hover:bg-white/10 transition-all hover:scale-105"
-                  >
-                    Browse Wigs
-                  </Link>
-                </div>
-              </Animate>
-            </div>
-
-            <Animate animation="fade-left" delay={300} className="relative hidden md:block">
-              <div className="relative w-full aspect-[3/4] rounded-3xl overflow-hidden bg-white/10 backdrop-blur-sm border border-white/20">
-                <div className="absolute inset-0 flex items-center justify-center text-white/60">
-                  <div className="text-center hero-float">
-                    <Sparkles className="w-16 h-16 mx-auto mb-4 text-gold-400" />
-                    <p className="text-lg font-medium">Your Best Look Awaits</p>
-                  </div>
-                </div>
-              </div>
-              <Animate animation="scale-up" delay={700}>
-                <div className="absolute -bottom-4 -left-4 glass-card rounded-2xl p-4 text-center">
-                  <p className="text-3xl font-bold text-gold-400">500+</p>
-                  <p className="text-sm text-pink-100">Happy Customers</p>
-                </div>
-              </Animate>
-            </Animate>
-          </div>
-        </div>
-      </section>
-
-      {/* Trust Badges */}
-      <section className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Animate animation="fade-up">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {[
-                { icon: Truck, title: 'Fast Delivery', desc: 'Nationwide in Ghana', align: 'sm:justify-start' },
-                { icon: Shield, title: 'Secure Payment', desc: 'Pay with Paystack', align: 'justify-center' },
-                { icon: Star, title: 'Premium Quality', desc: '100% Quality Guaranteed', align: 'sm:justify-end' },
-              ].map((b) => (
-                <div key={b.title} className={`flex items-center gap-4 justify-center ${b.align}`}>
-                  <div className="w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center">
-                    <b.icon className="w-6 h-6 text-brand-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{b.title}</p>
-                    <p className="text-sm text-gray-500">{b.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Animate>
-        </div>
-      </section>
+      <HeroSection />
 
       {/* Categories */}
       <section className="bg-gray-50 py-16 md:py-24">
@@ -169,6 +83,8 @@ export default async function HomePage() {
         </section>
       )}
 
+      <WhyUsSection />
+
       {/* Testimonials */}
       <section className="bg-brand-50 py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -198,23 +114,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="hero-gradient text-white py-16 md:py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <Animate animation="blur-in">
-            <h2 className="text-3xl md:text-4xl font-bold">Ready to Slay?</h2>
-            <p className="mt-4 text-lg text-pink-100 max-w-2xl mx-auto">
-              Join hundreds of happy customers who trust Hair Luk Gud GH for their premium hair needs.
-            </p>
-            <Link
-              href="/products"
-              className="mt-8 inline-flex items-center gap-2 bg-white text-brand-700 font-bold px-10 py-4 rounded-full hover:bg-pink-50 transition-all hover:shadow-lg hover:scale-105"
-            >
-              Shop Now <ArrowRight className="w-5 h-5" />
-            </Link>
-          </Animate>
-        </div>
-      </section>
+      <CtaSection />
 
       {/* JSON-LD Structured Data */}
       <script
