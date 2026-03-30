@@ -7,6 +7,7 @@ export interface StoreEmailConfig {
   brandColor: string
   fromEmail: string
   apiKey: string
+  logo?: string
 }
 
 interface OrderItem {
@@ -29,7 +30,6 @@ interface OrderForEmail {
   paystack_reference: string | null
   created_at: string
   order_items: OrderItem[]
-  receipt_url?: string | null
 }
 
 function formatGHS(amount: number): string {
@@ -85,7 +85,20 @@ export class EmailService {
   }
 
   private header() {
-    return `<h2 style="color: ${this.config.brandColor};">${this.config.storeName}</h2>`
+    return `
+      ${this.config.logo ? `<img src="${this.config.logo}" alt="${this.config.storeName}" style="height: 40px; width: auto; margin-bottom: 8px; display: block;" />` : ''}
+      <h2 style="color: ${this.config.brandColor}; margin: 0 0 16px;">${this.config.storeName}</h2>
+    `
+  }
+
+  private orderLinkButton(orderId: string) {
+    return `
+      <p style="text-align: center; margin: 24px 0;">
+        <a href="${process.env.NEXT_PUBLIC_SITE_URL}/orders/${orderId}" style="background: ${this.config.brandColor}; color: white; text-decoration: none; padding: 12px 28px; border-radius: 999px; font-weight: 600; display: inline-block; font-size: 14px;">
+          View Order
+        </a>
+      </p>
+    `
   }
 
   async sendWelcomeEmail({ fullName, email }: { fullName: string; email: string }) {
@@ -227,9 +240,9 @@ export class EmailService {
           <p>Hi ${customerName},</p>
           <p>Payment has been requested for your order. Here's a summary:</p>
           ${orderItemsTableHtml(items)}
-          <div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
-            <p style="margin: 0; font-weight: 600; color: #92400e; font-size: 18px;">${formatGHS(totalAmount)}</p>
-            <p style="margin: 4px 0 0; color: #a16207; font-size: 13px;">Payment due</p>
+          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0; font-weight: 600; color: ${this.config.brandColor}; font-size: 18px;">${formatGHS(totalAmount)}</p>
+            <p style="margin: 4px 0 0; color: #6b7280; font-size: 13px;">Payment due</p>
           </div>
           <p>Click the button below to complete your payment:</p>
           <p style="text-align: center; margin: 32px 0;">
@@ -246,13 +259,13 @@ export class EmailService {
 
   async sendOrderConfirmationEmail({ order, paid }: { order: OrderForEmail; paid: boolean }) {
     const paymentStatusHtml = paid
-      ? `<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
-          <p style="margin: 0; font-weight: 600; color: #166534; font-size: 18px;">${formatGHS(order.total_amount)}</p>
-          <p style="margin: 4px 0 0; color: #15803d; font-size: 13px;">Payment received</p>
+      ? `<div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
+          <p style="margin: 0; font-weight: 600; color: ${this.config.brandColor}; font-size: 18px;">${formatGHS(order.total_amount)}</p>
+          <p style="margin: 4px 0 0; color: #6b7280; font-size: 13px;">Payment received</p>
         </div>`
-      : `<div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
-          <p style="margin: 0; font-weight: 600; color: #92400e; font-size: 18px;">${formatGHS(order.total_amount)}</p>
-          <p style="margin: 4px 0 0; color: #a16207; font-size: 13px;">Payment not yet made — to be arranged with the store</p>
+      : `<div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
+          <p style="margin: 0; font-weight: 600; color: #374151; font-size: 18px;">${formatGHS(order.total_amount)}</p>
+          <p style="margin: 4px 0 0; color: #6b7280; font-size: 13px;">Payment not yet made — to be arranged with the store</p>
         </div>`
 
     const attachments = paid ? [{
@@ -284,6 +297,7 @@ export class EmailService {
             <p style="margin: 0; color: #6b7280;">${order.customer_phone}</p>
           </div>
           ${paid ? '<p style="font-size: 13px; color: #6b7280;">Your receipt is attached as a PDF.</p>' : ''}
+          ${this.orderLinkButton(order.id)}
           ${this.footer()}
         </div>
       `,
@@ -303,9 +317,9 @@ export class EmailService {
           ${this.header()}
           <p>Hi ${customerName},</p>
           <p>We're sorry to let you know that your order <strong>#${orderId.slice(0, 8)}</strong> has been cancelled.</p>
-          <div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 16px; margin: 20px 0;">
-            <p style="margin: 0; font-weight: 600; color: #92400e;">Reason for cancellation:</p>
-            <p style="margin: 8px 0 0; color: #78350f;">${reason}</p>
+          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 20px 0;">
+            <p style="margin: 0; font-weight: 600; color: #374151;">Reason for cancellation:</p>
+            <p style="margin: 8px 0 0; color: #6b7280;">${reason}</p>
           </div>
           ${orderItemsTableHtml(items)}
           <p>If a payment was made, a refund will be processed shortly. Please allow a few business days for it to reflect.</p>
@@ -333,15 +347,16 @@ export class EmailService {
           ${this.header()}
           <p>Hi ${order.customer_name},</p>
           <p>${message}</p>
-          <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
-            <p style="margin: 0; font-weight: 600; color: #0369a1; font-size: 16px;">Status: ${statusLabel}</p>
-            <p style="margin: 4px 0 0; color: #0284c7; font-size: 13px;">Order #${order.id.slice(0, 8).toUpperCase()}</p>
+          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0; font-weight: 600; color: ${this.config.brandColor}; font-size: 16px;">Status: ${statusLabel}</p>
+            <p style="margin: 4px 0 0; color: #6b7280; font-size: 13px;">Order #${order.id.slice(0, 8).toUpperCase()}</p>
           </div>
           ${orderItemsTableHtml(order.order_items)}
           <div style="background: #f9fafb; border-radius: 12px; padding: 16px; margin: 20px 0; font-size: 13px;">
             <p style="margin: 0 0 4px; font-weight: 600; color: #374151;">Total: ${formatGHS(order.total_amount)}</p>
             <p style="margin: 0; color: #6b7280;">${order.shipping_address}, ${order.city}, ${order.region}</p>
           </div>
+          ${this.orderLinkButton(order.id)}
           <p style="color: #888; font-size: 13px;">If you have any questions, please reach out to us.</p>
           ${this.footer()}
         </div>
@@ -361,19 +376,13 @@ export class EmailService {
           ${this.header()}
           <p>Hi ${order.customer_name},</p>
           <p>We've received your payment. Your order is now being processed!</p>
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
-            <p style="margin: 0; font-weight: 600; color: #166534; font-size: 18px;">${formatGHS(order.total_amount)}</p>
-            <p style="margin: 4px 0 0; color: #15803d; font-size: 13px;">Payment received</p>
+          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0; font-weight: 600; color: ${this.config.brandColor}; font-size: 18px;">${formatGHS(order.total_amount)}</p>
+            <p style="margin: 4px 0 0; color: #6b7280; font-size: 13px;">Payment received</p>
           </div>
           ${orderItemsTableHtml(order.order_items)}
           <p style="font-size: 13px; color: #6b7280;">Your receipt is attached as a PDF.</p>
-          ${order.receipt_url ? `
-            <div style="text-align: center; margin: 20px 0;">
-              <a href="${order.receipt_url}" download style="display: inline-block; background: ${this.config.brandColor}; color: white; font-weight: 600; padding: 12px 28px; border-radius: 999px; text-decoration: none; font-size: 14px;">
-                Download Receipt
-              </a>
-            </div>
-          ` : ''}
+          ${this.orderLinkButton(order.id)}
           ${this.footer()}
         </div>
       `,
@@ -452,12 +461,13 @@ export class EmailService {
           <p>Hi ${order.customer_name},</p>
           <p>Your order <strong>#${order.id.slice(0, 8).toUpperCase()}</strong> has been delivered!</p>
           <p>We hope you love your new hair. Thank you for choosing ${this.config.storeName}.</p>
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
+          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
             <p style="margin: 0; font-size: 28px;">✨</p>
-            <p style="margin: 8px 0 0; font-weight: 600; color: #166534;">Order Delivered</p>
+            <p style="margin: 8px 0 0; font-weight: 600; color: ${this.config.brandColor};">Order Delivered</p>
           </div>
           ${orderItemsTableHtml(order.order_items)}
           <p style="font-size: 13px; color: #6b7280;">Your receipt is attached for your records.</p>
+          ${this.orderLinkButton(order.id)}
           ${this.footer()}
         </div>
       `,
@@ -476,6 +486,7 @@ export const emailService = new EmailService({
   brandColor: process.env.BRAND_COLOR!,
   fromEmail: process.env.FROM_EMAIL!,
   apiKey: process.env.RESEND_API_KEY!,
+  logo: process.env.STORE_LOGO,
 })
 
 // Named exports for backward compat with existing callers
