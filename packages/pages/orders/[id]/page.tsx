@@ -1,11 +1,12 @@
 import { Metadata } from 'next'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, CreditCard, Truck, CheckCircle, XCircle, Clock, ImageIcon, AlertCircle, Download, FileText } from 'lucide-react'
+import { ArrowLeft, Package, CreditCard, Truck, CheckCircle, XCircle, Clock, ImageIcon, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 import { getSession } from '@tor/lib/actions/auth'
 import { getMyOrder } from '@tor/lib/actions/orders'
 import { formatPrice } from '@tor/lib/utils'
+import DocumentViewer from './DocumentViewer'
 
 export const metadata: Metadata = {
   title: 'Order Details',
@@ -231,35 +232,11 @@ export default async function OrderDetailPage({
         </div>
       </div>
 
-      {/* Payment Documents */}
-      {['paid', 'processing', 'shipped', 'delivered'].includes(order.status) &&
-        (order.payment_proof_url || order.receipt_url) && (
-        <div className="bg-white rounded-xl border border-gray-100 p-6 mt-6">
-          <h2 className="font-semibold text-gray-900 mb-4">Payment Documents</h2>
-          <div className="flex flex-wrap gap-3">
-            {order.payment_proof_url && (
-              <a
-                href={order.payment_proof_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <FileText className="w-4 h-4 text-brand-600" />
-                View Payment Proof
-              </a>
-            )}
-            {order.receipt_url && (
-              <a
-                href={order.receipt_url}
-                download
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                Download Receipt
-              </a>
-            )}
-          </div>
-        </div>
+      {['paid', 'processing', 'shipped', 'delivered'].includes(order.status) && (
+        <DocumentViewer
+          paymentProofUrl={order.payment_proof_url}
+          receiptUrl={order.receipt_url}
+        />
       )}
     </div>
   )

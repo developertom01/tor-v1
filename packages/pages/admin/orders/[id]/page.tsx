@@ -6,6 +6,7 @@ import { getOrder } from '@tor/lib/actions/orders'
 import { formatPrice } from '@tor/lib/utils'
 import { getFeatureFlags } from '@tor/lib/feature-flags'
 import OrderStatusUpdate from './OrderStatusUpdate'
+import DocumentViewer from '../../../orders/[id]/DocumentViewer'
 
 export const metadata: Metadata = {
   title: 'Order Details',
@@ -87,6 +88,11 @@ export default async function OrderDetailPage({
               </div>
             </div>
           </div>
+
+          <DocumentViewer
+            paymentProofUrl={order.payment_proof_url}
+            receiptUrl={order.receipt_url}
+          />
         </div>
 
         {/* Status Sidebar */}
