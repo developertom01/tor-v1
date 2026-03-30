@@ -29,8 +29,8 @@ resource "supabase_settings" "auth" {
     site_url                    = "https://${var.domains[0]}"
     uri_allow_list              = join(",", flatten([
       for d in var.domains : [
-        "https://${d}/auth/callback",
-        "https://www.${d}/auth/callback"
+        "https://${d}/auth/callback*",
+        "https://www.${d}/auth/callback*"
       ]
     ]))
     external_google_enabled     = true
@@ -40,8 +40,8 @@ resource "supabase_settings" "auth" {
     site_url       = "https://${var.domains[0]}"
     uri_allow_list = join(",", flatten([
       for d in var.domains : [
-        "https://${d}/auth/callback",
-        "https://www.${d}/auth/callback"
+        "https://${d}/auth/callback*",
+        "https://www.${d}/auth/callback*"
       ]
     ]))
   })
