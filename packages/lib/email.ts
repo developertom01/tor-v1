@@ -37,7 +37,11 @@ function formatGHS(amount: number): string {
 }
 
 function orderItemsTableHtml(items: OrderItem[]) {
-  const rows = items.map((item) => `
+  const MAX = 10
+  const visible = items.slice(0, MAX)
+  const overflow = items.length - MAX
+
+  const rows = visible.map((item) => `
     <tr>
       <td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6;">
         <div style="display: flex; align-items: center; gap: 10px;">
@@ -56,6 +60,10 @@ function orderItemsTableHtml(items: OrderItem[]) {
     </tr>
   `).join('')
 
+  const overflowRow = overflow > 0
+    ? `<tr><td colspan="3" style="padding: 10px 0; font-size: 12px; color: #6b7280;">+ ${overflow} more item${overflow === 1 ? '' : 's'} — view order for full details</td></tr>`
+    : ''
+
   return `
     <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
       <thead>
@@ -65,7 +73,7 @@ function orderItemsTableHtml(items: OrderItem[]) {
           <th style="text-align: right; padding: 8px 0; font-size: 12px; color: #6b7280;">PRICE</th>
         </tr>
       </thead>
-      <tbody>${rows}</tbody>
+      <tbody>${rows}${overflowRow}</tbody>
     </table>
   `
 }
