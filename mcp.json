@@ -29,6 +29,10 @@
     "upload-image": {
       "command": "node",
       "args": ["agents/mcp-upload-image.mjs"]
+    },
+    "linear": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.linear.app/sse"]
     }
   }
 }
