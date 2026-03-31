@@ -25,6 +25,10 @@
       "env": {
         "RESEND_API_KEY": "${RESEND_API_KEY}"
       }
+    },
+    "upload-image": {
+      "command": "node",
+      "args": ["agents/mcp-upload-image.mjs"]
     }
   }
 }

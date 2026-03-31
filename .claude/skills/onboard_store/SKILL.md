@@ -127,22 +127,28 @@ Every landing page MUST have:
 
 #### Image workflow — do this BEFORE writing components
 
-1. **Search Unsplash** for 3 high-quality images that match the store's products and vibe (search terms like the product type + "fashion editorial" or "Ghana lifestyle")
-2. **Download them** to a temp location: `curl -L "{url}" -o /tmp/{slug}-hero-{n}.jpg`
-3. **Upload to local Supabase Storage**:
-   - `curl -s -X POST "http://127.0.0.1:54321/storage/v1/object/products/assets/{slug}-hero-{n}.jpg" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU" -H "Content-Type: image/jpeg" --data-binary "@/tmp/{slug}-hero-{n}.jpg"`
-4. **Upload to dev remote Supabase Storage**: get URL + key via `doppler run --project {slug} --config dev -- env | grep SUPABASE`, then POST to `{SUPABASE_URL}/storage/v1/object/products/assets/{slug}-hero-{n}.jpg`
-   - If the store's dev Doppler config doesn't exist yet (command fails or returns no output), fall back to the provisioner project: `doppler run --project provisioner --config dev -- env | grep SUPABASE`
-   - If that also fails or the upload returns non-200, skip and leave a note: "⚠️ Dev hero images not uploaded — dev Supabase not reachable. Re-upload after provisioning with: `doppler run --project {slug} --config dev -- env | grep SUPABASE`"
-5. **Keep the downloaded `/tmp/{slug}-hero-{n}.jpg` files** — they are needed again in Phase 4 for the prod upload.
-6. **Reference images via env var** in components — NEVER commit images to the repo or put them in `public/`:
-   ```ts
-   const STORAGE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products`
-   const images = [`${STORAGE}/assets/{slug}-hero-1.jpg`, ...]
-   ```
-7. **Use `next/image`** with `fill` + `object-cover` for background images — never `<img>` tags
+Spawn **6 `find-upload-image` agents in a single message in parallel** — 3 images × 2 envs (local + dev). Each agent finds, downloads, validates, and uploads one image to one environment.
 
-Do NOT skip this step and use Unsplash URLs directly in the seed/components — images must live in Supabase Storage so they work in all environments and don't depend on Unsplash availability.
+| Agent | description | filename | storage_path | env |
+|-------|-------------|----------|-------------|-----|
+| 1 | "{store vibe} image 1" | `{slug}-hero-1.jpg` | `assets/{slug}-hero-1.jpg` | `local` |
+| 2 | "{store vibe} image 2" | `{slug}-hero-2.jpg` | `assets/{slug}-hero-2.jpg` | `local` |
+| 3 | "{store vibe} image 3" | `{slug}-hero-3.jpg` | `assets/{slug}-hero-3.jpg` | `local` |
+| 4 | "{store vibe} image 1" | `{slug}-hero-1.jpg` | `assets/{slug}-hero-1.jpg` | `dev` |
+| 5 | "{store vibe} image 2" | `{slug}-hero-2.jpg` | `assets/{slug}-hero-2.jpg` | `dev` |
+| 6 | "{store vibe} image 3" | `{slug}-hero-3.jpg` | `assets/{slug}-hero-3.jpg` | `dev` |
+
+Wait for all 6 to return. Each agent returns a `storage_path` — collect all 3 confirmed paths before proceeding. If any agent failed to find or upload, retry with a refined description before moving on.
+
+Once confirmed, **reference images via env var** in components — NEVER commit images to the repo or put them in `public/`:
+```ts
+const STORAGE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products`
+const images = [`${STORAGE}/assets/{slug}-hero-1.jpg`, ...]
+```
+
+Use `next/image` with `fill` + `object-cover` for background images — never `<img>` tags.
+
+Do NOT skip this step and use Pinterest/Unsplash URLs directly in components — images must live in Supabase Storage.
 
 #### Section architecture
 
@@ -230,14 +236,11 @@ Follow the **Conversation Loop** described above. Do not proceed to Phase 2 unti
 
 ### Phase 2: Find and upload hero images FIRST
 
-Before spawning build agents, do the image workflow:
+Before spawning build agents, spawn **6 `find-upload-image` agents in a single message in parallel** (3 images × local + dev). Craft 3 distinct visual descriptions based on the store's products and vibe — e.g. "Black woman wearing a lace-front wig, editorial fashion, warm studio lighting, Ghana".
 
-1. Search Unsplash for 3 images matching the store's products/vibe
-2. Download to `/tmp/{slug}-hero-{1,2,3}.jpg`
-3. Upload to local Supabase Storage (`products/assets/` path)
-4. Upload to dev remote Supabase Storage (credentials from `doppler run --project {slug} --config dev`, or provisioner if store not yet provisioned)
-5. Confirm all 6 uploads succeeded before proceeding
-6. **Do NOT delete the `/tmp` files** — they are needed in Phase 4 for the prod upload
+Wait for all 6 to return. Collect the 3 confirmed `storage_path` values. If any failed, retry with a refined description. Do NOT proceed to Phase 3 until all 3 images are confirmed uploaded to at least `local`.
+
+**Do NOT delete the `/tmp/{slug}-hero-{n}.jpg` files** — they are reused in Phase 4 for the prod upload.
 
 ### Phase 3: Build in parallel
 
@@ -258,10 +261,9 @@ Once all agents complete:
 - Run `task inject` — copies proxy.ts and all shared pages into the app
 - Run a build (`npx next build` inside the app dir) to catch TypeScript errors before the user tries to dev
 - Confirm the supabase/migrations symlink is correct
-- **Upload hero images to prod Supabase Storage**: get URL + key via `doppler run --project {slug} --config prod -- env | grep SUPABASE`, then POST each `/tmp/{slug}-hero-{n}.jpg` to `{SUPABASE_URL}/storage/v1/object/products/assets/{slug}-hero-{n}.jpg`.
-  - If the Doppler prod config doesn't exist yet (command fails or returns no output), skip and leave this note for the user: "⚠️ Prod hero images not uploaded — prod Supabase not provisioned yet. Run `task tg:all APP={slug} ENV=prod` then re-upload with: `doppler run --project {slug} --config prod -- env | grep SUPABASE`"
-  - If the upload returns a non-200 (bucket missing, infra not ready), skip and leave the same note.
-  - If all 3 return 200, confirm success.
+- **Upload hero images to prod**: spawn **3 `find-upload-image` agents in a single message in parallel**, one per image, each with `env: "prod"`. The `/tmp/{slug}-hero-{n}.jpg` files from Phase 2 are still on disk — pass the same `filename` and `storage_path` as before. The agents will skip the find/download step since the file already exists and go straight to upload.
+  - If any agent reports prod credentials missing or upload failed, note it for the user: "⚠️ Prod hero images not uploaded — run `task tg:all APP={slug} ENV=prod` to provision, then re-run the upload agents."
+  - If all 3 return success, confirm.
 - List all created files for the user to review
 
 ## Reference Files
