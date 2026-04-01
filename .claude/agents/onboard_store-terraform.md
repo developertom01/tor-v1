@@ -31,16 +31,7 @@ You are creating the Terraform infrastructure config for a new store in the tor 
 Key values to carry from store config:
 - `from_email` from contact email
 - Supabase vars use `get_env()` with both upper and lowercase fallbacks (match existing pattern exactly)
-- The `dependency "vercel"` block in dev/prod **must** include `mock_outputs` so `plan` works before the vercel workspace has any state:
-  ```hcl
-  dependency "vercel" {
-    config_path = "../vercel"
-    mock_outputs = {
-      project_id = ""
-    }
-    mock_outputs_allowed_terraform_commands = ["plan", "apply"]
-  }
-  ```
+- **Do NOT add a `dependency "vercel"` block** in dev/prod configs. The store module looks up the Vercel project via a `data "vercel_project"` data source using `var.store_id` — no cross-workspace state read needed. Do not pass `vercel_project_id` as an input either.
 
 ## Also update shared Supabase domain lists
 

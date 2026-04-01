@@ -18,11 +18,19 @@ locals {
 }
 
 # --- Vercel ---
+# Look up the project by name — avoids cross-workspace Terraform Cloud state reads
+# which fail when the vercel workspace has no state yet.
+# The vercel-project module creates the project with name = store_id (e.g. "amalshades").
+
+data "vercel_project" "this" {
+  name    = var.store_id
+  team_id = var.vercel_team_id != "" ? var.vercel_team_id : null
+}
 
 module "vercel" {
   source = "../vercel"
 
-  project_id = var.vercel_project_id
+  project_id = data.vercel_project.this.id
   domain     = var.domain
   team_id    = var.vercel_team_id
   env        = var.env
