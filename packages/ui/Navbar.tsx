@@ -50,17 +50,17 @@ export default function Navbar() {
     <>
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-28">
+          <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2">
               {store.logo ? (
                 <Image
                   src={store.logo}
                   alt={store.name}
-                  width={240}
-                  height={88}
-                  className="h-24 w-auto object-contain drop-shadow-md"
-                  style={{ maxWidth: 260 }}
+                  width={180}
+                  height={64}
+                  className="h-16 w-auto object-contain drop-shadow-md"
+                  style={{ maxWidth: 200 }}
                 />
               ) : (
                 <span className="text-2xl font-bold bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">
@@ -70,12 +70,12 @@ export default function Navbar() {
             </Link>
 
             {/* Desktop Nav */}
-            <div className="hidden md:flex items-center gap-10">
-              <Link href="/products" className={`text-base font-semibold transition-colors ${isNavActive('/products') ? 'text-brand-600' : 'text-gray-600 hover:text-brand-600'}`}>
+            <div className="hidden lg:flex items-center gap-8">
+              <Link href="/products" className={`font-medium transition-colors ${isNavActive('/products') ? 'text-brand-600' : 'text-gray-600 hover:text-brand-600'}`}>
                 Shop
               </Link>
               {store.categories.map((cat) => (
-                <Link key={cat.slug} href={`/products?category=${cat.slug}`} className={`text-base font-semibold transition-colors ${isNavActive(`/products?category=${cat.slug}`) ? 'text-brand-600' : 'text-gray-600 hover:text-brand-600'}`}>
+                <Link key={cat.slug} href={`/products?category=${cat.slug}`} className={`font-medium transition-colors ${isNavActive(`/products?category=${cat.slug}`) ? 'text-brand-600' : 'text-gray-600 hover:text-brand-600'}`}>
                   {cat.name}
                 </Link>
               ))}
@@ -83,25 +83,25 @@ export default function Navbar() {
 
             {/* Right side — desktop: icons with labels, mobile: hamburger only */}
             <div className="flex items-center gap-1 sm:gap-3">
-              <Link href="/requests" className={`hidden md:flex flex-col items-center transition-colors px-2 py-1 ${pathname.startsWith('/requests') ? 'text-brand-600' : 'text-gray-500 hover:text-brand-600'}`}>
+              <Link href="/requests" className={`hidden lg:flex flex-col items-center transition-colors px-2 py-1 ${pathname.startsWith('/requests') ? 'text-brand-600' : 'text-gray-500 hover:text-brand-600'}`}>
                 <MessageSquareText className="w-5 h-5" />
                 <span className="text-[10px] font-medium mt-0.5">Requests</span>
               </Link>
-              <Link href="/orders" className={`hidden md:flex flex-col items-center transition-colors px-2 py-1 ${pathname.startsWith('/orders') ? 'text-brand-600' : 'text-gray-500 hover:text-brand-600'}`}>
+              <Link href="/orders" className={`hidden lg:flex flex-col items-center transition-colors px-2 py-1 ${pathname.startsWith('/orders') ? 'text-brand-600' : 'text-gray-500 hover:text-brand-600'}`}>
                 <ClipboardList className="w-5 h-5" />
                 <span className="text-[10px] font-medium mt-0.5">Orders</span>
               </Link>
-              <Link href="/auth" className={`hidden md:flex flex-col items-center transition-colors px-2 py-1 ${pathname.startsWith('/auth') ? 'text-brand-600' : 'text-gray-500 hover:text-brand-600'}`}>
+              <Link href="/auth" className={`hidden lg:flex flex-col items-center transition-colors px-2 py-1 ${pathname.startsWith('/auth') ? 'text-brand-600' : 'text-gray-500 hover:text-brand-600'}`}>
                 <User className="w-5 h-5" />
                 <span className="text-[10px] font-medium mt-0.5">Account</span>
               </Link>
               {admin && (
-                <Link href="/admin" className={`hidden md:flex flex-col items-center transition-colors px-2 py-1 ${pathname.startsWith('/admin') ? 'text-brand-600' : 'text-gray-500 hover:text-brand-600'}`}>
+                <Link href="/admin" className={`hidden lg:flex flex-col items-center transition-colors px-2 py-1 ${pathname.startsWith('/admin') ? 'text-brand-600' : 'text-gray-500 hover:text-brand-600'}`}>
                   <LayoutDashboard className="w-5 h-5" />
                   <span className="text-[10px] font-medium mt-0.5">Admin</span>
                 </Link>
               )}
-              <Link href="/cart" className="hidden md:flex relative flex-col items-center text-gray-500 hover:text-brand-600 transition-colors px-2 py-1">
+              <Link href="/cart" className="hidden lg:flex relative flex-col items-center text-gray-500 hover:text-brand-600 transition-colors px-2 py-1">
                 <ShoppingBag className="w-5 h-5" />
                 <span className="text-[10px] font-medium mt-0.5">Cart</span>
                 {totalItems > 0 && (
@@ -111,8 +111,8 @@ export default function Navbar() {
                 )}
               </Link>
 
-              {/* Mobile: cart badge + hamburger */}
-              <Link href="/cart" className="relative md:hidden text-gray-600 hover:text-brand-600 transition-colors p-1">
+              {/* Mobile/tablet: cart badge + hamburger */}
+              <Link href="/cart" className="relative lg:hidden text-gray-600 hover:text-brand-600 transition-colors p-1">
                 <ShoppingBag className="w-5 h-5" />
                 {totalItems > 0 && (
                   <span className="absolute -top-1 -right-1 bg-brand-600 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
@@ -122,7 +122,7 @@ export default function Navbar() {
               </Link>
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
-                className="md:hidden text-gray-600 p-1"
+                className="lg:hidden text-gray-600 p-1"
               >
                 <Menu className="w-6 h-6" />
               </button>

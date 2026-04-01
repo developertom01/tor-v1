@@ -67,7 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               description: 'Premium eyewear and custom prescription lenses in Ghana.',
               url: 'https://amalshades.store',
               telephone: '+233552184169',
-              email: 'sarpong@gmail.com',
+              email: 'Nasirdeenahmheenhat@gmail.com',
               address: {
                 '@type': 'PostalAddress',
                 addressLocality: 'Accra',
