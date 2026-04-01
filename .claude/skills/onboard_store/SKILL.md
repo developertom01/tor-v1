@@ -63,15 +63,21 @@ After collecting the required fields, ask the user about branding assets:
 2. If a path doesn't exist, tell the user exactly what's missing and ask them to fix it before continuing:
    > "I couldn't find `{path}`. Please add the file and let me know when it's in place."
 3. Once validated:
-   - Copy the logo file to `apps/{slug}/public/logo.{ext}`
-   - Call the `generate_favicon` MCP tool with the logo path to generate all favicon files:
+   - Call the `process_logo` MCP tool to remove the background, trim whitespace, and boost contrast:
      ```
-     tool: generate_favicon
-     logo_path: {absolute path to the logo}
+     tool: process_logo
+     logo_path: {absolute path to the original logo}
      app: {slug}
      ```
-     This generates `favicon.ico` (16/32/48/64 px), `apple-touch-icon.png` (180 px), and `icon.png` (32 px) directly into `apps/{slug}/src/app/` — Next.js App Router picks them up automatically.
-   - Set `logo: '/logo.{ext}'` in `store.config.ts`
+     This saves a clean transparent PNG at `apps/{slug}/public/logo.png`.
+   - Then call the `generate_favicon` MCP tool using the processed logo:
+     ```
+     tool: generate_favicon
+     logo_path: {absolute path to apps/{slug}/public/logo.png}
+     app: {slug}
+     ```
+     This generates `favicon.ico` (16/32/48/64 px) into `public/`, and `apple-touch-icon.png` (180 px) + `icon.png` (32 px) into `src/app/` — Next.js App Router picks them up automatically.
+   - Set `logo: '/logo.png'` in `store.config.ts`
 
 **If the user skips:** omit `logo` from `store.config.ts` entirely. Do not add a placeholder.
 
