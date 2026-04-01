@@ -39,7 +39,7 @@ const config: StoreConfig = {
   ],
   contact: {
     phone: '+233 55 218 4169',
-    email: 'sarpong@gmail.com',
+    email: 'Nasirdeenahmheenhat@gmail.com',
     location: 'Accra, Ghana',
   },
   hero: {
