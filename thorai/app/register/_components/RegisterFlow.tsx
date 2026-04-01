@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { submitRegistration } from "@/lib/actions/registrations";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -90,6 +91,8 @@ export default function RegisterFlow() {
   const [step, setStep] = useState(1);
   const [isBuilding, setIsBuilding] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Answers>({
     name: "",
     businessName: "",
@@ -129,6 +132,29 @@ export default function RegisterFlow() {
 
   const handleBack = () => {
     if (step > 1) setStep((s) => s - 1);
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      await submitRegistration({
+        ownerName: answers.name,
+        businessName: answers.businessName,
+        category: answers.categories[0] ?? "",
+        locationCountry: answers.country,
+        locationCity: answers.city || undefined,
+        whatsapp: answers.whatsapp || undefined,
+        logoUrl: answers.logoPreview || undefined,
+        colorPalette: answers.palette || undefined,
+        paymentMethods: answers.payments,
+      });
+      setIsBuilding(true);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const toggleCategory = (id: string) => {
@@ -272,7 +298,9 @@ export default function RegisterFlow() {
                   storeSlug={storeSlug}
                   selectedCountry={selectedCountry}
                   onEditStep={(s) => setStep(s)}
-                  onSubmit={() => setIsBuilding(true)}
+                  onSubmit={handleSubmit}
+                  isSubmitting={isSubmitting}
+                  submitError={submitError}
                 />
               </motion.div>
             </AnimatePresence>
@@ -398,6 +426,8 @@ interface QuestionContentProps {
   selectedCountry: { id: string; label: string; flag: string; code: string } | undefined;
   onEditStep: (s: number) => void;
   onSubmit: () => void;
+  isSubmitting: boolean;
+  submitError: string | null;
 }
 
 function QuestionContent({
@@ -411,6 +441,8 @@ function QuestionContent({
   selectedCountry,
   onEditStep,
   onSubmit,
+  isSubmitting,
+  submitError,
 }: QuestionContentProps) {
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -1043,6 +1075,7 @@ function QuestionContent({
         {/* Launch button */}
         <button
           onClick={() => onSubmit()}
+          disabled={isSubmitting}
           style={{
             width: "100%",
             marginTop: "2rem",
@@ -1050,25 +1083,41 @@ function QuestionContent({
             borderRadius: 8,
             fontSize: "1rem",
             fontWeight: 600,
-            backgroundColor: "var(--color-accent)",
+            backgroundColor: isSubmitting ? "rgba(94,106,210,0.5)" : "var(--color-accent)",
             color: "white",
             border: "none",
-            cursor: "pointer",
+            cursor: isSubmitting ? "not-allowed" : "pointer",
             fontFamily: "var(--font-inter)",
-            boxShadow: "0 4px 24px rgba(94,106,210,0.35)",
+            boxShadow: isSubmitting ? "none" : "0 4px 24px rgba(94,106,210,0.35)",
             transition: "background-color 0.2s, box-shadow 0.2s",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-accent-hover)";
-            (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(94,106,210,0.5)";
+            if (!isSubmitting) {
+              (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-accent-hover)";
+              (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(94,106,210,0.5)";
+            }
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-accent)";
-            (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 24px rgba(94,106,210,0.35)";
+            if (!isSubmitting) {
+              (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-accent)";
+              (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 24px rgba(94,106,210,0.35)";
+            }
           }}
         >
-          Launch My Store
+          {isSubmitting ? "Submitting…" : "Launch My Store"}
         </button>
+        {submitError && (
+          <p
+            style={{
+              marginTop: "0.75rem",
+              fontSize: "0.8125rem",
+              textAlign: "center",
+              color: "#f87171",
+            }}
+          >
+            {submitError}
+          </p>
+        )}
         <p
           style={{
             marginTop: "0.875rem",

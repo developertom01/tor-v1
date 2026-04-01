@@ -24,6 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body>
+        <div className="grain-overlay" aria-hidden="true" />
         {children}
       </body>
     </html>

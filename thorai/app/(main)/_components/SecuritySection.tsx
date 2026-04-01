@@ -87,6 +87,7 @@ export default function SecuritySection() {
   return (
     <section
       id="security"
+      className="clip-diagonal-bottom-reverse"
       style={{
         position: "relative",
         paddingTop: "8rem",

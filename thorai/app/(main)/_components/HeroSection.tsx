@@ -37,6 +37,7 @@ export default function HeroSection() {
   return (
     <section
       ref={sectionRef}
+      className="clip-diagonal-bottom"
       style={{
         position: "relative",
         minHeight: "100vh",
@@ -51,17 +52,13 @@ export default function HeroSection() {
       {/* Dot grid */}
       <DotGrid />
 
-      {/* Radial purple glow */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          pointerEvents: "none",
-          zIndex: 1,
-          background:
-            "radial-gradient(ellipse 60% 40% at 50% 40%, rgba(94,106,210,0.12) 0%, transparent 70%)",
-        }}
-      />
+      {/* Animated gradient mesh */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{zIndex:1}}>
+        <div style={{position:'absolute',top:'20%',left:'25%',width:500,height:500,borderRadius:'50%',background:'#5E6AD2',opacity:0.18,filter:'blur(80px)',animation:'blob1 14s ease-in-out infinite'}} />
+        <div style={{position:'absolute',top:'30%',right:'20%',width:400,height:400,borderRadius:'50%',background:'#3A45B0',opacity:0.14,filter:'blur(80px)',animation:'blob2 16s ease-in-out infinite'}} />
+        <div style={{position:'absolute',bottom:'20%',left:'40%',width:300,height:300,borderRadius:'50%',background:'#F0A500',opacity:0.06,filter:'blur(80px)',animation:'blob3 12s ease-in-out infinite'}} />
+        <div style={{position:'absolute',top:'10%',right:'35%',width:350,height:350,borderRadius:'50%',background:'#9BA3EB',opacity:0.10,filter:'blur(80px)',animation:'blob4 18s ease-in-out infinite'}} />
+      </div>
 
       {/* Bottom fade */}
       <div
@@ -216,6 +213,66 @@ export default function HeroSection() {
             See How It Works
           </Link>
         </div>
+
+        {/* Product preview */}
+        <motion.div
+          initial={{y:40,opacity:0}}
+          animate={{y:0,opacity:1}}
+          transition={{delay:0.5,duration:0.8,ease:[0.16,1,0.3,1]}}
+          style={{marginTop:48,width:'min(860px,90vw)',marginLeft:'auto',marginRight:'auto'}}
+        >
+          <p style={{textAlign:'center',fontSize:'0.75rem',color:'#555555',marginBottom:12,letterSpacing:'0.08em',textTransform:'uppercase'}}>Your store, live in minutes</p>
+          <motion.div
+            animate={{y:[0,-8,0]}}
+            transition={{duration:6,ease:'easeInOut',repeat:Infinity}}
+            style={{
+              background:'#111113',
+              borderRadius:12,
+              border:'1px solid rgba(255,255,255,0.08)',
+              boxShadow:'0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)',
+              transform:'perspective(1000px) rotateX(4deg)',
+              overflow:'hidden',
+            }}
+          >
+            {/* Browser chrome */}
+            <div style={{padding:'10px 14px',borderBottom:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',gap:6}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(255,255,255,0.15)'}} />
+              <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(255,255,255,0.15)'}} />
+              <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(255,255,255,0.15)'}} />
+              <div style={{flex:1,height:20,borderRadius:4,background:'rgba(255,255,255,0.05)',marginLeft:8}} />
+            </div>
+            {/* Mock store content */}
+            <div style={{padding:16}}>
+              {/* Navbar strip */}
+              <div style={{height:32,borderRadius:6,background:'rgba(255,255,255,0.04)',marginBottom:12,display:'flex',alignItems:'center',padding:'0 12px',gap:8}}>
+                <div style={{width:60,height:10,borderRadius:3,background:'rgba(94,106,210,0.4)'}} />
+                <div style={{flex:1}} />
+                <div style={{width:40,height:10,borderRadius:3,background:'rgba(255,255,255,0.08)'}} />
+                <div style={{width:40,height:10,borderRadius:3,background:'rgba(255,255,255,0.08)'}} />
+                <div style={{width:56,height:22,borderRadius:4,background:'rgba(94,106,210,0.5)'}} />
+              </div>
+              {/* Hero banner */}
+              <div style={{height:80,borderRadius:8,background:'linear-gradient(135deg,rgba(94,106,210,0.2),rgba(58,69,176,0.1))',marginBottom:12,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <div style={{textAlign:'center'}}>
+                  <div style={{width:120,height:10,borderRadius:3,background:'rgba(255,255,255,0.2)',margin:'0 auto 6px'}} />
+                  <div style={{width:80,height:8,borderRadius:3,background:'rgba(255,255,255,0.1)',margin:'0 auto'}} />
+                </div>
+              </div>
+              {/* Product grid */}
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+                {[0.4,0.3,0.35].map((op,i)=>(
+                  <div key={i} style={{borderRadius:8,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)',overflow:'hidden'}}>
+                    <div style={{height:48,background:`rgba(94,106,210,${op})`,margin:8,borderRadius:6}} />
+                    <div style={{padding:'0 8px 8px'}}>
+                      <div style={{height:7,borderRadius:2,background:'rgba(255,255,255,0.15)',marginBottom:4}} />
+                      <div style={{height:7,borderRadius:2,background:'rgba(255,255,255,0.08)',width:'60%'}} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
 
         {/* Stat strip */}
         <div
