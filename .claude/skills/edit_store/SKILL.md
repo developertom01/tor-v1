@@ -91,26 +91,35 @@ When a value changes, you often need to update multiple files. Use this map:
 - **Preserve what works.** Don't "improve" or refactor code that isn't part of the change request. If the landing page works fine and they just want a color change, don't rewrite the landing page.
 - **Keep colors in sync.** If brand colors change, both `store.config.ts` and `globals.css` must be updated together. The hex values in `@theme inline` must match `store.config.ts`.
 
-### Landing page rewrites and design revamps
+### Landing page changes
 
-If the user asks for a new landing page, a design revamp, or any major visual overhaul, this is a full creative rebuild. Apply the same visual quality bar as onboarding:
+#### When to edit directly (no pipeline needed)
 
-#### Required visual quality bar
+For contained changes, just edit the files. Do not spawn the UI pipeline:
 
-Every revamped landing page MUST have:
+- Changing copy (headline, tagline, CTA text, testimonials)
+- Tweaking a single section (adjusting overlay opacity, reordering items, swapping an icon)
+- Adding one new element to an existing section
+- Fixing a layout bug
 
-- **Real background images from Unsplash** — not flat colors. Find, download, and upload to Supabase Storage before writing any component code.
-- **Parallax scrolling** on the hero and at least one other section — use framer-motion `useScroll` + `useTransform` in a `'use client'` component
-- **Brand color overlay** on all background images — `bg-brand-900/75` (or tuned opacity) so the store's palette always reads through
-- **Gradient vignettes** to blend image edges — `bg-gradient-to-t from-brand-900 via-transparent to-transparent` etc.
-- **`gold-text` CSS class for gradient text** — NEVER `bg-clip-text text-transparent gold-gradient` on block elements (renders as a solid gold rectangle)
-- **Staggered entrance animations** using `Animate` from `@tor/ui/Animate` or framer-motion `whileInView` with staggered delays
-- **`backdrop-blur-sm`** on cards that sit over background images
-- **Rotating crossfade hero** if multiple images — auto-rotate every 5s, 1s CSS transition
+#### When to use the full UI pipeline (plan → build → QA loop)
 
-#### Image workflow for revamps
+Use the full pipeline when the user asks for any of these:
+- A full landing page rebuild / redesign
+- A completely new section being added
+- A visual direction change (different hero layout, new section order, new visual rhythm)
+- "Make it look different / better / more premium"
 
-Spawn **9 `find-upload-image` agents in a single message in parallel** — 3 images × 3 envs (local, dev, prod). Craft 3 distinct visual descriptions based on the store's products and vibe.
+**Ask the user before starting the pipeline:**
+> "This sounds like a full redesign. I'll run the full UI planning and build pipeline — it will plan the new design, build it, and QA it automatically. This takes longer than a direct edit. Want to proceed?"
+
+Only proceed after they confirm.
+
+#### Full UI pipeline
+
+**Step 1 — Upload images**
+
+Spawn **9 `find-upload-image` agents in a single message in parallel** — 3 images × 3 envs (local, dev, prod):
 
 | Agent | description | filename | storage_path | env |
 |-------|-------------|----------|-------------|-----|
@@ -124,14 +133,28 @@ Spawn **9 `find-upload-image` agents in a single message in parallel** — 3 ima
 | 8 | "{store vibe} image 2" | `{slug}-hero-2.jpg` | `assets/{slug}-hero-2.jpg` | `prod` |
 | 9 | "{store vibe} image 3" | `{slug}-hero-3.jpg` | `assets/{slug}-hero-3.jpg` | `prod` |
 
-Wait for all agents to return. Collect the 3 confirmed `storage_path` values from the successful uploads. If any env failed (missing Doppler config, bucket not ready), note it but do not block — proceed with the envs that succeeded. Any skipped env shows a ⚠️ remediation note.
+Wait for all agents. Collect the 3 confirmed `storage_path` values. If any env failed (missing config, bucket not ready), note it with a ⚠️ and proceed.
 
-Once confirmed, reference images via env var in components — never commit to `public/`:
+Reference images via env var — never commit to `public/`:
 ```ts
 const STORAGE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products`
 ```
 
-Use `next/image` with `fill` + `object-cover` for background images — never `<img>` tags.
+**Step 2 — Plan the UI**
+
+Spawn a single **`ui_ux_agent`** with the store's full config and confirmed image paths. Wait for it to return `agent_work/{slug}.ui_plan.md`. Do not proceed until the plan exists.
+
+**Step 3 — Build + QA loop (max 10 iterations)**
+
+Iteration 1:
+1. Spawn `ui_builder`: `slug={slug} plan=agent_work/{slug}.ui_plan.md`
+2. Wait. Then spawn `ui_qa`: `slug={slug} plan=agent_work/{slug}.ui_plan.md`
+3. Wait for the QA report.
+
+Iterations 2–10:
+1. If `Status: PASS` → done.
+2. If `Status: ISSUES FOUND` → capture the full report, spawn `ui_builder` again: `slug={slug} plan=agent_work/{slug}.ui_plan.md qa_report={full report text}`. The builder fixes only flagged issues. Re-run `ui_qa`.
+3. After 10 iterations still failing → report remaining issues to the user and stop.
 
 #### Component architecture
 

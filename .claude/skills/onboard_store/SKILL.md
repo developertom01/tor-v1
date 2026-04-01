@@ -244,9 +244,29 @@ Follow the **Conversation Loop** described above. Do not proceed to Phase 2 unti
 
 Before spawning build agents, spawn **6 `find-upload-image` agents in a single message in parallel** (3 images × local + dev). Craft 3 distinct visual descriptions based on the store's products and vibe — e.g. "Black woman wearing a lace-front wig, editorial fashion, warm studio lighting, Ghana".
 
-Wait for all 6 to return. Collect the 3 confirmed `storage_path` values. If any failed, retry with a refined description. Do NOT proceed to Phase 3 until all 3 images are confirmed uploaded to at least `local`.
+Wait for all 6 to return. Collect the 3 confirmed `storage_path` values. If any failed, retry with a refined description. Do NOT proceed to Phase 2.5 until all 3 images are confirmed uploaded to at least `local`.
 
-**Do NOT delete the `/tmp/{slug}-hero-{n}.jpg` files** — they are reused in Phase 4 for the prod upload.
+**Do NOT delete the `/tmp/{slug}-hero-{n}.jpg` files** — they are reused in Phase 5 for the prod upload.
+
+### Phase 2.5: UI Planning
+
+Spawn a single **`ui_ux_agent`** with the full store config and confirmed image storage paths:
+
+```
+slug={slug}
+display_name={display_name}
+description={description}
+brand_colors={50-900 scale}
+gold_colors={400/500/600}
+categories={list}
+tagline={tagline}
+contact_location={city, country}
+hero_images={storage paths of the 3 confirmed images}
+```
+
+Wait for it to return before proceeding. It will create `agent_work/{slug}.ui_plan.md`.
+
+The plan is the design authority for all UI work that follows. Do not proceed to Phase 3 if the agent failed to produce the plan.
 
 ### Phase 3: Build in parallel
 
@@ -260,6 +280,30 @@ Wait for all 6 to return. Collect the 3 confirmed `storage_path` values. If any 
 | **Agent D** | `onboard_store-ci` | CI workflow update, apps/{slug}/CLAUDE.md, apps/{slug}/AGENTS.md |
 
 Wait for all 4 to return before proceeding.
+
+### Phase 3.5: UI Build + QA loop
+
+Run `ui_builder` then `ui_qa` in a fix-and-retry loop, capped at **10 iterations**.
+
+**Iteration 1:**
+1. Spawn `ui_builder`: `slug={slug} plan=agent_work/{slug}.ui_plan.md`
+2. Wait for it to return.
+3. Spawn `ui_qa`: `slug={slug} plan=agent_work/{slug}.ui_plan.md`
+4. Wait for it to return.
+
+**Loop (iterations 2–10):**
+1. If `ui_qa` returns `Status: PASS` → done. Report:
+   ```
+   ✅ UI QA passed ({slug}) — all sections match the plan.
+   ```
+2. If `ui_qa` returns `Status: ISSUES FOUND`:
+   - Capture the full QA report text.
+   - Spawn `ui_builder` again, passing the report as feedback:
+     `slug={slug} plan=agent_work/{slug}.ui_plan.md qa_report={full report text}`
+   - The builder reads the report and fixes only the flagged issues — it does not rebuild from scratch.
+   - Wait for it to return, then spawn `ui_qa` again.
+   - Repeat.
+3. If still failing after 10 total iterations → stop, report all remaining issues to the user, and proceed anyway (do not block the rest of the pipeline on cosmetic issues).
 
 ### Phase 4: Infra QA — plan, fix, repeat
 
