@@ -3,7 +3,7 @@ include "root" {
 }
 
 terraform {
-  source = "${get_repo_root()}/terraform//modules/doppler-project"
+  source = "${get_parent_terragrunt_dir()}//modules/doppler-project"
 }
 
 inputs = {

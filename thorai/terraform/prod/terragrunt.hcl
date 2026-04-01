@@ -17,7 +17,7 @@ locals {
 }
 
 terraform {
-  source = "${get_repo_root()}/terraform//modules/store"
+  source = "${get_parent_terragrunt_dir()}//modules/store"
 }
 
 inputs = {
@@ -37,4 +37,8 @@ inputs = {
   supabase_db_password      = get_env("TF_VAR_THORAI_SUPABASE_DB_PASSWORD", "")
   supabase_database_url     = get_env("TF_VAR_THORAI_SUPABASE_DATABASE_URL", "")
   auth_encryption_key       = get_env("TF_VAR_AUTH_ENCRYPTION_KEY", "")
+  linear_api_key            = get_env("TF_VAR_LINEAR_API_KEY", "")
+  linear_website_builder_team_id = get_env("TF_VAR_LINEAR_WEBSITE_BUILDER_TEAM_ID", "")
+  paystack_public_key       = ""
+  paystack_secret_key       = ""
 }

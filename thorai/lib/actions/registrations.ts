@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createStoreRegistrationTicket } from '@/lib/linear'
 import { redirect } from 'next/navigation'
 
 export type RegistrationData = {
@@ -21,7 +22,8 @@ export async function submitRegistration(data: RegistrationData) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) redirect('/auth')
 
-  const { error } = await supabase
+  // 1. Save registration to Supabase
+  const { data: registration, error } = await supabase
     .from('store_registrations')
     .insert({
       user_id: user.id,
@@ -36,8 +38,34 @@ export async function submitRegistration(data: RegistrationData) {
       payment_methods: data.paymentMethods,
       status: 'pending',
     })
+    .select('id')
+    .single()
 
   if (error) throw new Error(error.message)
+
+  // 2. Create Linear ticket in the website builder team
+  try {
+    const ticket = await createStoreRegistrationTicket({
+      ownerName: data.ownerName,
+      businessName: data.businessName,
+      category: data.category,
+      locationCountry: data.locationCountry,
+      locationCity: data.locationCity,
+      whatsapp: data.whatsapp,
+      colorPalette: data.colorPalette,
+      paymentMethods: data.paymentMethods,
+      userEmail: user.email ?? '',
+    })
+
+    // 3. Store the ticket ID + URL back on the registration row
+    await supabase
+      .from('store_registrations')
+      .update({ linear_ticket_id: ticket.identifier })
+      .eq('id', registration.id)
+  } catch (linearError) {
+    // Linear failure does not block the user — registration is already saved
+    console.error('Linear ticket creation failed:', linearError)
+  }
 }
 
 export async function getMyRegistrations() {

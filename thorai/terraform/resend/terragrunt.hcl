@@ -8,7 +8,7 @@ locals {
 }
 
 terraform {
-  source = "${get_repo_root()}/terraform//modules/resend"
+  source = "${get_parent_terragrunt_dir()}//modules/resend"
 }
 
 inputs = {
