@@ -7,14 +7,6 @@ dependency "doppler" {
   skip_outputs = true
 }
 
-dependency "vercel" {
-  config_path = "../vercel"
-  mock_outputs = {
-    project_id = ""
-  }
-  mock_outputs_allowed_terraform_commands = ["plan", "apply"]
-}
-
 locals {
   name         = "amalshades"
   display_name = "Amal-shades"
@@ -46,5 +38,4 @@ inputs = {
   supabase_db_password      = get_env("TF_VAR_SUPABASE_DB_PASSWORD", get_env("TF_VAR_supabase_db_password", ""))
   supabase_database_url     = get_env("TF_VAR_SUPABASE_DATABASE_URL", get_env("TF_VAR_supabase_database_url", ""))
   auth_encryption_key       = get_env("TF_VAR_AUTH_ENCRYPTION_KEY", get_env("TF_VAR_auth_encryption_key", ""))
-  vercel_project_id         = dependency.vercel.outputs.project_id
 }

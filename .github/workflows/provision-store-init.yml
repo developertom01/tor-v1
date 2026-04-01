@@ -494,7 +494,8 @@ jobs:
             terragrunt plan
           fi
 
-  # --- Step 4: Run migrations + seed admin (apply only) ---
+  # --- Step 4: Seed data + admin (apply only) ---
+  # Migrations are managed centrally via db-push.yml (shared Supabase project).
   post-provision:
     needs: provision-store
     if: inputs.action == 'apply'
@@ -502,11 +503,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
 
       - name: Install Doppler CLI
         uses: dopplerhq/cli-action@v3
@@ -520,22 +516,9 @@ jobs:
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
-      - name: Get Supabase access token
-        run: |
-          TOKEN=$(doppler secrets get TF_VAR_SUPABASE_ACCESS_TOKEN --plain --project provisioner --config ${{ inputs.env }})
-          echo "::add-mask::$TOKEN"
-          echo "SUPABASE_ACCESS_TOKEN=$TOKEN" >> "$GITHUB_ENV"
-        env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-
-      - name: Run database migrations
+      - name: Seed store data
         working-directory: apps/${{ inputs.store }}
         run: |
-          PROJECT_REF=$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co||')
-          DB_PASS=$(doppler secrets get SUPABASE_DB_PASSWORD --plain --project ${{ inputs.store }} --config ${{ inputs.env }})
-          supabase link --project-ref "$PROJECT_REF"
-          supabase db push --password "$DB_PASS"
-
           # Seed store row + settings (safe for all envs)
           node ../../scripts/seed-settings.mjs "${{ inputs.store }}"
 
