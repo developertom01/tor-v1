@@ -261,7 +261,61 @@ Wait for all 6 to return. Collect the 3 confirmed `storage_path` values. If any 
 
 Wait for all 4 to return before proceeding.
 
-### Phase 4: Verify + upload prod images
+### Phase 4: Infra QA — plan, fix, repeat
+
+Run Terraform plans against all infra targets to catch config errors before CI. Use a fix-and-retry loop capped at **10 iterations per wave**.
+
+#### Wave 1 — vercel, resend, doppler (parallel, no prerequisites)
+
+Spawn **3 `infra_qa` agents in a single message in parallel**:
+
+| Agent | arguments |
+|-------|-----------|
+| QA-vercel | `store={slug} target=vercel env=dev` |
+| QA-resend | `store={slug} target=resend env=dev` |
+| QA-doppler | `store={slug} target=doppler env=dev` |
+
+Wait for all 3. Then loop (max 10 iterations):
+
+1. Collect all `FAIL` reports (ignore `PASS` and `BLOCKED`).
+2. If no `FAIL` results → Wave 1 passes. Proceed to Wave 2.
+3. For each `FAIL`, read the file identified in the report and apply the fix described.
+4. Re-spawn only the `infra_qa` agents that previously failed (in parallel if multiple).
+5. Repeat from step 1.
+6. If still failing after 10 iterations → stop, report all remaining failures to the user, and do not proceed to Wave 2.
+
+#### Wave 2 — dev and prod (parallel, requires vercel project to be applied)
+
+**Before spawning Wave 2 agents**: run `task tg:vercel APP={slug} ENV=dev` to ensure the Vercel project exists, so the `data.vercel_project` lookup in the plan succeeds.
+
+Spawn **2 `infra_qa` agents in a single message in parallel**:
+
+| Agent | arguments |
+|-------|-----------|
+| QA-dev | `store={slug} target=dev env=dev` |
+| QA-prod | `store={slug} target=prod env=prod` |
+
+Wait for both. Then loop (max 10 iterations) using the same fix-and-retry logic as Wave 1:
+
+1. Collect `FAIL` reports. `BLOCKED` results mean a prerequisite apply hasn't run — note them but don't treat as fixable code errors.
+2. If no `FAIL` → Wave 2 passes. Proceed to Phase 5.
+3. Fix the file(s) identified in each `FAIL` report.
+4. Re-spawn failed agents in parallel.
+5. Repeat. Stop at 10 iterations and report any remaining failures.
+
+#### After both waves pass
+
+Report a summary to the user:
+```
+✅ Infra QA passed ({slug})
+  vercel  → PASS (N to add)
+  resend  → PASS (N to add)
+  doppler → PASS (N to add)
+  dev     → PASS (N to add)
+  prod    → PASS (N to add)
+```
+
+### Phase 5: Verify + upload prod images
 
 Once all agents complete:
 - Run `task inject` — copies proxy.ts and all shared pages into the app
