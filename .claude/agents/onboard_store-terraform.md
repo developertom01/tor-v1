@@ -38,7 +38,7 @@ Key values to carry from store config:
     mock_outputs = {
       project_id = ""
     }
-    mock_outputs_allowed_terraform_commands = ["plan"]
+    mock_outputs_allowed_terraform_commands = ["plan", "apply"]
   }
   ```
 
