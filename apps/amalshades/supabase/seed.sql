@@ -9,14 +9,12 @@
 INSERT INTO public.stores (id, display_name, domain) VALUES
   ('hairlukgud',   'Hair Luk Gud GH', 'hairlukgud.com'),
   ('hairfordays',  'Hair For Days',   'hairfordays.store'),
-  ('aseesthreads', 'Asse''s Threads', 'aseesthreads.store'),
-  ('amalshades',   'Amal-shades',     'amalshades.store')
+  ('aseesthreads', 'Asse''s Threads', 'aseesthreads.store')
 ON CONFLICT (id) DO NOTHING;
 
 -- Store settings (one row per store, settings jsonb)
 INSERT INTO public.store_settings (store_id, settings) VALUES
   ('hairlukgud',   '{"bypass_payment": true, "online_payments_enabled": false}'),
   ('hairfordays',  '{"bypass_payment": true, "online_payments_enabled": false}'),
-  ('aseesthreads', '{"bypass_payment": true, "online_payments_enabled": false}'),
-  ('amalshades',   '{"bypass_payment": true, "online_payments_enabled": false}')
+  ('aseesthreads', '{"bypass_payment": true, "online_payments_enabled": false}')
 ON CONFLICT (store_id) DO NOTHING;

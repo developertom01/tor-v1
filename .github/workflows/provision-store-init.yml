@@ -11,6 +11,7 @@ on:
           - hairlukgud
           - hairfordays
           - aseesthreads
+          - amalshades
       env:
         description: "Environment"
         required: true

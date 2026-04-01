@@ -25,6 +25,22 @@
       "env": {
         "RESEND_API_KEY": "${RESEND_API_KEY}"
       }
+    },
+    "upload-image": {
+      "command": "node",
+      "args": ["agents/mcp-upload-image.mjs"]
+    },
+    "favicon-gen": {
+      "command": "node",
+      "args": ["agents/mcp-favicon.mjs"]
+    },
+    "linear": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.linear.app/sse"]
+    },
+      "doppler": {
+      "command": "npx",
+      "args": ["-y", "@dopplerhq/mcp-server"]
     }
   }
 }

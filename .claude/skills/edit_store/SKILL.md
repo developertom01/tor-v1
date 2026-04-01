@@ -101,19 +101,28 @@ Every revamped landing page MUST have:
 
 #### Image workflow for revamps
 
-1. Search Unsplash for 3 images matching the store's products and vibe
-2. Download to `/tmp/{slug}-hero-{n}.jpg`
-3. Upload to Supabase Storage — **all three environments**:
-   - **Local**: `curl -s -X POST "http://127.0.0.1:54321/storage/v1/object/products/assets/{slug}-hero-{n}.jpg" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU" -H "Content-Type: image/jpeg" --data-binary "@/tmp/{slug}-hero-{n}.jpg"`
-   - **Dev remote**: get URL + key via `doppler run --project {slug} --config dev -- env | grep SUPABASE`, then POST to `{SUPABASE_URL}/storage/v1/object/products/assets/{slug}-hero-{n}.jpg`
-   - **Prod remote**: get URL + key via `doppler run --project {slug} --config prod -- env | grep SUPABASE`, then POST to `{SUPABASE_URL}/storage/v1/object/products/assets/{slug}-hero-{n}.jpg`
+Spawn **9 `find-upload-image` agents in a single message in parallel** — 3 images × 3 envs (local, dev, prod). Craft 3 distinct visual descriptions based on the store's products and vibe.
 
-   All three must return HTTP 200 before proceeding. Do not skip prod — images missing in prod means broken images on the live site.
-4. Reference via env var in components — never commit images to `public/`:
-   ```ts
-   const STORAGE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products`
-   ```
-5. Use `next/image` with `fill` + `object-cover` for background images
+| Agent | description | filename | storage_path | env |
+|-------|-------------|----------|-------------|-----|
+| 1 | "{store vibe} image 1" | `{slug}-hero-1.jpg` | `assets/{slug}-hero-1.jpg` | `local` |
+| 2 | "{store vibe} image 2" | `{slug}-hero-2.jpg` | `assets/{slug}-hero-2.jpg` | `local` |
+| 3 | "{store vibe} image 3" | `{slug}-hero-3.jpg` | `assets/{slug}-hero-3.jpg` | `local` |
+| 4 | "{store vibe} image 1" | `{slug}-hero-1.jpg` | `assets/{slug}-hero-1.jpg` | `dev` |
+| 5 | "{store vibe} image 2" | `{slug}-hero-2.jpg` | `assets/{slug}-hero-2.jpg` | `dev` |
+| 6 | "{store vibe} image 3" | `{slug}-hero-3.jpg` | `assets/{slug}-hero-3.jpg` | `dev` |
+| 7 | "{store vibe} image 1" | `{slug}-hero-1.jpg` | `assets/{slug}-hero-1.jpg` | `prod` |
+| 8 | "{store vibe} image 2" | `{slug}-hero-2.jpg` | `assets/{slug}-hero-2.jpg` | `prod` |
+| 9 | "{store vibe} image 3" | `{slug}-hero-3.jpg` | `assets/{slug}-hero-3.jpg` | `prod` |
+
+Wait for all agents to return. Collect the 3 confirmed `storage_path` values from the successful uploads. If any env failed (missing Doppler config, bucket not ready), note it but do not block — proceed with the envs that succeeded. Any skipped env shows a ⚠️ remediation note.
+
+Once confirmed, reference images via env var in components — never commit to `public/`:
+```ts
+const STORAGE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products`
+```
+
+Use `next/image` with `fill` + `object-cover` for background images — never `<img>` tags.
 
 #### Component architecture
 

@@ -1,0 +1,167 @@
+{
+  "display_name": "Amal-shades",
+  "domain": "amalshades.store",
+  "products": [
+    {
+      "name": "Classic Aviator Sunglasses - Gold/Brown",
+      "slug": "classic-aviator-sunglasses-gold-brown",
+      "description": "Timeless teardrop aviator frames in polished gold metal with warm brown gradient lenses. UV400 protection keeps your eyes shielded without compromising style. The kind of pair that works with everything from a dashiki to a boardroom suit.",
+      "price": 320,
+      "compare_at_price": 390,
+      "category": "sunglasses",
+      "in_stock": true,
+      "stock_quantity": 18,
+      "featured": true,
+      "image_url": "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800&q=80"
+    },
+    {
+      "name": "Oversized Square Sunglasses - Tortoise",
+      "slug": "oversized-square-sunglasses-tortoise",
+      "description": "Bold oversized square frames in rich tortoiseshell acetate. Polarised lenses cut through Kumasi's midday glare with ease. Wide temples and a lightweight build mean you can wear these from morning market to evening outing without fatigue.",
+      "price": 280,
+      "compare_at_price": 350,
+      "category": "sunglasses",
+      "in_stock": true,
+      "stock_quantity": 14,
+      "featured": true,
+      "image_url": "https://images.unsplash.com/photo-1509695507497-903c140c43b0?w=800&q=80"
+    },
+    {
+      "name": "Cat-Eye Sunglasses - Black Gloss",
+      "slug": "cat-eye-sunglasses-black-gloss",
+      "description": "Sleek cat-eye silhouette in high-gloss black with smoke-tinted lenses. A frame that makes a statement without trying too hard. UV400 certified — protecting your eyes is part of the look.",
+      "price": 250,
+      "category": "sunglasses",
+      "in_stock": true,
+      "stock_quantity": 20,
+      "featured": false,
+      "image_url": "https://images.unsplash.com/photo-1473496169904-658ba7574b0d?w=800&q=80"
+    },
+    {
+      "name": "Sporty Wraparound Sunglasses - Matte Black",
+      "slug": "sporty-wraparound-sunglasses-matte-black",
+      "description": "Designed for active days — cycling, running, or watching a match at the stadium. Full wraparound coverage in matte black with shatterproof polycarbonate lenses. Rubber-grip nose pads keep them locked in place, sweat or no sweat.",
+      "price": 195,
+      "category": "sunglasses",
+      "in_stock": true,
+      "stock_quantity": 22,
+      "featured": false,
+      "image_url": "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&q=80"
+    },
+    {
+      "name": "Wayfarer Sunglasses - Navy Blue",
+      "slug": "wayfarer-sunglasses-navy-blue",
+      "description": "The wayfarer shape, reimagined in deep navy blue acetate with dark grey lenses. A versatile everyday frame that suits both sharp and casual looks. Comes with a hard protective case.",
+      "price": 230,
+      "compare_at_price": 280,
+      "category": "sunglasses",
+      "in_stock": true,
+      "stock_quantity": 16,
+      "featured": false,
+      "image_url": "https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=800&q=80"
+    },
+    {
+      "name": "Classic Round Prescription Frame - Matte Black",
+      "slug": "classic-round-prescription-frame-matte-black",
+      "description": "Understated round frames in matte black — a wardrobe staple that never dates. Lightweight acetate construction with spring hinges for a comfortable, all-day fit. Bring your prescription and we'll fit the lenses right here in Kumasi.",
+      "price": 380,
+      "compare_at_price": 460,
+      "category": "prescription-frames",
+      "in_stock": true,
+      "stock_quantity": 12,
+      "featured": true,
+      "image_url": "https://images.unsplash.com/photo-1574258495973-f010dfbb5371?w=800&q=80"
+    },
+    {
+      "name": "Thin Titanium Rectangle Frame - Silver",
+      "slug": "thin-titanium-rectangle-frame-silver",
+      "description": "Ultra-thin titanium rectangle frame in brushed silver — built for those who want precision without weight. Corrosion-resistant and hypoallergenic, ideal for Ghana's humid climate. Available with single-vision, bifocal, or progressive lenses.",
+      "price": 580,
+      "compare_at_price": 720,
+      "category": "prescription-frames",
+      "in_stock": true,
+      "stock_quantity": 8,
+      "featured": true,
+      "image_url": "https://images.unsplash.com/photo-1508296695146-257a814070b4?w=800&q=80"
+    },
+    {
+      "name": "Acetate Rectangular Frame - Warm Brown",
+      "slug": "acetate-rectangular-frame-warm-brown",
+      "description": "Rich warm-brown acetate rectangle frames with a subtle texture that catches the light. Comfortable for long hours at the office or screen time. A natural complement to deeper skin tones.",
+      "price": 420,
+      "category": "prescription-frames",
+      "in_stock": true,
+      "stock_quantity": 10,
+      "featured": false,
+      "image_url": "https://images.unsplash.com/photo-1591076482161-42ce6da69f67?w=800&q=80"
+    },
+    {
+      "name": "Reading Glasses +2.0 - Transparent Rose",
+      "slug": "reading-glasses-2-0-transparent-rose",
+      "description": "Lightweight reading glasses in a chic transparent rose frame — sharp where it matters, stylish all the time. +2.0 magnification for menus, books, and fine print. Keep a pair on your desk, one in your bag.",
+      "price": 120,
+      "compare_at_price": 150,
+      "category": "reading-glasses",
+      "in_stock": true,
+      "stock_quantity": 28,
+      "featured": false,
+      "image_url": "https://images.unsplash.com/photo-1587613864521-9ef8dfe617cc?w=800&q=80"
+    },
+    {
+      "name": "Reading Glasses +1.5 - Classic Black",
+      "slug": "reading-glasses-1-5-classic-black",
+      "description": "+1.5 reading glasses in a no-fuss classic black frame. Full-lens magnification with scratch-resistant coating. Slim profile folds into any pocket or bag without fuss.",
+      "price": 95,
+      "category": "reading-glasses",
+      "in_stock": true,
+      "stock_quantity": 30,
+      "featured": false,
+      "image_url": "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=800&q=80"
+    },
+    {
+      "name": "Daily Disposable Contact Lenses - 30 Pack",
+      "slug": "daily-disposable-contact-lenses-30-pack",
+      "description": "Fresh lenses every day, zero maintenance. Our daily disposables offer crisp, all-day clarity with high oxygen permeability — your eyes breathe easy from first light to last. 30-lens pack, available in your prescription power.",
+      "price": 180,
+      "compare_at_price": 220,
+      "category": "contact-lenses",
+      "in_stock": true,
+      "stock_quantity": 25,
+      "featured": true,
+      "image_url": "https://images.unsplash.com/photo-1585435557343-3b092031a831?w=800&q=80"
+    },
+    {
+      "name": "Hazel Coloured Contact Lenses - Monthly",
+      "slug": "hazel-coloured-contact-lenses-monthly",
+      "description": "Switch up your look with warm hazel coloured monthly lenses. Available in plano (no prescription) and corrective powers. Each pack contains 2 lenses — one month of stunning, natural-looking colour.",
+      "price": 145,
+      "category": "contact-lenses",
+      "in_stock": true,
+      "stock_quantity": 20,
+      "featured": false,
+      "image_url": "https://images.unsplash.com/photo-1583394293214-52f7d3f27a9a?w=800&q=80"
+    },
+    {
+      "name": "Hardshell Glasses Case - Midnight Black",
+      "slug": "hardshell-glasses-case-midnight-black",
+      "description": "Rigid hardshell case in midnight black with a soft microfibre interior lining. Snap-close hinge keeps your frames secure in a bag, car, or pocket. Fits most full-size frames.",
+      "price": 45,
+      "category": "accessories",
+      "in_stock": true,
+      "stock_quantity": 40,
+      "featured": false,
+      "image_url": "https://images.unsplash.com/photo-1614258495973-f010dfbb5371?w=800&q=80"
+    },
+    {
+      "name": "Lens Cleaning Kit - Spray & Cloth",
+      "slug": "lens-cleaning-kit-spray-cloth",
+      "description": "Keep every lens spotless with this anti-smudge spray and premium microfibre cloth set. Safe on all coatings including anti-reflective and blue-light filters. A must-have in every glasses case.",
+      "price": 35,
+      "category": "accessories",
+      "in_stock": true,
+      "stock_quantity": 50,
+      "featured": false,
+      "image_url": "https://images.unsplash.com/photo-1585915419914-1b5a0dc7f2a1?w=800&q=80"
+    }
+  ]
+}
