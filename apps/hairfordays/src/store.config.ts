@@ -4,7 +4,7 @@ const config: StoreConfig = {
   name: 'Hair For Days',
   tagline: 'Premium quality wigs and hair extensions in Ghana. Hair that lasts for days.',
   domain: 'hairfordays.store',
-  logo: '/logo.png',
+  logo: '/logo.svg',
   theme: {
     brand: {
       50: '#f9f9f8', 100: '#f0eeeb', 200: '#dbd8d2', 300: '#b8b3ab', 400: '#8a8279',
