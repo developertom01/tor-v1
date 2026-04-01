@@ -83,7 +83,7 @@ export default function CtaSection() {
           <div className="mt-16 inline-flex items-center gap-2 text-brand-400 text-xs tracking-wide">
             <span>+233 55 218 4169</span>
             <span className="w-px h-3 bg-brand-700" />
-            <span>sarpong@gmail.com</span>
+            <span>Nasirdeenahmheenhat@gmail.com</span>
             <span className="w-px h-3 bg-brand-700" />
             <span>Accra, Ghana</span>
           </div>
