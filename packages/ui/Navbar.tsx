@@ -50,17 +50,17 @@ export default function Navbar() {
     <>
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-28">
+          <div className="flex items-center justify-between h-36">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2">
               {store.logo ? (
                 <Image
                   src={store.logo}
                   alt={store.name}
-                  width={240}
-                  height={88}
-                  className="h-24 w-auto object-contain drop-shadow-md"
-                  style={{ maxWidth: 260 }}
+                  width={320}
+                  height={120}
+                  className="h-32 w-auto object-contain drop-shadow-md"
+                  style={{ maxWidth: 340 }}
                 />
               ) : (
                 <span className="text-2xl font-bold bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">
@@ -70,12 +70,12 @@ export default function Navbar() {
             </Link>
 
             {/* Desktop Nav */}
-            <div className="hidden md:flex items-center gap-10">
-              <Link href="/products" className={`text-base font-semibold transition-colors ${isNavActive('/products') ? 'text-brand-600' : 'text-gray-600 hover:text-brand-600'}`}>
+            <div className="hidden md:flex items-center gap-12">
+              <Link href="/products" className={`text-lg font-semibold tracking-wide transition-colors ${isNavActive('/products') ? 'text-brand-600' : 'text-gray-700 hover:text-brand-600'}`}>
                 Shop
               </Link>
               {store.categories.map((cat) => (
-                <Link key={cat.slug} href={`/products?category=${cat.slug}`} className={`text-base font-semibold transition-colors ${isNavActive(`/products?category=${cat.slug}`) ? 'text-brand-600' : 'text-gray-600 hover:text-brand-600'}`}>
+                <Link key={cat.slug} href={`/products?category=${cat.slug}`} className={`text-lg font-semibold tracking-wide transition-colors ${isNavActive(`/products?category=${cat.slug}`) ? 'text-brand-600' : 'text-gray-700 hover:text-brand-600'}`}>
                   {cat.name}
                 </Link>
               ))}
