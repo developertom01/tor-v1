@@ -75,11 +75,13 @@ variable "supabase_database_url" {
 # ── Shared credentials & config (passed via root.hcl inputs) ──
 
 variable "google_project_id" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "google_support_email" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "resend_api_key" {
