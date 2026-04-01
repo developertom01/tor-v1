@@ -156,21 +156,6 @@ Iterations 2–10:
 2. If `Status: ISSUES FOUND` → capture the full report, spawn `ui_builder` again: `slug={slug} plan=agent_work/{slug}.ui_plan.md qa_report={full report text}`. The builder fixes only flagged issues. Re-run `ui_qa`.
 3. After 10 iterations still failing → report remaining issues to the user and stop.
 
-#### Component architecture
-
-- Split into server `page.tsx` + `'use client'` components in `src/app/_components/`
-- Only make a component `'use client'` if it truly needs `useScroll`, `useTransform`, or `useState`
-- All other sections → server components using `Animate` from `@tor/ui/Animate`
-- `FeaturedProductsSection` props must use `ProductWithMedia[]` from `@tor/lib/types` — not a loose generic interface (causes TypeScript errors that hang the dev compiler)
-
-#### Design variation
-
-Make the revamped page feel completely different from the existing stores:
-- Vary hero layout, section order, visual rhythm, CTA style, icon choices, typography
-- Read `apps/aseesthreads/src/app/page.tsx` + `_components/` as the reference for the image/parallax/overlay pattern
-- The one required section is Featured Products with the `ProductCard` grid
-- But if they just want a word changed, change the word — don't rebuild everything
-
 ## Reference Files
 
 Read these to understand exact formats before editing:
