@@ -4,7 +4,7 @@ const config: StoreConfig = {
   name: 'Amal-shades',
   tagline: 'Premium eyewear and custom prescription lenses in Ghana. Frame your world with confidence.',
   domain: 'amalshades.store',
-  logo: '/logo.jpeg',
+  logo: '/logo.png',
   theme: {
     brand: {
       50: '#FFF0F0', 100: '#FFD6D8', 200: '#FFB0B4', 300: '#FF7F85', 400: '#F54A52',

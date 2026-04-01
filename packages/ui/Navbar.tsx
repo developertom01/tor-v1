@@ -50,15 +50,23 @@ export default function Navbar() {
     <>
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2">
-              {store.logo && (
-                <Image src={store.logo} alt={store.name} width={32} height={32} className="rounded-sm" />
+              {store.logo ? (
+                <Image
+                  src={store.logo}
+                  alt={store.name}
+                  width={180}
+                  height={64}
+                  className="h-16 w-auto object-contain drop-shadow-md"
+                  style={{ maxWidth: 200 }}
+                />
+              ) : (
+                <span className="text-2xl font-bold bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">
+                  {store.name}
+                </span>
               )}
-              <span className="text-2xl font-bold bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">
-                {store.name}
-              </span>
             </Link>
 
             {/* Desktop Nav */}

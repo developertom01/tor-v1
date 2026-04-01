@@ -66,9 +66,10 @@ const TOOLS = [
   {
     name: 'generate_favicon',
     description:
-      'Generate a favicon.ico (16/32/48/64 px), apple-touch-icon.png (180 px), and icon.png (32 px) ' +
-      "from a logo image, then save them into the store app's Next.js app/ directory. " +
-      'Next.js App Router serves all three automatically — no config changes required.',
+      'Process a raw logo image (removes white/cream background, trims whitespace, boosts contrast), ' +
+      'saves the cleaned version as logo.png in public/, then generates favicon.ico (16/32/48/64 px), ' +
+      'apple-touch-icon.png (180 px), and icon.png (32 px) from it. ' +
+      'Next.js App Router serves all files automatically — no config changes required.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -78,7 +79,7 @@ const TOOLS = [
         },
         app: {
           type: 'string',
-          description: "Store app slug, e.g. 'amalshades'. Files are saved to apps/{app}/src/app/.",
+          description: "Store app slug, e.g. 'amalshades'. Files are saved to apps/{app}/public/ and apps/{app}/src/app/.",
         },
         repo_root: {
           type: 'string',
@@ -90,6 +91,45 @@ const TOOLS = [
   },
 ]
 
+/**
+ * Remove white/cream background from a logo, auto-trim transparent edges,
+ * and boost contrast + saturation so the mark pops on any background.
+ * Returns a Buffer of the processed PNG.
+ */
+async function processLogo(logo_path) {
+  const BG_THRESHOLD = 230
+
+  const { data, info } = await sharp(logo_path)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+
+  const { width, height, channels } = info
+  const pixels = new Uint8Array(data)
+
+  for (let i = 0; i < pixels.length; i += channels) {
+    const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2]
+
+    if (r >= BG_THRESHOLD && g >= BG_THRESHOLD && b >= BG_THRESHOLD) {
+      // Fully transparent — background pixel
+      pixels[i + 3] = 0
+    } else if (r >= BG_THRESHOLD - 20 && g >= BG_THRESHOLD - 20 && b >= BG_THRESHOLD - 20) {
+      // Anti-aliasing fringe — fade out proportionally
+      const brightness = (r + g + b) / 3
+      const alpha = Math.round((1 - (brightness - (BG_THRESHOLD - 20)) / 20) * 255)
+      pixels[i + 3] = Math.max(0, Math.min(255, alpha))
+    }
+  }
+
+  return sharp(pixels, { raw: { width, height, channels } })
+    .png()
+    .trim({ threshold: 10 })       // crop surrounding transparent border
+    .modulate({ saturation: 1.4 }) // vivid reds/blacks
+    .linear(1.25, -15)             // boost contrast
+    .sharpen({ sigma: 0.8 })       // crisp edges
+    .toBuffer()
+}
+
 async function generateFavicon(args) {
   const { logo_path, app, repo_root = '/Users/thomassarpong/tor' } = args
 
@@ -98,19 +138,26 @@ async function generateFavicon(args) {
     throw new Error(`App directory not found: ${appDir}`)
   }
 
-  // favicon.ico goes in public/ — Turbopack processes src/app/ through its image pipeline
-  // and cannot decode PNG-embedded ICO files. public/ files are served as-is.
   const publicDir = path.join(repo_root, 'apps', app, 'public')
   if (!fs.existsSync(publicDir)) {
     fs.mkdirSync(publicDir, { recursive: true })
   }
 
-  // Generate PNG buffers for ICO sizes
+  // Step 1: process the raw logo → transparent PNG with trimmed whitespace
+  const processedBuffer = await processLogo(logo_path)
+
+  // Step 2: save the clean logo as logo.png in public/
+  const logoOutPath = path.join(publicDir, 'logo.png')
+  fs.writeFileSync(logoOutPath, processedBuffer)
+
+  // Step 3: generate favicon.ico from the processed logo
+  // favicon.ico goes in public/ — Turbopack processes src/app/ through its image pipeline
+  // and cannot decode PNG-embedded ICO files. public/ files are served as-is.
   const icoSizes = [16, 32, 48, 64]
   const icoEntries = await Promise.all(
     icoSizes.map(async (size) => ({
       size,
-      buffer: await sharp(logo_path)
+      buffer: await sharp(processedBuffer)
         .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
         .png()
         .toBuffer(),
@@ -122,20 +169,22 @@ async function generateFavicon(args) {
 
   // apple-touch-icon.png — 180 px (stays in src/app/ — Next.js handles PNG metadata natively)
   const touchPath = path.join(appDir, 'apple-touch-icon.png')
-  await sharp(logo_path)
+  await sharp(processedBuffer)
     .resize(180, 180, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toFile(touchPath)
 
   // icon.png — 32 px (Next.js <link rel="icon">, stays in src/app/)
   const iconPath = path.join(appDir, 'icon.png')
-  await sharp(logo_path)
+  await sharp(processedBuffer)
     .resize(32, 32, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toFile(iconPath)
 
   return (
-    `✅ Favicon generated for '${app}'\n\n` +
+    `✅ Logo processed + favicon generated for '${app}'\n\n` +
+    `  ${logoOutPath}\n` +
+    `    └─ background removed, trimmed, contrast-boosted — update store.config.ts: logo: '/logo.png'\n` +
     `  ${icoPath}\n` +
     `    └─ contains 16×16, 32×32, 48×48, 64×64 px (PNG-embedded ICO) — in public/\n` +
     `  ${touchPath}\n` +
