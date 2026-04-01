@@ -42,15 +42,21 @@ If the user wants to update the logo or favicon:
 3. Validate the path exists before making any changes. If missing:
    > "I couldn't find `{path}`. Please add the file and let me know when it's ready."
 4. Once validated:
-   - Copy the logo file to `apps/{slug}/public/logo.{ext}` if it isn't already there
-   - Call the `generate_favicon` MCP tool to generate all favicon files from the logo:
+   - Call the `process_logo` MCP tool to remove the background, trim whitespace, and boost contrast:
      ```
-     tool: generate_favicon
-     logo_path: {absolute path to the logo}
+     tool: process_logo
+     logo_path: {absolute path to the original logo}
      app: {slug}
      ```
-     This generates `favicon.ico` (16/32/48/64 px), `apple-touch-icon.png` (180 px), and `icon.png` (32 px) directly into `apps/{slug}/src/app/`. No manual favicon file preparation needed.
-   - Update `store.config.ts` with `logo: '/logo.{ext}'`
+     This saves a clean transparent PNG at `apps/{slug}/public/logo.png`.
+   - Then call the `generate_favicon` MCP tool using the processed logo:
+     ```
+     tool: generate_favicon
+     logo_path: {absolute path to apps/{slug}/public/logo.png}
+     app: {slug}
+     ```
+     This generates `favicon.ico` (16/32/48/64 px) into `public/`, and `apple-touch-icon.png` (180 px) + `icon.png` (32 px) into `src/app/` — Next.js App Router picks them up automatically.
+   - Update `store.config.ts` with `logo: '/logo.png'`
 
 ## Change Propagation Map
 

@@ -34,6 +34,10 @@
       "command": "node",
       "args": ["agents/mcp-favicon.mjs"]
     },
+    "process-logo": {
+      "command": "node",
+      "args": ["agents/mcp-process-logo.mjs"]
+    },
     "linear": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://mcp.linear.app/sse"]
