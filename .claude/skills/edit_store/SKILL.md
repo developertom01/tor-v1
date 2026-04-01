@@ -36,12 +36,21 @@ If the user's request is ambiguous or could affect multiple files, always clarif
 
 If the user wants to update the logo or favicon:
 
-1. Tell them exactly what files to provide and where to put them:
-   > "Please place your logo at `apps/{slug}/public/logo.{ext}` and your favicon files at `apps/{slug}/src/app/favicon.ico` (and optionally `icon.svg`, `apple-icon.png` in the same directory). Let me know the relative path(s) once they're in place."
-2. Wait for the user to confirm the paths.
-3. Validate each path exists before making any changes. If a file is missing:
+1. Ask for the path to the logo/icon file:
+   > "Please give me the path to your logo file (PNG, JPG, SVG, WebP, etc.). I'll generate all favicon sizes from it automatically."
+2. Wait for the user to provide the path.
+3. Validate the path exists before making any changes. If missing:
    > "I couldn't find `{path}`. Please add the file and let me know when it's ready."
-4. Only after validation, update `store.config.ts` with `logo: '/logo.{ext}'` and confirm the favicon files are in place.
+4. Once validated:
+   - Copy the logo file to `apps/{slug}/public/logo.{ext}` if it isn't already there
+   - Call the `generate_favicon` MCP tool to generate all favicon files from the logo:
+     ```
+     tool: generate_favicon
+     logo_path: {absolute path to the logo}
+     app: {slug}
+     ```
+     This generates `favicon.ico` (16/32/48/64 px), `apple-touch-icon.png` (180 px), and `icon.png` (32 px) directly into `apps/{slug}/src/app/`. No manual favicon file preparation needed.
+   - Update `store.config.ts` with `logo: '/logo.{ext}'`
 
 ## Change Propagation Map
 
