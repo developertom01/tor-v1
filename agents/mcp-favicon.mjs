@@ -98,6 +98,13 @@ async function generateFavicon(args) {
     throw new Error(`App directory not found: ${appDir}`)
   }
 
+  // favicon.ico goes in public/ — Turbopack processes src/app/ through its image pipeline
+  // and cannot decode PNG-embedded ICO files. public/ files are served as-is.
+  const publicDir = path.join(repo_root, 'apps', app, 'public')
+  if (!fs.existsSync(publicDir)) {
+    fs.mkdirSync(publicDir, { recursive: true })
+  }
+
   // Generate PNG buffers for ICO sizes
   const icoSizes = [16, 32, 48, 64]
   const icoEntries = await Promise.all(
@@ -110,17 +117,17 @@ async function generateFavicon(args) {
     }))
   )
 
-  const icoPath = path.join(appDir, 'favicon.ico')
+  const icoPath = path.join(publicDir, 'favicon.ico')
   fs.writeFileSync(icoPath, buildIco(icoEntries))
 
-  // apple-touch-icon.png — 180 px
+  // apple-touch-icon.png — 180 px (stays in src/app/ — Next.js handles PNG metadata natively)
   const touchPath = path.join(appDir, 'apple-touch-icon.png')
   await sharp(logo_path)
     .resize(180, 180, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toFile(touchPath)
 
-  // icon.png — 32 px (Next.js <link rel="icon">)
+  // icon.png — 32 px (Next.js <link rel="icon">, stays in src/app/)
   const iconPath = path.join(appDir, 'icon.png')
   await sharp(logo_path)
     .resize(32, 32, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
@@ -130,13 +137,13 @@ async function generateFavicon(args) {
   return (
     `✅ Favicon generated for '${app}'\n\n` +
     `  ${icoPath}\n` +
-    `    └─ contains 16×16, 32×32, 48×48, 64×64 px (PNG-embedded ICO)\n` +
+    `    └─ contains 16×16, 32×32, 48×48, 64×64 px (PNG-embedded ICO) — in public/\n` +
     `  ${touchPath}\n` +
-    `    └─ 180×180 px (Safari / iOS home screen)\n` +
+    `    └─ 180×180 px (Safari / iOS home screen) — in src/app/\n` +
     `  ${iconPath}\n` +
-    `    └─ 32×32 px (Next.js <link rel="icon">)\n\n` +
-    'Next.js App Router picks these up automatically from app/.\n' +
-    'No changes to layout.tsx or next.config.ts required.'
+    `    └─ 32×32 px (Next.js <link rel="icon">) — in src/app/\n\n` +
+    'favicon.ico is served from public/ (avoids Turbopack image pipeline).\n' +
+    'apple-touch-icon.png and icon.png are picked up automatically from src/app/.'
   )
 }
 
