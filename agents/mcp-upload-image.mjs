@@ -58,13 +58,13 @@ function getCredentials(env) {
 
   // dev or prod — pull from Doppler provisioner
   const out = execSync(
-    `doppler run --project provisioner --config ${env} -- sh -c 'printf "%s %s" "$NEXT_PUBLIC_SUPABASE_URL" "$SUPABASE_SECRET_KEY"'`,
+    `doppler run --project provisioner --config ${env} -- sh -c 'printf "%s %s" "$TF_VAR_SUPABASE_URL" "$TF_VAR_SUPABASE_SERVICE_ROLE_KEY"'`,
     { encoding: 'utf-8' }
   ).trim()
 
   const [supabaseUrl, secretKey] = out.split(' ')
   if (!supabaseUrl || !secretKey) {
-    throw new Error(`Could not read NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SECRET_KEY from Doppler provisioner (${env})`)
+    throw new Error(`Could not read TF_VAR_SUPABASE_URL / TF_VAR_SUPABASE_SERVICE_ROLE_KEY from Doppler provisioner (${env})`)
   }
   return { supabaseUrl, secretKey }
 }
@@ -81,6 +81,7 @@ function uploadImage(filePath, storagePath, env) {
       '-H', `Authorization: Bearer ${secretKey}`,
       '-H', `apikey: ${secretKey}`,
       '-H', 'Content-Type: image/jpeg',
+      '-H', 'x-upsert: true',
       '--data-binary', `@${filePath}`,
     ],
     { encoding: 'utf-8' }

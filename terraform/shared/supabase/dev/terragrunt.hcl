@@ -15,5 +15,6 @@ inputs = {
     "dev.hairluksgudgh.com",
     "dev.hairfordays.store",
     "dev.aseesthreads.store",
+    "dev.amalshades.store",
   ]
 }

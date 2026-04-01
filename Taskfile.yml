@@ -48,6 +48,7 @@ tasks:
       - cd apps/hairlukgud && node ../../scripts/inject-pages.mjs
       - cd apps/hairfordays && node ../../scripts/inject-pages.mjs
       - cd apps/aseesthreads && node ../../scripts/inject-pages.mjs
+      - cd apps/amalshades && node ../../scripts/inject-pages.mjs
 
   # Clean injected pages
   clean:pages:
@@ -77,7 +78,7 @@ tasks:
       - sh: '[ -n "{{.ENV}}" ]'
         msg: "ENV required (dev or prod)"
     cmds:
-      - for: [hairlukgud, hairfordays, aseesthreads]
+      - for: [hairlukgud, hairfordays, aseesthreads, amalshades]
         cmd: doppler run --project {{.ITEM}} --config {{.ENV}} -- node scripts/seed-settings.mjs {{.ITEM}}
 
   seed:products:
@@ -86,7 +87,7 @@ tasks:
       - sh: '[ "{{.ENV}}" = "dev" ]'
         msg: "seed:products is DEV ONLY. Use ENV=dev."
     cmds:
-      - for: [hairlukgud, hairfordays, aseesthreads]
+      - for: [hairlukgud, hairfordays, aseesthreads, amalshades]
         cmd: doppler run --project {{.ITEM}} --config {{.ENV}} -- node scripts/seed-store.mjs {{.ITEM}}
 
   # Terragrunt — Vercel project (once per store, no env)

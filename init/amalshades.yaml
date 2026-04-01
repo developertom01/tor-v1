@@ -1,0 +1,60 @@
+# ============================================
+# Amal-shades — Store Provisioning Config
+# ============================================
+# Env vars are injected at runtime via ${VAR_NAME} syntax.
+# Export them before running: export VERCEL_TOKEN=xxx
+
+project:
+  name: amalshades
+  display_name: "Amal-shades"
+  domain: amalshades.store
+  directory: ./amalshades
+
+# -- Vercel ----------------------------------------------------------
+vercel:
+  token: "${VERCEL_TOKEN}"
+  team_id: "${VERCEL_TEAM_ID}"
+  framework: nextjs
+  node_version: "22.x"
+  build_command: "npm run build"
+  output_directory: ".next"
+  git:
+    repo: "project-tor/tor"
+    branch: "main"
+    root_directory: "amalshades"
+  env_vars:
+    NEXT_PUBLIC_SITE_URL: "https://www.${PROJECT_DOMAIN}"
+    NEXT_PUBLIC_BASE_URL: "https://www.${PROJECT_DOMAIN}"
+    LOG_LEVEL: "info"
+
+# -- Google Cloud (shared project, one OAuth client per store) --------
+google:
+  project_id: "${GOOGLE_CLOUD_PROJECT_ID}"
+  service_account_key: "${GOOGLE_SERVICE_ACCOUNT_KEY}"
+  support_email: "${GOOGLE_SUPPORT_EMAIL}"
+
+# -- Supabase --------------------------------------------------------
+supabase:
+  token: "${SUPABASE_ACCESS_TOKEN}"
+  org_id: "${SUPABASE_ORG_ID}"
+  region: "eu-west-2"
+  db_password: "${SUPABASE_DB_PASSWORD}"
+  auth:
+    site_url: "https://www.${PROJECT_DOMAIN}"
+    redirect_urls:
+      - "https://www.${PROJECT_DOMAIN}/auth/callback"
+      - "https://${PROJECT_DOMAIN}/auth/callback"
+    google: true
+  storage_buckets:
+    - name: products
+      public: true
+
+# -- Resend (email) --------------------------------------------------
+resend:
+  token: "${RESEND_API_KEY}"
+  from_email: "Amal-shades <orders@${PROJECT_DOMAIN}>"
+
+# -- Paystack (payments) ---------------------------------------------
+paystack:
+  public_key: "${PAYSTACK_PUBLIC_KEY}"
+  secret_key: "${PAYSTACK_SECRET_KEY}"

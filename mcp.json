@@ -33,6 +33,10 @@
     "linear": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://mcp.linear.app/sse"]
+    },
+      "doppler": {
+      "command": "npx",
+      "args": ["-y", "@dopplerhq/mcp-server"]
     }
   }
 }

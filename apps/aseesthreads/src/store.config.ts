@@ -26,7 +26,7 @@ const config: StoreConfig = {
   contact: {
     phone: '+233 59 188 5951',
     email: 'mohayideenaseefa83@gmail.com',
-    location: 'Kumasi, Ghana',
+    location: 'Accra, Ghana',
   },
   hero: {
     title: 'Wear Your',

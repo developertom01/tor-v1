@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+@source "../../../../packages/ui/**/*.tsx";
+@source "../../../../packages/lib/**/*.tsx";
+@source "../../../../packages/pages/**/*.tsx";
+@source "../../../../packages/store/**/*.tsx";
+
+@theme inline {
+  --color-brand-50: #FFF0F0;
+  --color-brand-100: #FFD6D8;
+  --color-brand-200: #FFB0B4;
+  --color-brand-300: #FF7F85;
+  --color-brand-400: #F54A52;
+  --color-brand-500: #E62030;
+  --color-brand-600: #CC1020;
+  --color-brand-700: #A80C1A;
+  --color-brand-800: #850912;
+  --color-brand-900: #5C060D;
+  --color-gold-400: #d4a843;
+  --color-gold-500: #c4982f;
+  --color-gold-600: #a67c2e;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #F2EDE4;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Hero gradient */
+.hero-gradient {
+  background: linear-gradient(135deg, #5C060D 0%, #A80C1A 40%, #E62030 100%);
+}
+
+/* Gold accent gradient */
+.gold-gradient {
+  background: linear-gradient(135deg, #d4a843 0%, #c4982f 50%, #a67c2e 100%);
+}
+
+/* Gold gradient text */
+.gold-text {
+  background: linear-gradient(135deg, #d4a843 0%, #c4982f 50%, #a67c2e 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glassmorphism card */
+.glass-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Video thumbnail overlay */
+.video-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Toast slide-in */
+@keyframes slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+/* Dropdown open */
+@keyframes dropdown-open {
+  from { opacity: 0; transform: scaleY(0.9) translateY(-4px); }
+  to { opacity: 1; transform: scaleY(1) translateY(0); }
+}
+.animate-dropdown {
+  transform-origin: top;
+  animation: dropdown-open 0.15s ease-out;
+}
+
+/* Ambient hero animations */
+@keyframes hero-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+@keyframes hero-pulse-glow {
+  0%, 100% { opacity: 0.10; }
+  50% { opacity: 0.20; }
+}
+
+.hero-float {
+  animation: hero-float 4s ease-in-out infinite;
+}
+.hero-glow-pulse {
+  animation: hero-pulse-glow 4s ease-in-out infinite;
+}
+
+/* Hide scrollbar but keep scrolling */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
