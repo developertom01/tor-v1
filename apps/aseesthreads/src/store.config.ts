@@ -4,6 +4,7 @@ const config: StoreConfig = {
   name: "Asee's Threads",
   tagline: 'Stylish athleisure and casual fashion from Kumasi, Ghana. Wide-leg joggers, fitted basics, seamless bodysuits and spandex sets.',
   domain: 'aseesthreads.store',
+  logo: '/logo.svg',
   theme: {
     brand: {
       50: '#fdf9f5', 100: '#f5ece0', 200: '#e8d4b8', 300: '#d4b48a', 400: '#bc9060',
