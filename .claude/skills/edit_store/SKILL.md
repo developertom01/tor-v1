@@ -41,22 +41,83 @@ If the user wants to update the logo or favicon:
 2. Wait for the user to provide the path.
 3. Validate the path exists before making any changes. If missing:
    > "I couldn't find `{path}`. Please add the file and let me know when it's ready."
-4. Once validated:
-   - Call the `process_logo` MCP tool to remove the background, trim whitespace, and boost contrast:
-     ```
-     tool: process_logo
-     logo_path: {absolute path to the original logo}
-     app: {slug}
-     ```
-     This saves a clean transparent PNG at `apps/{slug}/public/logo.png`.
-   - Then call the `generate_favicon` MCP tool using the processed logo:
-     ```
-     tool: generate_favicon
-     logo_path: {absolute path to apps/{slug}/public/logo.png}
-     app: {slug}
-     ```
-     This generates `favicon.ico` (16/32/48/64 px) into `public/`, and `apple-touch-icon.png` (180 px) + `icon.png` (32 px) into `src/app/` — Next.js App Router picks them up automatically.
-   - Update `store.config.ts` with `logo: '/logo.png'`
+4. Once validated, process the logo using local tools:
+
+**Step 1 — Remove background and vectorize (for raster logos)**
+
+```python
+# Install if needed: pip3 install rembg onnxruntime
+from rembg import remove
+from PIL import Image
+import io
+
+with open('{logo_path}', 'rb') as f:
+    result = remove(f.read())
+img = Image.open(io.BytesIO(result)).convert('RGBA')
+img = img.crop(img.getbbox())  # trim transparent border
+img.save('/tmp/{slug}_logo_nobg.png')
+```
+
+Then vectorize with potrace (install via `brew install potrace`):
+```bash
+# Convert to high-contrast grayscale BMP for potrace
+python3 -c "
+from PIL import Image
+import numpy as np
+img = Image.open('/tmp/{slug}_logo_nobg.png').convert('RGBA')
+img = img.resize((img.width*3, img.height*3), Image.LANCZOS)
+alpha = np.array(img)[:,:,3]
+gray = Image.fromarray(np.array(img.convert('L')))
+white_bg = Image.new('L', gray.size, 255)
+white_bg.paste(gray, mask=Image.fromarray(alpha))
+white_bg.save('/tmp/{slug}_trace.bmp')
+"
+potrace /tmp/{slug}_trace.bmp -s -o /tmp/{slug}_logo.svg --blacklevel 0.6 --alphamax 1.0 --opttolerance 0.2
+```
+
+After vectorizing, colorize the SVG to match brand colors (replace `fill="#000000"` with brand-appropriate color) and save to `apps/{slug}/public/logo.svg`.
+
+**Step 2 — Generate favicons from the final SVG**
+
+```bash
+# Render at required sizes using rsvg-convert (install via brew install librsvg)
+rsvg-convert -w 180 -h 180 apps/{slug}/public/logo.svg -o /tmp/{slug}-180.png
+rsvg-convert -w 48 -h 48   apps/{slug}/public/logo.svg -o /tmp/{slug}-48.png
+rsvg-convert -w 32 -h 32   apps/{slug}/public/logo.svg -o /tmp/{slug}-32.png
+rsvg-convert -w 16 -h 16   apps/{slug}/public/logo.svg -o /tmp/{slug}-16.png
+```
+
+```python
+# Assemble favicon.ico
+from PIL import Image
+import io, struct
+
+def make_ico(size_paths, out_path):
+    images = [(s, Image.open(p).convert('RGBA')) for s, p in size_paths]
+    num_images = len(images)
+    header = struct.pack('<HHH', 0, 1, num_images)
+    png_datas = []
+    for size, img in images:
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        png_datas.append(buf.getvalue())
+    offset = 6 + 16 * num_images
+    dir_entries = b''
+    for i, (size, img) in enumerate(images):
+        entry = struct.pack('<BBBBHHII', size, size, 0, 0, 1, 32, len(png_datas[i]), offset)
+        dir_entries += entry
+        offset += len(png_datas[i])
+    with open(out_path, 'wb') as f:
+        f.write(header + dir_entries + b''.join(png_datas))
+
+APP = 'apps/{slug}/src/app'
+make_ico([(16,'/tmp/{slug}-16.png'),(32,'/tmp/{slug}-32.png'),(48,'/tmp/{slug}-48.png')], f'{APP}/favicon.ico')
+Image.open('/tmp/{slug}-32.png').save(f'{APP}/icon.png')
+Image.open('/tmp/{slug}-180.png').save(f'{APP}/apple-touch-icon.png')
+```
+
+5. Update `store.config.ts` with `logo: '/logo.svg'`
+6. Always preview the rendered SVG at nav size before finalizing: `rsvg-convert -w 300 -h 80 --keep-aspect-ratio logo.svg -o /tmp/preview.png`
 
 ## Change Propagation Map
 
@@ -71,8 +132,10 @@ When a value changes, you often need to update multiple files. Use this map:
 | **Categories** | `store.config.ts` (categories array), `supabase/seeds/{slug}.json` (remap every product's `category` field to match the new slugs — the seed script deletes and re-inserts all products on every run, so stale slugs will orphan products from their category), `page.tsx` (if categories are referenced in landing page copy) |
 | **Hero / landing page copy** | `store.config.ts` (hero), `page.tsx` (landing page content) |
 | **Landing page design** | `page.tsx` only |
-| **Logo** | `store.config.ts` (`logo` field), `apps/{slug}/public/logo.{ext}` (the image file itself) |
-| **Favicon** | `apps/{slug}/src/app/favicon.ico`, optionally `icon.svg` and `apple-icon.png` in the same directory |
+| **Navbar** | `apps/{slug}/src/app/_components/Navbar.tsx` — each store has its own Navbar. Never modify `packages/ui/Navbar.tsx` for store-specific styling. |
+| **Footer** | `apps/{slug}/src/app/_components/Footer.tsx` — each store has its own Footer. Never modify `packages/ui/Footer.tsx` for store-specific styling. |
+| **Logo** | `store.config.ts` (`logo` field), `apps/{slug}/public/logo.svg` (the image file itself), update logo reference in store-specific `Navbar.tsx` and `Footer.tsx` if they render it directly |
+| **Favicon** | `apps/{slug}/src/app/favicon.ico`, `icon.png`, `apple-touch-icon.png` in the same directory |
 | **SEO metadata** | `layout.tsx` only |
 | **Tagline** | `store.config.ts` (tagline) |
 | **Testimonials** | `store.config.ts` (testimonials), `page.tsx` (if testimonials are inline rather than from config) |
@@ -162,6 +225,25 @@ Iterations 2–10:
 2. If `Status: ISSUES FOUND` → capture the full report, spawn `ui_builder` again: `slug={slug} plan=agent_work/{slug}.ui_plan.md qa_report={full report text}`. The builder fixes only flagged issues. Re-run `ui_qa`.
 3. After 10 iterations still failing → report remaining issues to the user and stop.
 
+## Uploading images to Supabase Storage
+
+Use `doppler run` to inject credentials — never pull secrets locally or hardcode them.
+
+```bash
+# Upload to dev
+doppler run --project {slug} --config dev -- node -e "
+const https = require('https'), fs = require('fs');
+const URL_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SECRET = process.env.SUPABASE_SECRET_KEY;
+// ... upload logic using https module
+"
+
+# Upload to prod
+doppler run --project {slug} --config prod -- node /tmp/upload-script.js
+```
+
+Write the upload script to `/tmp/upload-{slug}.js` so it can be reused for multiple envs. Always create the bucket first (POST `/storage/v1/bucket` with `public: true`) before uploading objects.
+
 ## Reference Files
 
 Read these to understand exact formats before editing:
@@ -169,7 +251,9 @@ Read these to understand exact formats before editing:
 - **StoreConfig type**: `packages/store/index.ts`
 - **Example store config**: `apps/hairlukgud/src/store.config.ts`
 - **Example globals.css**: `apps/hairlukgud/src/app/globals.css`
-- **Example layout.tsx**: `apps/hairlukgud/src/app/layout.tsx`
+- **Example layout.tsx**: `apps/aseesthreads/src/app/layout.tsx` (imports from local `_components/`)
+- **Example Navbar**: `apps/aseesthreads/src/app/_components/Navbar.tsx` (store-specific, dark brand nav)
+- **Example Footer**: `apps/aseesthreads/src/app/_components/Footer.tsx` (store-specific, brand-colored footer)
 - **Example page.tsx**: `apps/aseesthreads/src/app/page.tsx` (best reference — server component composing client sections with image/parallax/overlay pattern)
 - **Example hero**: `apps/aseesthreads/src/app/_components/HeroSection.tsx` (parallax + image carousel)
 - **Example image section**: `apps/aseesthreads/src/app/_components/ValuesSection.tsx` (background image + overlay + backdrop-blur cards)
