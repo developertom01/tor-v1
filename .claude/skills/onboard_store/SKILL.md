@@ -357,6 +357,37 @@ Run `ui_builder` then `ui_qa` in a fix-and-retry loop, capped at **10 iterations
    - Repeat.
 3. If still failing after 10 total iterations → stop, report all remaining issues to the user, and proceed anyway (do not block the rest of the pipeline on cosmetic issues).
 
+### Phase 3.6: Visual QA (requires live dev server)
+
+Once `ui_qa` passes (or after iteration cap), run visual verification with `ux_verify_qa`.
+
+**Start the dev server in the background:**
+```bash
+cd apps/{slug} && npm run dev &
+# Wait ~15s for Next.js to compile, then proceed
+```
+
+**Spawn `ux_verify_qa`:**
+```
+slug={slug}
+url=http://localhost:3000
+plan=agent_work/{slug}.ui_plan.md
+```
+
+Wait for it to return.
+
+**If `Status: PASS`** → report:
+```
+✅ Visual QA passed ({slug}) — rendered output matches the plan.
+```
+
+**If `Status: ISSUES FOUND`**:
+- For each visual issue, check if it's caused by a code problem (wrong class, missing token, broken import) or a data/env problem (missing image in storage, missing env var).
+- Code problems: spawn `ui_builder` with the visual QA report as feedback, then re-run `ux_verify_qa`. Cap at **3 iterations** — visual issues are often env-dependent.
+- Data/env problems: note them for the user and proceed (do not block the pipeline).
+
+**If the dev server fails to start** (port conflict, build error): skip this phase, note it to the user, and proceed to Phase 4. Visual QA can be re-run manually later.
+
 ### Phase 4: Infra QA — plan, fix, repeat
 
 Run Terraform plans against all infra targets to catch config errors before CI. Use a fix-and-retry loop capped at **10 iterations per wave**.

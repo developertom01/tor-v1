@@ -35,9 +35,17 @@
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://mcp.linear.app/sse"]
     },
-      "doppler": {
+    "doppler": {
       "command": "npx",
       "args": ["-y", "@dopplerhq/mcp-server"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
     }
   }
 }
