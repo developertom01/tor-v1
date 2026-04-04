@@ -47,7 +47,10 @@ Each agent returns a structured list of item numbers with ✅, ❌, or ⚠️. W
 | # | Item | How to check | Fixable by |
 |---|------|-------------|------------|
 | 7 | `layout.tsx` — store-specific metadata (title, description, OG, Twitter) | Check not placeholder | 🤖 AI |
+| 7a | `layout.tsx` — imports `Navbar` and `Footer` from local `@/app/_components/`, not `@tor/ui` | Grep import lines | 🤖 AI |
 | 8 | `page.tsx` — custom landing page (not a copy of another store's page) | Read and compare structure | 🤖 AI |
+| 8a | `apps/{slug}/src/app/_components/Navbar.tsx` — store-specific Navbar exists | Check file present | 🤖 AI |
+| 8b | `apps/{slug}/src/app/_components/Footer.tsx` — store-specific Footer exists | Check file present | 🤖 AI |
 | 9 | No hardcoded hex colors in `page.tsx` or `layout.tsx` (outside JSON-LD) | Grep for `#[0-9a-fA-F]{3,6}` | 🤖 AI |
 | 10 | No literal Tailwind color classes (`text-pink-*`, `text-teal-*`, etc.) in `page.tsx` | Grep for non-`brand-*`/`gold-*` color classes | 🤖 AI |
 

@@ -59,25 +59,47 @@ After collecting the required fields, ask the user about branding assets:
 > "Do you have a logo and favicon for this store? If yes, place them in the repo and give me the paths. If you'd like to skip branding for now, just say so and we'll leave it out."
 
 **If the user provides paths:**
-1. Validate each path exists before proceeding (check the file is present relative to the repo root).
-2. If a path doesn't exist, tell the user exactly what's missing and ask them to fix it before continuing:
-   > "I couldn't find `{path}`. Please add the file and let me know when it's in place."
-3. Once validated:
-   - Call the `process_logo` MCP tool to remove the background, trim whitespace, and boost contrast:
-     ```
-     tool: process_logo
-     logo_path: {absolute path to the original logo}
-     app: {slug}
-     ```
-     This saves a clean transparent PNG at `apps/{slug}/public/logo.png`.
-   - Then call the `generate_favicon` MCP tool using the processed logo:
-     ```
-     tool: generate_favicon
-     logo_path: {absolute path to apps/{slug}/public/logo.png}
-     app: {slug}
-     ```
-     This generates `favicon.ico` (16/32/48/64 px) into `public/`, and `apple-touch-icon.png` (180 px) + `icon.png` (32 px) into `src/app/` — Next.js App Router picks them up automatically.
-   - Set `logo: '/logo.png'` in `store.config.ts`
+1. Validate each path exists before proceeding.
+2. If a path doesn't exist, tell the user exactly what's missing and ask them to fix it before continuing.
+3. Once validated, process using local tools:
+
+**Remove background** (`pip3 install rembg onnxruntime` if needed):
+```python
+from rembg import remove
+from PIL import Image
+import io
+with open('{logo_path}', 'rb') as f:
+    result = remove(f.read())
+img = Image.open(io.BytesIO(result)).convert('RGBA')
+img = img.crop(img.getbbox())
+img.save('/tmp/{slug}_logo_nobg.png')
+```
+
+**Vectorize** (`brew install potrace librsvg` if needed):
+```bash
+python3 -c "
+from PIL import Image
+import numpy as np
+img = Image.open('/tmp/{slug}_logo_nobg.png').convert('RGBA')
+img = img.resize((img.width*3, img.height*3), Image.LANCZOS)
+alpha = np.array(img)[:,:,3]
+gray = Image.fromarray(np.array(img.convert('L')))
+white_bg = Image.new('L', gray.size, 255)
+white_bg.paste(gray, mask=Image.fromarray(alpha))
+white_bg.save('/tmp/{slug}_trace.bmp')
+"
+potrace /tmp/{slug}_trace.bmp -s -o /tmp/{slug}_logo.svg --blacklevel 0.6 --alphamax 1.0 --opttolerance 0.2
+```
+Colorize SVG to match brand colors, save to `apps/{slug}/public/logo.svg`.
+
+**Generate favicons** from the SVG:
+```bash
+rsvg-convert -w 180 -h 180 apps/{slug}/public/logo.svg -o /tmp/{slug}-180.png
+rsvg-convert -w 48 -h 48   apps/{slug}/public/logo.svg -o /tmp/{slug}-48.png
+rsvg-convert -w 32 -h 32   apps/{slug}/public/logo.svg -o /tmp/{slug}-32.png
+rsvg-convert -w 16 -h 16   apps/{slug}/public/logo.svg -o /tmp/{slug}-16.png
+```
+Assemble `favicon.ico` (16/32/48px) + `icon.png` (32px) + `apple-touch-icon.png` (180px) into `apps/{slug}/src/app/` using Python Pillow's ICO assembler (see `edit_store` skill for the exact code). Set `logo: '/logo.svg'` in `store.config.ts`.
 
 **If the user skips:** omit `logo` from `store.config.ts` entirely. Do not add a placeholder.
 
@@ -161,6 +183,30 @@ const images = [`${STORAGE}/assets/{slug}-hero-1.jpg`, ...]
 Use `next/image` with `fill` + `object-cover` for background images — never `<img>` tags.
 
 Do NOT skip this step and use Pinterest/Unsplash URLs directly in components — images must live in Supabase Storage.
+
+**Uploading to Supabase Storage** — always use `doppler run` to inject credentials, never pull secrets locally:
+
+```bash
+# Write a reusable upload script at /tmp/upload-{slug}.js, then:
+doppler run --project {slug} --config dev  -- node /tmp/upload-{slug}.js
+doppler run --project {slug} --config prod -- node /tmp/upload-{slug}.js
+```
+
+The script reads `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SECRET_KEY` from env, creates the `products` bucket if needed (`POST /storage/v1/bucket`), then uploads each image with `x-upsert: true`.
+
+#### Store-specific Navbar and Footer
+
+Every store gets its own `Navbar.tsx` and `Footer.tsx` in `apps/{slug}/src/app/_components/`. These are NOT shared — they reflect each store's brand identity.
+
+- **`layout.tsx` must import from local `_components/`**, not `@tor/ui`:
+  ```tsx
+  import Navbar from '@/app/_components/Navbar'
+  import Footer from '@/app/_components/Footer'
+  ```
+- Base the implementation on `apps/aseesthreads/src/app/_components/Navbar.tsx` and `Footer.tsx` — adapt colors, logo sizing, and structure to the new store's brand.
+- Nav background should complement the hero — dark stores get `bg-brand-900`, light stores get `bg-white/95`.
+- All text/icon colors must use `brand-*` and `gold-*` tokens, never hardcoded hex.
+- The shared `packages/ui/Navbar.tsx` and `packages/ui/Footer.tsx` are the fallback for stores not yet customized — never modify them for store-specific styling.
 
 #### Section architecture
 
