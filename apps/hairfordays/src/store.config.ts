@@ -12,6 +12,19 @@ const config: StoreConfig = {
     },
     gold: { 400: '#d4a843', 500: '#c4982f', 600: '#a67c2e' },
     heroGradient: 'linear-gradient(135deg, #0c0a06 0%, #1e1a14 40%, #2c2820 100%)',
+    colors: {
+      background: '#ffffff',
+      backgroundAlt: '#f9f9f8',    // brand-50
+      foreground: '#1e1a14',       // brand-700
+      foregroundMuted: '#4a443c',  // brand-500
+      border: '#dbd8d2',           // brand-200
+      primary: '#0c0a06',          // brand-900 — near-black; nav, hero, footer, dark sections
+      primaryForeground: '#dbd8d2', // brand-200
+      primaryMuted: '#8a8279',     // brand-400
+      primaryBorder: '#141109',    // brand-800
+      accent: '#c4982f',           // gold-500
+      accentForeground: '#ffffff',
+    },
   },
   categories: [
     { name: 'Wigs', slug: 'wigs', description: 'Premium wigs', emoji: '✨' },
