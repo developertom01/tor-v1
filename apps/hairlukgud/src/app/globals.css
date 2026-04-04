@@ -21,6 +21,18 @@
   --color-gold-600: #a67c2e;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Semantic tokens — match theme.colors in store.config.ts */
+  --color-background: #ffffff;
+  --color-background-alt: #fdf2f8;
+  --color-foreground: #831843;
+  --color-foreground-muted: #be185d;
+  --color-border: #fbcfe8;
+  --color-primary: #831843;
+  --color-primary-foreground: #fce7f3;
+  --color-primary-muted: #f9a8d4;
+  --color-primary-border: #9d174d;
+  --color-accent: #c4982f;
+  --color-accent-foreground: #ffffff;
 }
 
 body {

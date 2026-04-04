@@ -56,6 +56,44 @@ Map out how the brand tokens will be used ACROSS the page:
 - Where do `gold-400/500/600` appear — headlines, accents, borders, buttons?
 - What overlay strategy on images? (flat tint + directional gradient — specify exact opacities)
 
+### Step 3.5 — Semantic Color Token Definition
+
+After deciding the color strategy, derive the 11 semantic `StoreColors` tokens from the brand palette. These will be written into `store.config.ts` and `globals.css` by the builder — include them exactly in the plan.
+
+The tokens are generic roles, not tied to any component. The same token is reused across nav, hero, footer, cards — whatever fits. Rules:
+
+| Token | Role | Derive from |
+|-------|------|-------------|
+| `background` | Default page background | Usually `#ffffff` |
+| `backgroundAlt` | Cards, subtle panels | `brand-50` |
+| `foreground` | Primary text on light bg | `brand-900` |
+| `foregroundMuted` | Secondary text on light bg | `brand-600` or `brand-700` |
+| `border` | Default border on light bg | `brand-200` |
+| `primary` | Main brand layer — dark sections (nav, hero, footer, bands) | `brand-900` for dark-themed stores; `#ffffff` for light-nav stores |
+| `primaryForeground` | Text on `primary` bg | `brand-100` or `brand-200` (whichever gives good contrast) |
+| `primaryMuted` | Muted text on `primary` bg | `brand-400` or `brand-500` |
+| `primaryBorder` | Borders on `primary` bg | `brand-800` |
+| `accent` | CTAs, badges, active states | `gold-500` (shared) |
+| `accentForeground` | Text on accent | `#ffffff` or `brand-50` |
+
+Output these in the plan inside a fenced block so the builder can copy them directly:
+
+```
+## Semantic Color Tokens
+
+background: #ffffff
+backgroundAlt: {brand-50 hex}
+foreground: {brand-900 hex}
+foregroundMuted: {brand-600 or brand-700 hex}
+border: {brand-200 hex}
+primary: {brand-900 hex — or brand-50/#ffffff if nav is light}
+primaryForeground: {brand-100 or brand-200 hex}
+primaryMuted: {brand-400 or brand-500 hex}
+primaryBorder: {brand-800 hex}
+accent: {gold-500 hex}
+accentForeground: #ffffff
+```
+
 ### Step 4 — Section Architecture
 
 Decide: What sections does this specific store need? In what order?
@@ -110,6 +148,24 @@ The file must follow this exact structure:
 
 ### Overlay strategy for background images
 {Base flat tint opacity + directional gradient direction and opacities. E.g.: "bg-brand-900/60 base + bg-gradient-to-r from-brand-900 via-brand-900/70 to-brand-900/15"}
+
+## Semantic Color Tokens
+
+{11 token key-value pairs derived in Step 3.5 — one per line, exact hex values:}
+
+```
+background: #ffffff
+backgroundAlt: {brand-50}
+foreground: {brand-900}
+foregroundMuted: {brand-600 or brand-700}
+border: {brand-200}
+primary: {brand-900 or #ffffff}
+primaryForeground: {brand-100 or brand-200}
+primaryMuted: {brand-400 or brand-500}
+primaryBorder: {brand-800}
+accent: {gold-500}
+accentForeground: #ffffff
+```
 
 ---
 

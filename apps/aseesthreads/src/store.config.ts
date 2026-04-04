@@ -12,6 +12,19 @@ const config: StoreConfig = {
     },
     gold: { 400: '#d4a843', 500: '#c4982f', 600: '#a67c2e' },
     heroGradient: 'linear-gradient(135deg, #3d2815 0%, #6e4828 50%, #a67245 100%)',
+    colors: {
+      background: '#ffffff',
+      backgroundAlt: '#fdf9f5',    // brand-50 — cards, subtle sections
+      foreground: '#3d2815',       // brand-900
+      foregroundMuted: '#8a5c35',  // brand-600
+      border: '#e8d4b8',           // brand-200
+      primary: '#3d2815',          // brand-900 — nav, hero, footer, dark sections
+      primaryForeground: '#e8d4b8', // brand-200
+      primaryMuted: '#a67245',     // brand-500
+      primaryBorder: '#56381e',    // brand-800
+      accent: '#c4982f',           // gold-500
+      accentForeground: '#fdf9f5',
+    },
   },
   categories: [
     { name: 'Joggers', slug: 'joggers', description: 'Unisex wide-leg joggers for every mood', emoji: '👖' },

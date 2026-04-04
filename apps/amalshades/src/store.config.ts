@@ -12,6 +12,19 @@ const config: StoreConfig = {
     },
     gold: { 400: '#d4a843', 500: '#c4982f', 600: '#a67c2e' },
     heroGradient: 'linear-gradient(135deg, #5C060D 0%, #A80C1A 40%, #E62030 100%)',
+    colors: {
+      background: '#ffffff',
+      backgroundAlt: '#FFF0F0',    // brand-50
+      foreground: '#5C060D',       // brand-900
+      foregroundMuted: '#CC1020',  // brand-600
+      border: '#FFB0B4',           // brand-200
+      primary: '#5C060D',          // brand-900 — nav, hero, footer, dark sections
+      primaryForeground: '#FFD6D8', // brand-100
+      primaryMuted: '#E62030',     // brand-500
+      primaryBorder: '#850912',    // brand-800
+      accent: '#c4982f',           // gold-500
+      accentForeground: '#ffffff',
+    },
   },
   categories: [
     { name: 'Sunglasses', slug: 'sunglasses', description: 'UV-protective tinted frames and shades', emoji: '🕶️' },
