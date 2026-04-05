@@ -1,11 +1,22 @@
 'use client'
 
-import Image from 'next/image'
+import { Image } from '@imagekit/next'
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { Play, ChevronLeft, ChevronRight, Volume2, VolumeX, Bell, Sparkles } from 'lucide-react'
 import { ProductWithMedia, ProductVariant } from '@tor/lib/types'
 import { formatPrice } from '@tor/lib/utils'
 import AddToCartButton from '@tor/ui/AddToCartButton'
+
+function toImageKitPath(url: string) {
+  try {
+    const { hostname, pathname } = new URL(url)
+    if (hostname.endsWith('.supabase.co')) {
+      const prefix = '/storage/v1/object/public'
+      return pathname.startsWith(prefix) ? pathname.slice(prefix.length) : pathname
+    }
+  } catch {}
+  return url
+}
 import Link from 'next/link'
 
 export default function ProductDetailClient({ product }: { product: ProductWithMedia }) {
@@ -93,9 +104,10 @@ export default function ProductDetailClient({ product }: { product: ProductWithM
             </>
           ) : activeMedia ? (
             <Image
-              src={activeMedia.url}
+              src={toImageKitPath(activeMedia.url)}
               alt={product.name}
               fill
+              transformation={[{ width: '800', height: '800', cropMode: 'pad_resize', background: 'f8f8f8', focus: 'auto' }]}
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 50vw"
               priority
@@ -145,7 +157,7 @@ export default function ProductDetailClient({ product }: { product: ProductWithM
                     className="w-full h-full object-cover pointer-events-none"
                   />
                 ) : (
-                  <Image src={m.url} alt="" fill className="object-cover" sizes="80px" />
+                  <Image src={toImageKitPath(m.url)} alt="" fill transformation={[{ width: '160', height: '160', cropMode: 'pad_resize', background: 'f8f8f8', focus: 'auto' }]} className="object-cover" sizes="80px" />
                 )}
               </button>
             ))}

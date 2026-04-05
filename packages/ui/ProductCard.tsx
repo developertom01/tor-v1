@@ -10,7 +10,10 @@ import { formatPrice } from '@tor/lib/utils'
 function toImageKitPath(url: string) {
   try {
     const { hostname, pathname } = new URL(url)
-    if (hostname.endsWith('.supabase.co')) return pathname
+    if (hostname.endsWith('.supabase.co')) {
+      const prefix = '/storage/v1/object/public'
+      return pathname.startsWith(prefix) ? pathname.slice(prefix.length) : pathname
+    }
   } catch {}
   return url
 }
