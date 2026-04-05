@@ -51,7 +51,7 @@ export default function ProductCard({ product }: { product: ProductWithMedia }) 
       }}
     >
       {/* Media */}
-      <div className="relative aspect-square bg-gray-100 overflow-hidden">
+      <div className="relative aspect-[4/5] bg-[#f8f8f8] overflow-hidden flex items-center justify-center">
         {activeMedia ? (
           activeMedia.type === 'video' ? (
             <video
@@ -67,7 +67,7 @@ export default function ProductCard({ product }: { product: ProductWithMedia }) 
               src={activeMedia.url}
               alt={product.name}
               fill
-              className="object-cover transition-opacity duration-300"
+              className="object-contain p-2 transition-opacity duration-300"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />
           )
