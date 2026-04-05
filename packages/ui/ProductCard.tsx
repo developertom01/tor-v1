@@ -7,6 +7,11 @@ import { Play } from 'lucide-react'
 import { ProductWithMedia } from '@tor/lib/types'
 import { formatPrice } from '@tor/lib/utils'
 
+const STORAGE_PREFIX = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public`
+function toImageKitPath(url: string) {
+  return url.startsWith(STORAGE_PREFIX) ? url.slice(STORAGE_PREFIX.length) : url
+}
+
 export default function ProductCard({ product }: { product: ProductWithMedia }) {
   const media = product.product_media?.sort((a, b) => a.sort_order - b.sort_order) || []
   const hasMultiple = media.length > 1
@@ -64,7 +69,7 @@ export default function ProductCard({ product }: { product: ProductWithMedia }) 
             />
           ) : (
             <Image
-              src={activeMedia.url}
+              src={toImageKitPath(activeMedia.url)}
               alt={product.name}
               fill
               transformation={[{ width: '600', height: '750', cropMode: 'pad_resize', background: 'f8f8f8', focus: 'auto' }]}
