@@ -57,6 +57,9 @@ export interface StoreConfig {
   tagline: string
   domain: string
   logo?: string
+  seo?: {
+    googleSiteVerification?: string
+  }
   theme: StoreTheme
   categories: StoreCategory[]
   testimonials: StoreTestimonial[]
