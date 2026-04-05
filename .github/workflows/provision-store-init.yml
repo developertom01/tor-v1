@@ -494,10 +494,72 @@ jobs:
             terragrunt plan
           fi
 
+  # --- Step 7: Add Resend DNS records to Vercel (after domain is on the Vercel project) ---
+  resend-dns:
+    needs: [resend-domain, provision-store]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/stores/${{ inputs.store }}/resend-dns
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/326684407897/locations/global/workloadIdentityPools/github-auth/providers/github
+          service_account: terraform@directed-relic-343301.iam.gserviceaccount.com
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Fetch secrets from Doppler
+        run: |
+          doppler secrets download --project provisioner --config ${{ inputs.env }} --no-file --format json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while IFS='=' read -r key val; do
+            if [[ "$key" == TF_VAR_* ]]; then
+              suffix="${key#TF_VAR_}"
+              key="TF_VAR_$(echo "$suffix" | tr '[:upper:]' '[:lower:]')"
+            fi
+            echo "$key=$val" >> "$GITHUB_ENV"
+          done
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Configure Terraform Cloud credentials
+        run: |
+          mkdir -p ~/.terraform.d
+          jq -n --arg token "$TF_CLOUD_TOKEN" \
+            '{"credentials":{"app.terraform.io":{"token":$token}}}' \
+            > ~/.terraform.d/credentials.tfrc.json
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+          terraform_wrapper: false
+
+      - name: Setup Terragrunt
+        run: |
+          curl -sL https://github.com/gruntwork-io/terragrunt/releases/latest/download/terragrunt_linux_amd64 -o terragrunt
+          chmod +x terragrunt
+          sudo mv terragrunt /usr/local/bin/
+
+      - name: Terragrunt Init
+        run: terragrunt init -upgrade
+
+      - name: Terragrunt ${{ inputs.action }} (Resend DNS records → Vercel)
+        run: |
+          if [ "${{ inputs.action }}" = "apply" ]; then
+            terragrunt apply -auto-approve
+          elif [ "${{ inputs.action }}" = "destroy" ]; then
+            echo "Skipping destroy for Resend DNS records — remove manually if needed"
+          else
+            terragrunt plan
+          fi
+
   # --- Step 4: Seed data + admin (apply only) ---
   # Migrations are managed centrally via db-push.yml (shared Supabase project).
   post-provision:
-    needs: provision-store
+    needs: [provision-store, resend-dns]
     if: inputs.action == 'apply'
     runs-on: ubuntu-latest
 

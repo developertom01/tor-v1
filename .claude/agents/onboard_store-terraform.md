@@ -13,14 +13,39 @@ You are creating the Terraform infrastructure config for a new store in the tor 
 1. `terraform/stores/{slug}/doppler/terragrunt.hcl` — Doppler secrets config for this store
 2. `terraform/stores/{slug}/vercel/terragrunt.hcl` — Vercel project (one per store, no env). Reference `terraform/stores/aseesthreads/vercel/terragrunt.hcl`.
 3. `terraform/stores/{slug}/resend/terragrunt.hcl` — Resend domain registration (one per store, no env). Reference `terraform/stores/aseesthreads/resend/terragrunt.hcl`.
-4. `terraform/stores/{slug}/dev/terragrunt.hcl` — dev environment:
+4. `terraform/stores/{slug}/resend-dns/terragrunt.hcl` — Adds Resend verification DNS records (SPF/MX, DKIM, DMARC) to Vercel. Must run after `resend` is applied. Reference `terraform/stores/hairlukgud/resend-dns/terragrunt.hcl`. Pattern:
+   ```hcl
+   include "root" {
+     path = find_in_parent_folders("root.hcl")
+   }
+
+   dependency "resend" {
+     config_path = "../resend"
+     mock_outputs = { dns_records = [] }
+     mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+   }
+
+   locals {
+     base_domain = "{base_domain}"
+   }
+
+   terraform {
+     source = "${get_repo_root()}/terraform//modules/resend-dns"
+   }
+
+   inputs = {
+     domain      = local.base_domain
+     dns_records = dependency.resend.outputs.dns_records
+   }
+   ```
+5. `terraform/stores/{slug}/dev/terragrunt.hcl` — dev environment:
    - domain: `dev.{base_domain}`
    - branch: `dev`
    - env: `dev`
    - `name` = `{slug}-dev`
    - `store_id` = `{slug}`
    - `root_dir` = `apps/{slug}`
-5. `terraform/stores/{slug}/prod/terragrunt.hcl` — prod environment:
+6. `terraform/stores/{slug}/prod/terragrunt.hcl` — prod environment:
    - domain: `{base_domain}`
    - branch: `main`
    - env: `prod`

@@ -12,4 +12,11 @@ resource "vercel_project" "this" {
   root_directory   = var.root_dir
   build_command    = "npm run build"
   output_directory = ".next"
+
+  # Disable Vercel's authentication wall on preview deployments.
+  # Clients need to access preview URLs directly to review and test their
+  # store — requiring a Vercel account would block them entirely.
+  vercel_authentication = {
+    deployment_type = "none"
+  }
 }

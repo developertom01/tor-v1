@@ -129,3 +129,9 @@ variable "auth_encryption_key" {
   type        = string
   sensitive   = true
 }
+
+variable "imagekit_url" {
+  description = "ImageKit base URL for image CDN/transformation"
+  type        = string
+  default     = "https://ik.imagekit.io/kh1bbxt1v"
+}

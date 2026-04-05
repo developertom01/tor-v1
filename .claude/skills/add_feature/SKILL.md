@@ -236,6 +236,27 @@ task lint
 
 If either fails, read the error output carefully, fix the root cause, and re-run. Do not skip or suppress errors.
 
+**If the feature touches any UI** (new page, new component, changed layout):
+
+1. Run code-level QA first — spawn `ui_qa`:
+   ```
+   slug={slug}
+   plan=agent_work/{feature-slug}.ui_plan.md   (if a UI plan was produced)
+   ```
+   If no plan exists, pass the feature plan file as context instead. The agent will check for hardcoded colors, wrong component types, missing animations, and copy mismatches.
+
+   If `ui_qa` returns issues → fix them, re-run build, then re-run `ui_qa`. Cap at 5 iterations.
+
+2. Run visual QA against the live dev server — spawn `ux_verify_qa`:
+   ```
+   slug={slug}
+   url=http://localhost:3000
+   plan=agent_work/{feature-slug}.ui_plan.md
+   ```
+   Start the dev server in the background first (`cd apps/{slug} && npm run dev &`, wait ~15s).
+
+   If `ux_verify_qa` returns issues → fix code problems (wrong classes, broken tokens), skip data/env problems, re-run. Cap at 3 visual iterations.
+
 ### Infra feature (Terraform changes)
 
 For each affected store and environment, run:
