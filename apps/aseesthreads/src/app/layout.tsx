@@ -50,6 +50,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  ...(storeConfig.seo?.googleSiteVerification && {
+    verification: { google: storeConfig.seo.googleSiteVerification },
+  }),
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
