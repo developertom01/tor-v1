@@ -7,9 +7,15 @@ import { Play } from 'lucide-react'
 import { ProductWithMedia } from '@tor/lib/types'
 import { formatPrice } from '@tor/lib/utils'
 
-const STORAGE_PREFIX = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public`
 function toImageKitPath(url: string) {
-  return url.startsWith(STORAGE_PREFIX) ? url.slice(STORAGE_PREFIX.length) : url
+  try {
+    const { hostname, pathname } = new URL(url)
+    if (hostname.endsWith('.supabase.co')) {
+      const prefix = '/storage/v1/object/public'
+      return pathname.startsWith(prefix) ? pathname.slice(prefix.length) : pathname
+    }
+  } catch {}
+  return url
 }
 
 export default function ProductCard({ product }: { product: ProductWithMedia }) {
