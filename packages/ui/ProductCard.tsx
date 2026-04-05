@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
+import { Image } from '@imagekit/next'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Play } from 'lucide-react'
 import { ProductWithMedia } from '@tor/lib/types'
@@ -67,6 +67,7 @@ export default function ProductCard({ product }: { product: ProductWithMedia }) 
               src={activeMedia.url}
               alt={product.name}
               fill
+              transformation={[{ width: '600', height: '750', cropMode: 'pad_resize', background: 'f8f8f8', focus: 'auto' }]}
               className="object-contain p-2 transition-opacity duration-300"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />

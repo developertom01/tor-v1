@@ -47,6 +47,7 @@ module "vercel" {
       LOG_LEVEL                          = var.env == "dev" ? "debug" : "info"
       AUTH_ENCRYPTION_KEY                = var.auth_encryption_key
       DOPPLER_TOKEN                      = var.doppler_token
+      NEXT_PUBLIC_IMAGEKIT_URL           = var.imagekit_url
     }
   )
 }
@@ -75,6 +76,7 @@ module "doppler" {
       ADMIN_PASSWORD                     = random_password.admin_password.result
       # Cross-project reference — Doppler resolves this at runtime from tor-common
       AUTH_ENCRYPTION_KEY                = "$${tor-common.${var.env}.AUTH_ENCRYPTION_KEY}"
+      NEXT_PUBLIC_IMAGEKIT_URL           = var.imagekit_url
     }
   )
 }

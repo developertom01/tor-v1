@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
+import { ImageKitProvider } from '@imagekit/next'
 import './globals.css'
 import Navbar from '@tor/ui/Navbar'
 import Footer from '@tor/ui/Footer'
@@ -81,15 +82,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-full flex flex-col antialiased" suppressHydrationWarning>
-        <StoreProvider config={storeConfig}>
-          <CartProvider>
-            <ToastProvider>
-              <Suspense><Navbar /></Suspense>
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </ToastProvider>
-          </CartProvider>
-        </StoreProvider>
+        <ImageKitProvider urlEndpoint={process.env.NEXT_PUBLIC_IMAGEKIT_URL ?? ''}>
+          <StoreProvider config={storeConfig}>
+            <CartProvider>
+              <ToastProvider>
+                <Suspense><Navbar /></Suspense>
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </ToastProvider>
+            </CartProvider>
+          </StoreProvider>
+        </ImageKitProvider>
       </body>
     </html>
   )
