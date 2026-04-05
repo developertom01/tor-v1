@@ -110,6 +110,16 @@ tasks:
     cmds:
       - doppler run --project provisioner --config {{.ENV}} -- terragrunt apply
 
+  # Terragrunt — Add Resend DNS records to Vercel (run after tg:resend)
+  tg:resend-dns:
+    desc: "Add Resend verification DNS records to Vercel for a store (APP=store, ENV=dev|prod)"
+    dir: terraform/stores/{{.APP}}/resend-dns
+    preconditions:
+      - sh: '[ -n "{{.APP}}" ] && [ -n "{{.ENV}}" ]'
+        msg: "APP and ENV required (e.g. task tg:resend-dns APP=hairlukgud ENV=dev)"
+    cmds:
+      - doppler run --project provisioner --config {{.ENV}} -- terragrunt apply -auto-approve
+
   # Terragrunt — Doppler project (APP=hairlukgud|hairfordays)
   tg:doppler:
     desc: "Create/update Doppler project for a store (APP=store, ENV=dev|prod)"

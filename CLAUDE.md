@@ -33,6 +33,7 @@ task tg:apply APP=hairlukgud ENV=prod  # Apply store env changes
 task tg:doppler APP=hairlukgud ENV=dev # Create/update store Doppler project
 task tg:vercel APP=hairlukgud ENV=dev  # Create Vercel project (once per store)
 task tg:resend APP=hairlukgud ENV=dev  # Register Resend domain (once per store)
+task tg:resend-dns APP=hairlukgud ENV=dev # Add Resend DNS records to Vercel (run after tg:resend)
 task tg:all APP=hairlukgud ENV=dev     # Run full store provision pipeline
 ```
 
