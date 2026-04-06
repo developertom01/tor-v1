@@ -32,6 +32,10 @@ For each item, return: `{number} ✅/❌/⚠️ — reason (if not ✅)`
 13. `apps/{slug}/src/app/icon.svg` — ⚠️ optional
 14. `apps/{slug}/src/app/apple-icon.png` — ⚠️ optional
 
+### SEO
+17. `apps/{slug}/src/store.config.ts` — `seo.googleSiteVerification` is set — ⚠️ if absent (required before going live with Google Search Console)
+18. `apps/{slug}/src/app/layout.tsx` — contains `...(storeConfig.seo?.googleSiteVerification && { verification: ... })` spread
+
 ### Seed Data (`supabase/seeds/{slug}.json`)
 15. File exists with ≥8 products
 16. All product `category` fields match slugs defined in `store.config.ts` categories
@@ -44,4 +48,6 @@ Return a plain list, one item per line:
 2 ⚠️ — logo field not set in store.config.ts
 3 ✅
 ...
+17 ⚠️ — seo.googleSiteVerification not set in store.config.ts
+18 ✅
 ```
