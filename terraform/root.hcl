@@ -5,11 +5,9 @@ generate "backend" {
   if_exists = "overwrite_terragrunt"
   contents  = <<-EOF
     terraform {
-      cloud {
-        organization = "project-tor"
-        workspaces {
-          name = "${replace(path_relative_to_include(), "/", "-")}"
-        }
+      backend "gcs" {
+        bucket = "thor-store-tf-state"
+        prefix = "${path_relative_to_include()}"
       }
     }
   EOF
