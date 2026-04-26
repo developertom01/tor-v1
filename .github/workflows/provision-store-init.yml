@@ -35,7 +35,7 @@ permissions:
 jobs:
   # --- Step 1: Shared Supabase project (must exist before any store) ---
   shared-supabase:
-    runs-on: ubuntu-latest
+    runs-on: thorai
     defaults:
       run:
         working-directory: terraform/shared/supabase/${{ inputs.env }}
@@ -116,7 +116,7 @@ jobs:
   # --- Step 2: Create tor-common Doppler project (runs once, idempotent) ---
   common-doppler:
     needs: shared-supabase
-    runs-on: ubuntu-latest
+    runs-on: thorai
     defaults:
       run:
         working-directory: terraform/common/doppler
@@ -178,7 +178,7 @@ jobs:
   # --- Step 3: Generate AUTH_ENCRYPTION_KEY and store in tor-common ---
   common-env:
     needs: common-doppler
-    runs-on: ubuntu-latest
+    runs-on: thorai
     defaults:
       run:
         working-directory: terraform/common/${{ inputs.env }}
@@ -249,7 +249,7 @@ jobs:
   # --- Step 4: Create Vercel project (once per store, no env) ---
   vercel-project:
     needs: [shared-supabase, common-env]
-    runs-on: ubuntu-latest
+    runs-on: thorai
     defaults:
       run:
         working-directory: terraform/stores/${{ inputs.store }}/vercel
@@ -311,7 +311,7 @@ jobs:
   # --- Step 5: Register Resend domain (once per store, no env) ---
   resend-domain:
     needs: [shared-supabase, common-env]
-    runs-on: ubuntu-latest
+    runs-on: thorai
     defaults:
       run:
         working-directory: terraform/stores/${{ inputs.store }}/resend
@@ -373,7 +373,7 @@ jobs:
   # --- Step 6: Create Doppler project + environments (per store) ---
   doppler-project:
     needs: [shared-supabase, common-env]
-    runs-on: ubuntu-latest
+    runs-on: thorai
     defaults:
       run:
         working-directory: terraform/stores/${{ inputs.store }}/doppler
@@ -435,7 +435,7 @@ jobs:
   # --- Step 3: Provision store (Vercel, Resend, Doppler secrets) ---
   provision-store:
     needs: [doppler-project, vercel-project, resend-domain]
-    runs-on: ubuntu-latest
+    runs-on: thorai
     defaults:
       run:
         working-directory: terraform/stores/${{ inputs.store }}/${{ inputs.env }}
@@ -497,7 +497,7 @@ jobs:
   # --- Step 7: Add Resend DNS records to Vercel (after domain is on the Vercel project) ---
   resend-dns:
     needs: [resend-domain, provision-store]
-    runs-on: ubuntu-latest
+    runs-on: thorai
     defaults:
       run:
         working-directory: terraform/stores/${{ inputs.store }}/resend-dns
@@ -561,7 +561,7 @@ jobs:
   post-provision:
     needs: [provision-store, resend-dns]
     if: inputs.action == 'apply'
-    runs-on: ubuntu-latest
+    runs-on: thorai
 
     steps:
       - uses: actions/checkout@v4

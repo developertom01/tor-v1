@@ -24,7 +24,7 @@ permissions:
 jobs:
   push-dev:
     if: github.ref == 'refs/heads/dev' || inputs.env == 'dev' || inputs.env == 'both'
-    runs-on: ubuntu-latest
+    runs-on: thorai
     steps:
       - uses: actions/checkout@v4
 
@@ -51,7 +51,7 @@ jobs:
 
   push-prod:
     if: github.ref == 'refs/heads/main' || inputs.env == 'prod' || inputs.env == 'both'
-    runs-on: ubuntu-latest
+    runs-on: thorai
     steps:
       - uses: actions/checkout@v4
 
